@@ -57,7 +57,7 @@ class TestDAGCacheSeparation:
 
     def test_cached_values_are_only_native_execution_values(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, target="polars")
         session.compile_registered("resource")
         for value in session.cached_values:
             assert not isinstance(value, DiagnosticFrameView)
@@ -66,7 +66,7 @@ class TestDAGCacheSeparation:
 
     def test_canonical_entry_carries_immutable_field_plans(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, target="polars")
         entry = session._compile_named("resource")
         assert isinstance(entry.structured_field_plans, MappingProxyType)
         assert "meta" in entry.structured_field_plans
@@ -77,7 +77,7 @@ class TestDAGCacheSeparation:
 
     def test_diagnostic_frames_and_decoded_columns_never_enter_canonical_or_coerced(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, target="polars")
         session.compile_registered("resource")
         for entry in session._canonical.values():
             assert not isinstance(entry.native.value, DiagnosticFrameView)
@@ -90,7 +90,7 @@ class TestDAGCacheSeparation:
     def test_ref_resolver_call_returns_only_the_native_value(self, validation_execution_policy):
         dag = _structured_dag()
         policy = validation_execution_policy
-        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=policy, target="polars")
         session.compile_registered("resource")
         _, _, leaf = dag._resolve_identity_leaf("resource")
         consumer_context = _new_execution_context(leaf.dataframe, policy=policy)
@@ -103,7 +103,7 @@ class TestDAGCacheSeparation:
     def test_ref_resolver_structured_plans_is_a_separate_method(self, validation_execution_policy):
         dag = _structured_dag()
         policy = validation_execution_policy
-        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=policy, target="polars")
         session.compile_registered("resource")
         _, _, leaf = dag._resolve_identity_leaf("resource")
         consumer_context = _new_execution_context(leaf.dataframe, policy=policy)

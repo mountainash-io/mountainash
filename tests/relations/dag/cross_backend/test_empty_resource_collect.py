@@ -181,7 +181,7 @@ def test_empty_resource_collect_cross_backend(backend_name):
         ],
     )
     dag = pkg.to_relation_dag()
-    result = dag.collect("child", backend=backend_name)
+    result = dag.collect("child", target=backend_name)
     assert _columns(result) == sorted(["date", "v"]), (
         f"[{backend_name}] expected columns ['date', 'v'], got {_columns(result)}"
     )

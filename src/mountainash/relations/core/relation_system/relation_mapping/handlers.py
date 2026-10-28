@@ -162,21 +162,35 @@ def visit_ref(node: Any, visitor: Any) -> Any:
         visitor.structured_field_plans = plans
     return resolved
 
+def _schema_eager(visitor) -> bool:
+    """Whether a SCHEMA-phase read must be type-only yet eager (it joins eager frames)."""
+    from mountainash.relations.core.execution.preparation import ExecutionPhase
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    location = visitor.location
+    return (location is not None and location.form is ExecutionForm.EAGER
+            and visitor.execution_phase is ExecutionPhase.SCHEMA)
+
+
+def _reader_location(visitor):
+    """The prepared location, lazy in the SCHEMA phase so the reader never collects a native scan."""
+    from dataclasses import replace
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    location = visitor.location
+    return replace(location, form=ExecutionForm.LAZY) if _schema_eager(visitor) else location
+
+
 def visit_resource_read(node: Any, visitor: Any) -> Any:
     from mountainash.core.lowering_reuse import OCCURRENCE, fold_lowering
     schema_input = None
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         resource = node.resource
         backend = visitor.backend.backend_type.name
-        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
-            MountainashPolarsExtensionRelationSystem,
-        )
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
-        fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        native_scan = (
-            backend in {"POLARS", "NARWHALS"}
-            and rf.polars_native_scan_supported(resource, fmt, resource.to_dialect())
+        native_scan = backend in {"POLARS", "NARWHALS"} and visitor.backend.native_scan_eligible(
+            resource, location=visitor.location,
         )
         if not native_scan:
             if resource.data is not None or resource.path is None:
@@ -199,7 +213,9 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
                 schema_input = nw.from_native(schema_input)
 
     def _read_and_conform():
-        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource)
+        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource, location=_reader_location(visitor))
+        if schema_input is None and _schema_eager(visitor) and hasattr(out, "head") and hasattr(out, "collect"):
+            out = out.head(0).collect()  # zero rows: type-only, eager like its peers
         if schema_input is None:
             # The selected reader reports the path it actually took. Repeating
             # routing here would resolve external descriptors a second time.

@@ -957,7 +957,7 @@ class ValidationRunner:
         session = DAGMaterializationSession(
             dag,
             execution_policy=execution_policy,
-            backend=backend,
+            target=backend,
             isolate_failures=True,
             node_transforms={
                 name: _plan_transform(plan) for name, plan in plans_by_resource.items()

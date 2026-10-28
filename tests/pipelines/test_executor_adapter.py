@@ -31,6 +31,13 @@ def fetch_dataframe(ctx: StepContext) -> pl.DataFrame:
     return pl.DataFrame({"x": [10, 20]})
 
 
+@step(name="fetch_arrow")
+def fetch_arrow(ctx: StepContext):
+    import pyarrow as pa
+
+    return pa.table({"id": [1, 2], "name": ["a", "b"]})
+
+
 def _make_runner(*steps):
     builder = PipelineBuilder("test", version="1.0.0")
     for s in steps:
@@ -116,6 +123,16 @@ class TestExecutorAdapterReturnsLazyFrame:
                 params={},
                 data_key=None,
             )
+
+
+class TestExecutorArrowStepResult:
+    def test_arrow_table_becomes_equal_lazyframe(self):
+        runner = _make_runner(fetch_arrow)
+        result = runner.as_executor().execute(
+            pipeline=runner._spec, step_name="fetch_arrow", params={}, data_key=None,
+        )
+        assert isinstance(result, pl.LazyFrame)
+        assert result.collect().to_dict(as_series=False) == {"id": [1, 2], "name": ["a", "b"]}
 
 
 class TestExecutorPassesTarget:

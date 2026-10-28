@@ -188,6 +188,12 @@ def is_ibis_table(obj: Any) -> TypeGuard['IbisTable']:
     module = type(obj).__module__
     return "ibis" in module and hasattr(obj, "execute")
 
+
+def is_ibis_backend(obj: Any) -> bool:
+    """Type guard for an Ibis backend (connection) object."""
+    return type(obj).__module__.startswith("ibis.backends") and hasattr(obj, "create_table")
+
+
 def is_narwhals_dataframe(obj: Any) -> TypeGuard['NarwhalsFrame']:
     """Type guard for Narwhals DataFrames."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "DataFrame"

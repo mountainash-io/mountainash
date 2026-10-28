@@ -469,7 +469,7 @@ class TestNarwhalsBackendExpressions:
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_relation_metadata_policy_uses_prepared_input(backend_name, backend_factory):
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
@@ -490,7 +490,7 @@ def test_relation_metadata_policy_uses_prepared_input(backend_name, backend_fact
         floating = backend_factory.create({"x": [-1.5, 2.5]}, backend_name)
         assert relation(floating).select(expression).to_dict() == {"x": [1.5, 2.5]}
         CapabilityRegistry.reset()
-        identity = identify_backend_identity(floating)
+        identity = native_identity(floating)
         assert identity.dialect is not None
         predicate = Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),))
         policy = CapabilityPolicyRule(

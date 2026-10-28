@@ -72,7 +72,7 @@ def test_validation_copy_applies_one_compiled_conform_plan(monkeypatch):
         ResourceReadRelNode(resource=resource),
     )._without_resource_schema_conform().conform(spec)
 
-    RelationDAG().execute(relation, backend="polars")
+    RelationDAG().execute(relation, target="polars")
 
     assert calls == 1
 

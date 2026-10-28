@@ -10,7 +10,7 @@ from ibis.common.deferred import Deferred
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
@@ -41,7 +41,7 @@ def test_shared_arithmetic_reduces_lowering_work(backend_name, backend_factory, 
 
 
 def _visitor_for(source):
-    identity = identify_backend_identity(source)
+    identity = native_identity(source)
     context = _new_execution_context(source)
     system = get_expression_system(identity.family)(dialect=identity.dialect, execution_context=context)
     return UnifiedExpressionVisitor(system, input_data=source, execution_context=context)

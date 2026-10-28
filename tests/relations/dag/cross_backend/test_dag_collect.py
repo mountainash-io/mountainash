@@ -97,7 +97,7 @@ def test_value_metadata_isolated_between_named_and_adhoc_resources(backend_name,
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_transitive_metadata_gate_uses_each_prepared_ref(backend_name, backend_factory):
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
@@ -123,7 +123,7 @@ def test_transitive_metadata_gate_uses_each_prepared_ref(backend_name, backend_f
     snapshot = CapabilityRegistry.snapshot()
     try:
         source = backend_factory.create({"x": [-2, 3]}, backend_name)
-        identity = identify_backend_identity(source)
+        identity = native_identity(source)
         assert identity.dialect is not None
         scope = Scope(identity.family, Dialect(identity.dialect))
         predicate = Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),))

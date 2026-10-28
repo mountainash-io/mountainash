@@ -10,7 +10,7 @@ from mountainash.relations.core.execution.transport import TransportSession
 @pytest.mark.parametrize("backend_name", [
     name for name, spec in REGISTRY.items() if spec.family == "ibis"
 ])
-def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, monkeypatch):
+def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, monkeypatch, terminal_egress):
     payload = {"id": [1, 3]}
     request = ma.relation(payload).filter(ma.col("id") > 0)
     frame = REGISTRY[backend_name].build({"id": [1, 2]}, "stored")
@@ -19,7 +19,7 @@ def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, 
     calls = {"lower": 0, "transfer": 0}
     node_type = type(request._node)
     accept = node_type.accept
-    convert = TransportSession._convert
+    convert = TransportSession._move
 
     def observe_accept(node, visitor):
         if node is request._node and visitor.execution_phase.name == "EXECUTE":
@@ -27,11 +27,12 @@ def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, 
         return accept(node, visitor)
 
     def observe_convert(session, source, requirement):
-        calls["transfer"] += 1
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
+            calls["transfer"] += 1
         return convert(session, source, requirement)
 
     monkeypatch.setattr(node_type, "accept", observe_accept)
-    monkeypatch.setattr(TransportSession, "_convert", observe_convert)
+    monkeypatch.setattr(TransportSession, "_move", observe_convert)
     assert query.to_dicts() == [{"id": 1}] * 4
     assert calls == {"lower": 1, "transfer": 1}
     payload["id"] = [2]
@@ -71,29 +72,17 @@ def test_raw_ingress_shared_by_distinct_parents(backend_name, payload, monkeypat
     target = ma.relation(frame)
     left = target.filter(ma.col("id") > 0).join(raw, on="id")
     right = target.filter(ma.col("id") < 2).join(raw, on="id")
-    from mountainash.relations.core.execution import transport
-    from mountainash.relations.core.errors import UnsupportedRelationTransportError
-    from mountainash.relations.core import materialization
+    from mountainash.relations.core.execution.transport import TransportSession
 
     conversions = []
-    adapter_name = (
-        "coerce_to_ibis" if REGISTRY[backend_name].family == "ibis"
-        else "coerce_to_polars" if backend_name.startswith("polars")
-        else "coerce_to_narwhals"
-    )
-    adapter = getattr(materialization, adapter_name)
+    real_move = TransportSession._move
 
-    def observe_adapter(target, value):
-        conversions.append(value)
-        return adapter(target, value)
+    def observe_move(session, source, requirement):
+        if isinstance(source.value, (dict, list, tuple)):
+            conversions.append(source.value)
+        return real_move(session, source, requirement)
 
-    monkeypatch.setattr(materialization, adapter_name, observe_adapter)
-    monkeypatch.setattr(transport, adapter_name, observe_adapter)
-    if backend_name == "narwhals-lazy":
-        # This destination has no declared raw-input transport on baseline.
-        with pytest.raises(UnsupportedRelationTransportError):
-            ma.concat([left, right]).to_dicts()
-        return
+    monkeypatch.setattr(TransportSession, "_move", observe_move)
     assert ma.concat([left, right]).to_dicts() == [{"id": 1}] * 2
     assert len(conversions) == 1
 
@@ -158,7 +147,7 @@ def test_independent_equal_requests_keep_distinct_lowerings(monkeypatch):
 
 @pytest.mark.parametrize("wrapper", ["conditional", "cast", "window"])
 @pytest.mark.parametrize("seed", [None, 42])
-def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatch):
+def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatch, terminal_egress):
     expression = ma.col("items").list.sample(n=1, seed=seed)
     if wrapper == "conditional":
         expression = ma.when(ma.col("id") > 0).then(expression).otherwise(ma.col("items"))
@@ -174,13 +163,14 @@ def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatc
     stored = ma.relation(REGISTRY["ibis-duckdb"].build({"id": [1]}, "list_target"))
     branch = stored.join(request, on="id")
     conversions = []
-    convert = TransportSession._convert
+    convert = TransportSession._move
 
     def observe(session, source, requirement):
-        conversions.append(source.value)
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
+            conversions.append(source.value)
         return convert(session, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observe)
+    monkeypatch.setattr(TransportSession, "_move", observe)
     assert ma.concat([branch] * 4).to_dicts() == [{"id": 1, "sample": [7]}] * 4
     assert len(conversions) == 4
 
@@ -290,7 +280,7 @@ def test_native_window_partition_keeps_occurrence_evaluation():
 @pytest.mark.parametrize("backend_name", [
     name for name, spec in REGISTRY.items() if spec.family == "ibis"
 ])
-def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, monkeypatch):
+def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, monkeypatch, terminal_egress):
     expression = (
         ma.when(ma.col("id") == 1).then(10)
         .when(ma.col("id") == 2).then(20).otherwise(30)
@@ -299,13 +289,14 @@ def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, m
     stored = ma.relation(REGISTRY[backend_name].build({"id": [1, 2, 3]}, "conditional_target"))
     branch = stored.join(request, on="id")
     conversions = []
-    convert = TransportSession._convert
+    convert = TransportSession._move
 
     def observe(session, source, requirement):
-        conversions.append(source.value)
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
+            conversions.append(source.value)
         return convert(session, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observe)
+    monkeypatch.setattr(TransportSession, "_move", observe)
     with ma.capability_policy(ma.CapabilityPolicy.trusted()):
         rows = ma.concat([branch] * 4).to_dicts()
     assert sorted((row["id"], row["value"]) for row in rows) == sorted(

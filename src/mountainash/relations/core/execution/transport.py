@@ -5,23 +5,103 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+import pyarrow as pa
+
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
 from mountainash.core.capabilities.policy import (
-    _CapabilityTarget, _prepare_capability_context, _resolve_policy,
+    _prepare_capability_context, _resolve_policy,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import BackendConversionError
 
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
-from mountainash.relations.core.materialization import (
-    MaterializationScope, coerce_narwhals_dialect, coerce_to_ibis,
-    coerce_to_narwhals, coerce_to_polars, rows_to_arrow,
-)
+from mountainash.relations.core.execution.location import ExecutionLocation, LocationResolver
+from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree, Imported
+from mountainash.relations.core.materialization import ExecutionForm, MaterializationScope, rows_to_arrow
+from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 
 if TYPE_CHECKING:
-    from mountainash.relations.core.execution.location import ExecutionLocation, IdentityTokens
-    from mountainash.relations.core.execution.metadata import CompiledSubtree
+    from mountainash.relations.core.execution.location import IdentityTokens
     from mountainash.relations.core.execution.preparation import TransferRequirement
+
+
+def import_refusal(
+    source: ExecutionLocation, destination: ExecutionLocation, cause: BaseException | None,
+) -> UnsupportedRelationTransportError:
+    """The one owner of import-refusal enrichment for a source -> destination boundary.
+
+    The destination's declared ``IMPORT_INTO`` fact is attached when the native
+    cause is one it declares; an unrelated failure is never relabelled.
+    """
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.capabilities.schema import PolicyConsumer
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+    def label(location: ExecutionLocation) -> str:
+        return location.dialect or (location.family.value if location.family else "unknown")
+
+    fact = None
+    if cause is not None and destination.family is not None:
+        fact = CapabilityRegistry.capability_for(
+            RKEY_MOUNTAINASH_REL.IMPORT_INTO, "*", destination.family, destination.dialect,
+            consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+        )
+        if fact is not None and not isinstance(cause, fact.native_errors):
+            fact = None
+    if cause is None:
+        reason = "no declared adapter"
+        message = f"No declared transport from {label(source)} to {label(destination)}"
+    else:
+        reason = type(cause).__name__
+        message = f"No usable transport from {label(source)} to {label(destination)}"
+    if fact is not None:
+        message = f"{message}: {fact.message}"
+    return UnsupportedRelationTransportError(
+        message, boundary_key=None,
+        source_family=source.family.value if source.family else None,
+        source_dialect=source.dialect,
+        destination_family=destination.family.value if destination.family else None,
+        destination_dialect=destination.dialect,
+        source_type="RelationNode", route="import_into", reason=reason,
+        limitation=fact,
+    )
+
+
+def _is_raw(value: Any) -> bool:
+    return isinstance(value, dict) or (
+        isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict))
+    )
+
+
+def _implementation(location: ExecutionLocation) -> str | None:
+    """The native library a location's values live in, whatever wraps them."""
+    if location.family is CONST_BACKEND.POLARS:
+        return "polars"
+    if location.family is CONST_BACKEND.NARWHALS and location.dialect:
+        name = location.dialect.removeprefix("narwhals-")
+        return "polars" if name == "lazy" else name
+    return None
+
+
+def _same_implementation(a: ExecutionLocation, b: ExecutionLocation) -> bool:
+    """Both sides hold one native implementation: only wrapping and form can differ."""
+    implementation = _implementation(a)
+    return implementation is not None and implementation == _implementation(b)
+
+
+def _native_move(value: Any, destination: ExecutionLocation) -> Any:
+    """Unwrap/wrap and change eager/lazy form without leaving the native library."""
+    import narwhals as nw
+
+    wrapped = isinstance(value, (nw.DataFrame, nw.LazyFrame))
+    if destination.family is CONST_BACKEND.POLARS:
+        value = value.to_native() if wrapped else value
+    elif not wrapped:
+        value = nw.from_native(value)
+    deferred = hasattr(value, "collect")
+    if destination.form is ExecutionForm.LAZY:
+        return value if deferred else value.lazy()
+    return value.collect() if deferred else value
 
 
 class TransportSession:
@@ -42,16 +122,15 @@ class TransportSession:
         if self._context_for is not None:
             return self._context_for(location)
         prior = self._execution_context
-        owner = location.connection if location.connection is not None else location.prototype
-        if owner is None or location.capability_identity is None:
+        target = location.capability_target()
+        if target is None:
             raise RuntimeError("Cannot evaluate source residue without its execution location")
-        if (prior is not None and prior.target.identity == location.capability_identity
-                and prior.target.owner is owner):
+        if (prior is not None and prior.target.identity == target.identity
+                and prior.target.owner is target.owner):
             return prior
         return _prepare_capability_context(
             prior.policy if prior is not None else _resolve_policy(),
-            _CapabilityTarget(location.capability_identity, owner),
-            package_versions=self._package_versions,
+            target, package_versions=self._package_versions,
         )
 
     def _source_export(self, source: CompiledSubtree, fn: Any) -> Any:
@@ -73,144 +152,16 @@ class TransportSession:
             execution_context=self._source_context(source.location),
         )
 
-    @staticmethod
-    def _unsupported(source: CompiledSubtree, requirement: TransferRequirement,
-                     exc: Exception | None = None) -> UnsupportedRelationTransportError:
-        origin, destination = source.location, requirement.destination
-        return UnsupportedRelationTransportError(
-            f"No usable {requirement.route} transport from {origin.dialect} to {destination.dialect}",
-            boundary_key=None,
-            source_family=origin.family.value if origin.family else None,
-            source_dialect=origin.dialect,
-            destination_family=destination.family.value if destination.family else None,
-            destination_dialect=destination.dialect,
-            source_type=type(source.value).__name__, route=requirement.route,
-            reason="no supported destination storage" if exc is None else type(exc).__name__,
-        )
+    def _export(self, source: CompiledSubtree) -> pa.Table:
+        """Destination-blind Arrow export, with source-owned residue checks applied."""
+        system = get_relation_system(source.location.family)()
 
-    def _convert(self, source: CompiledSubtree, requirement: TransferRequirement) -> Any:
-        from mountainash.core.lazy_imports import import_ibis_expr_ops
+        def export() -> pa.Table:
+            return system.export(source.value, source=source.location)
 
-        route = requirement.route
-        value = source.value
-        if route in {"raw_to_ibis", "raw_to_polars", "raw_to_narwhals"}:
-            adapter = {
-                "raw_to_ibis": coerce_to_ibis,
-                "raw_to_polars": coerce_to_polars,
-                "raw_to_narwhals": coerce_to_narwhals,
-            }[route]
-            return self._adapt(source, requirement, adapter, requirement.destination.prototype, value)
-        if route == "ibis_memory_payload":
-            from mountainash.core.lazy_imports import import_ibis_expr_ops
-
-            op = value.op()
-            if not isinstance(op, import_ibis_expr_ops().InMemoryTable):
-                raise self._unsupported(source, requirement)
-            arrow = op.data.to_pyarrow(value.schema())
-            adapter = (coerce_to_polars if requirement.destination.family is CONST_BACKEND.POLARS
-                       else coerce_to_narwhals)
-            return self._adapt(source, requirement, adapter,
-                               requirement.destination.prototype, arrow)
-        if route == "ibis_arrow_ibis":
-            import ibis
-
-            arrow = self._source_export(source, lambda: value.to_pyarrow())
-            return self._import_arrow(source, requirement, ibis, arrow)
-        if route == "ibis_memory_ibis":
-            import ibis
-
-            # Only a bare InMemoryTable has an eager payload. A derived
-            # expression must execute at its own source, never masquerade as
-            # its underlying memory leaf.
-            if not isinstance(value.op(), import_ibis_expr_ops().InMemoryTable):
-                return self._convert(source, replace(requirement, route="ibis_arrow_ibis"))
-            arrow = self._source_export(source, lambda: value.op().data.to_pyarrow(value.schema(),))
-            return self._import_arrow(source, requirement, ibis, arrow)
-        if route == "mapping_to_ibis":
-            return self._adapt(source, requirement, coerce_to_ibis,
-                               requirement.destination.prototype, self._export_checked(source))
-        if route == "polars_to_ibis" or route == "narwhals_to_ibis":
-            exported = self._export_checked(source)
-            if route == "polars_to_ibis":
-                from mountainash.core.types import is_polars_lazyframe
-
-                if is_polars_lazyframe(exported):
-                    exported = exported.collect()
-            return self._adapt(source, requirement, coerce_to_ibis,
-                               requirement.destination.prototype, exported)
-        if route == "ibis_to_polars" or route == "to_polars":
-            return self._adapt(source, requirement, coerce_to_polars,
-                               requirement.destination.prototype, self._export_checked(source))
-        if route == "ibis_to_narwhals" or route == "to_narwhals":
-            return self._adapt(source, requirement, coerce_to_narwhals,
-                               requirement.destination.prototype, self._export_checked(source))
-        if route == "narwhals_dialect":
-            return self._adapt(source, requirement, coerce_narwhals_dialect,
-                               requirement.destination.prototype, self._export_checked(source))
-        raise self._unsupported(source, requirement)
-
-    def _import_arrow(self, source: CompiledSubtree, requirement: TransferRequirement,
-                       ibis: Any, arrow: Any) -> Any:
-        self._validate_ibis_storage(source, requirement, arrow)
-        try:
-            return ibis.memtable(arrow)
-        except Exception as exc:
-            raise self._unsupported(source, requirement, exc) from exc
-
-    def _validate_ibis_storage(self, source: CompiledSubtree,
-                               requirement: TransferRequirement, value: Any) -> None:
-        """Reject values that the selected database would silently change or fail to bind."""
-        if requirement.destination.dialect != "ibis-sqlite":
-            return
-        import math
-
-        import pyarrow as pa
-
-        from mountainash.core.types import is_polars_dataframe, is_narwhals_dataframe
-
-        if is_polars_dataframe(value) or is_narwhals_dataframe(value):
-            arrow = value.to_arrow()
-        elif isinstance(value, pa.Table):
-            arrow = value
-        elif isinstance(value, dict):
-            arrow = pa.table(value)
-        elif isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
-            arrow = rows_to_arrow(list(value))
-        else:
-            return
-
-        for field, column in zip(arrow.schema, arrow.columns):
-            if pa.types.is_floating(field.type) and any(
-                isinstance(item, float) and math.isnan(item) for item in column.to_pylist()
-            ):
-                cause = ValueError("SQLite stores IEEE NaN as SQL NULL")
-                raise self._unsupported(source, requirement, cause) from cause
-            if pa.types.is_decimal(field.type) and column.null_count != len(column):
-                cause = ValueError("SQLite cannot bind non-null decimal.Decimal values")
-                raise self._unsupported(source, requirement, cause) from cause
-
-    def _adapt(self, source: CompiledSubtree, requirement: TransferRequirement,
-                adapter: Any, target: Any, value: Any) -> Any:
-        if requirement.destination.family is CONST_BACKEND.IBIS:
-            self._validate_ibis_storage(source, requirement, value)
-        try:
-            return adapter(target, value)
-        except BackendConversionError as exc:
-            raise self._unsupported(source, requirement, exc) from exc
-
-    def _export_checked(self, source: CompiledSubtree) -> Any:
-        value = source.value
-        if source.location.family is CONST_BACKEND.IBIS:
-            return self._source_export(source, lambda: value.to_pyarrow())
-        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
-
-        if is_polars_lazyframe(value):
-            return self._source_export(source, lambda: value.collect())
-        if is_narwhals_lazyframe(value):
-            return self._source_export(source, lambda: value.collect())
         if source.metadata.owned_checks or source.metadata.diagnostic_records:
-            return self._source_export(source, lambda: value)
-        return value
+            return self._source_export(source, export)
+        return export()
 
     def discharge(self, source: CompiledSubtree) -> CompiledSubtree:
         """Return the checked snapshot itself, not the original deferred plan.
@@ -220,8 +171,6 @@ class TransportSession:
         rows. Retain owned Ibis caches while the returned native graph needs
         them; failed compilations release them through this session's scope.
         """
-        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
-
         if not source.repeatable_result:
             source = replace(
                 source, source_token=self.tokens.token(object()), reusable_lowering=False,
@@ -238,12 +187,12 @@ class TransportSession:
 
             value = self._source_export(source, copy_source)
         else:
-            deferred = is_polars_lazyframe(source.value) or is_narwhals_lazyframe(source.value)
-            value = self._export_checked(source)
-            if deferred and source.location.family is CONST_BACKEND.POLARS:
-                from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
-
-                value = get_relation_system(CONST_BACKEND.POLARS)().read(value)
+            system = get_relation_system(source.location.family)()
+            value = system.import_into(self._source_export(
+                source, lambda: system.export(source.value, source=source.location),
+            ), location=source.location).value
+            if source.location.family is CONST_BACKEND.POLARS:
+                value = system.read(value)
         return replace(
             source, value=value, metadata=replace(source.metadata, owned_checks=()),
         )
@@ -255,45 +204,17 @@ class TransportSession:
             source = replace(
                 source, source_token=self.tokens.token(object()), reusable_lowering=False,
             )
-        key = (source.source_token, requirement.destination.key, requirement.route)
+        destination = requirement.destination
+        key = (source.source_token, destination.key, requirement.owned)
         if key in self._cache:
             return self._cache[key]
         try:
-            value = self._convert(source, requirement)
+            imported = self._move(source, requirement)
             result = replace(
-                source, value=value, location=requirement.destination,
+                source, value=imported.value, location=destination,
                 metadata=replace(source.metadata, owned_checks=()),
             )
-            # Only the destination native graph (and, for an Ibis memtable,
-            # its payload proxy) is proven reachable from a returned value.
-            # Source caches and other metadata resources are not automatically
-            # handed off; they may be released after the Arrow snapshot.
-            self._retained.append(value)
-            if requirement.destination.family is CONST_BACKEND.IBIS:
-                self._retained.append(value.op().data)
-                connection = requirement.destination.connection
-                if connection is not None:
-                    op = value.op()
-
-                    def release_import():
-                        # Ibis retains registered memtables for the connection's
-                        # lifetime. This payload is ours, not the caller's.
-                        if op not in connection._memtables:
-                            return
-                        if connection.name == "duckdb":
-                            connection.con.unregister(op.name)
-                        elif connection.name == "polars":
-                            connection.drop_table(op.name, force=True)
-                        else:
-                            from mountainash.relations.backends.relation_systems.ibis._physical import (
-                                adopt_connection, owned_transaction,
-                            )
-                            with adopt_connection(connection) as backend:
-                                with owned_transaction(backend):
-                                    backend.drop_table(op.name, force=True)
-                        connection._memtables.discard(op)
-
-                    self._scope.own(release_import, owner=op.data)
+            self._retain(imported, destination)
             self._cache[key] = result
             return result
         except BaseException as primary:
@@ -303,6 +224,97 @@ class TransportSession:
                 if hasattr(primary, "add_note"):
                     primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
             raise
+
+    def _physically_bound(self, source: CompiledSubtree) -> bool:
+        """Whether the value itself, not merely its prepared label, lives on a connection."""
+        return LocationResolver(self.tokens)._read(source.value).binding == "bound"
+
+    def _move(self, source: CompiledSubtree, requirement: TransferRequirement) -> Imported:
+        src, destination, value = source.location, requirement.destination, source.value
+        if _is_raw(value):
+            arrow = rows_to_arrow(list(value)) if isinstance(value, (list, tuple)) else pa.table(value)
+        elif (not requirement.owned and src.key == destination.key
+                and not source.metadata.owned_checks and self._physically_bound(source)):
+            return Imported(value)
+        elif not requirement.owned and _same_implementation(src, destination):
+            if source.metadata.owned_checks or source.metadata.diagnostic_records:
+                # Source-owned residue is evaluated on the rows before its markers
+                # are removed, as on the Arrow path; the data stays native.
+                value = self._source_export(
+                    source, lambda: value.collect() if hasattr(value, "collect") else value,
+                )
+            return Imported(_native_move(value, destination))
+        else:
+            arrow = self._export(source)
+        try:
+            return get_relation_system(destination.family)().import_into(
+                arrow, location=destination, owned=requirement.owned,
+            )
+        except (BackendConversionError, ValueError) as exc:
+            raise import_refusal(src, destination, exc) from exc
+
+    def _retain(self, imported: Imported, destination: ExecutionLocation) -> None:
+        """Keep the destination graph alive and register the lifetime of what it created."""
+        self._retained.append(imported.value)
+        if destination.family is not CONST_BACKEND.IBIS:
+            return
+        from ibis.expr import operations as ops
+
+        op = imported.value.op()
+        self._retained.append(op)
+        if imported.release is not None:
+            self._scope.own(imported.release, owner=op)
+        if not isinstance(op, ops.InMemoryTable):
+            return
+        # Only the memtable's payload proxy is proven reachable from a returned value.
+        self._retained.append(op.data)
+        connection = destination.connection
+        if connection is None:
+            return
+
+        def release_import():
+            # Ibis retains registered memtables for the connection's
+            # lifetime. This payload is ours, not the caller's.
+            if op not in connection._memtables:
+                return
+            if connection.name == "duckdb":
+                connection.con.unregister(op.name)
+            elif connection.name == "polars":
+                connection.drop_table(op.name, force=True)
+            else:
+                from mountainash.relations.backends.relation_systems.ibis._physical import (
+                    adopt_connection, owned_transaction,
+                )
+                with adopt_connection(connection) as backend:
+                    with owned_transaction(backend):
+                        backend.drop_table(op.name, force=True)
+            connection._memtables.discard(op)
+
+        self._scope.own(release_import, owner=op.data)
+
+    def transfer_native(self, value: Any, destination: ExecutionLocation) -> Any:
+        """Unowned wrapper for exactly two legacy callers: the unprepared DAG-validation visitor and
+        ``DAGMaterializationSession.resolve``. Deleted when item 249 moves them onto prepared execution."""
+        from mountainash.relations.core.execution.preparation import TransferRequirement
+
+        if _is_raw(value):
+            source = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound")
+        else:
+            source = LocationResolver(self.tokens)._read(value)
+        subtree = CompiledSubtree(value, source, self.tokens.token(value), CompilationMetadata())
+        return self.transfer(subtree, TransferRequirement("native", destination, False)).value
+
+    def validate(self, source: CompiledSubtree, destination: ExecutionLocation) -> None:
+        """Compile-phase storage check for a bare-memory payload; nothing is imported."""
+        try:
+            get_relation_system(destination.family)().check_import(
+                lambda: get_relation_system(source.location.family)().export(
+                    source.value, source=source.location,
+                ),
+                location=destination,
+            )
+        except ValueError as exc:
+            raise import_refusal(source.location, destination, exc) from exc
 
     def __enter__(self) -> TransportSession:
         if self._closed:

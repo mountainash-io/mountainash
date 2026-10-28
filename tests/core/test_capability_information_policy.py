@@ -703,7 +703,7 @@ def test_backend_override_uses_destination_not_source_coordinates():
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             CapabilityRegistry.register_segment(source_segment)
             CapabilityRegistry.register_segment(_segment(policies=(replace(_policy(), applicability=source_only),)))
-            converted = dag.collect("result", backend="polars")
+            converted = dag.collect("result", target="polars")
             assert ma.relation(converted).to_polars()["found"].to_list() == [True, False]
             CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))  # explicit setup BETWEEN requests
             CapabilityRegistry.register_segment(source_segment)
@@ -711,7 +711,7 @@ def test_backend_override_uses_destination_not_source_coordinates():
                 _segment(policies=(replace(_policy(), applicability=destination_only),))
             )
             with pytest.raises(BackendCapabilityError):
-                dag.collect("result", backend="polars")
+                dag.collect("result", target="polars")
             native = dag.collect("result")
             assert ma.relation(native).to_polars()["found"].to_list() == [True, False]
     finally:

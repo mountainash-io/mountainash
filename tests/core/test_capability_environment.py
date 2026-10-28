@@ -126,7 +126,7 @@ def test_non_native_ibis_targets_have_unknown_engines_and_fresh_owners(unbound):
     """Unbound and override-only Ibis paths never borrow a native engine."""
     import ibis
 
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.capabilities.policy import (
         _engine_version,
@@ -138,7 +138,7 @@ def test_non_native_ibis_targets_have_unknown_engines_and_fresh_owners(unbound):
         data = ibis.table({"x": "int64"}, name="unbound_capability_target")
         first = _identify_capability_target(data)
         second = _identify_capability_target(data)
-        assert identify_backend_identity(data) == BackendIdentity(CONST_BACKEND.IBIS, None)
+        assert native_identity(data) == BackendIdentity(CONST_BACKEND.IBIS, None)
     else:
         first = _identify_capability_target(None, family_override=CONST_BACKEND.IBIS)
         second = _identify_capability_target(None, family_override=CONST_BACKEND.IBIS)

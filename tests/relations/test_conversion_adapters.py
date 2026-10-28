@@ -1,4 +1,4 @@
-"""Cross-family coercion preserves native values, dtypes and destination identity."""
+"""Cross-family transfer preserves native values, dtypes and destination identity."""
 from __future__ import annotations
 
 import datetime as dt
@@ -12,16 +12,21 @@ import pytest
 
 import mountainash as ma
 
-from mountainash.relations.core.materialization import (
-    coerce_narwhals_dialect,
-    coerce_to_ibis,
-    coerce_to_narwhals,
-    coerce_to_polars,
-)
+from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+from mountainash.relations.core.execution.transport import TransportSession
 
 # Trigger backend registration (side-effect imports)
 import mountainash.relations.backends  # noqa: F401
 import mountainash.expressions.backends  # noqa: F401
+
+
+def _move(target, value):
+    """Transfer *value* to the location of the native *target* (the unprepared-operand seam)."""
+    transport = TransportSession(IdentityTokens())
+    try:
+        return transport.transfer_native(value, LocationResolver(transport.tokens)._read(target))
+    finally:
+        transport.close(release_owned=False)
 
 
 def _nw_pandas(data: dict):
@@ -53,13 +58,13 @@ class TestCoerceToPolarsRouteMatrix:
     def test_pandas_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = pd.DataFrame({"id": [2, 3], "v": [None, 20]})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
     def test_pyarrow_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = pa.table({"id": [2, 3], "v": [None, 20]})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
     @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
@@ -74,7 +79,7 @@ class TestCoerceToPolarsRouteMatrix:
             if endpoint == "public":
                 result = ma.relation(query).to_polars()
             else:
-                result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), query).collect()
+                result = _move(pl.DataFrame({"id": [1]}).lazy(), query).collect()
             assert result.schema == {"value": pl.Int64}
             assert result["value"].to_list() == [20, None]
         finally:
@@ -84,53 +89,53 @@ class TestCoerceToPolarsRouteMatrix:
     def test_narwhals_pandas_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = _nw_pandas({"id": [2, 3], "v": [None, 20]})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
     def test_narwhals_pyarrow_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = _nw_pyarrow({"id": [2, 3], "v": [None, 20]})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
     def test_narwhals_lazy_polars_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = _nw_polars({"id": [2, 3], "v": [None, 20]}, lazy=True)
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
     def test_dict_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
-        result = coerce_to_polars(target, {"id": [2, 3]})
+        result = _move(target, {"id": [2, 3]})
         self._assert_result(result, {"id": [2, 3]})
 
     def test_list_of_dict_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
-        result = coerce_to_polars(target, [{"id": 2}, {"id": 3}])
+        result = _move(target, [{"id": 2}, {"id": 3}])
         self._assert_result(result, {"id": [2, 3]})
 
     def test_polars_lazyframe_source_passthrough(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = pl.DataFrame({"id": [2]}).lazy()
-        assert coerce_to_polars(target, value) is value
+        assert _move(target, value) is value
 
     def test_polars_dataframe_source_lazified(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = pl.DataFrame({"id": [2]})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         assert isinstance(result, pl.LazyFrame)
         assert result.collect().to_dict(as_series=False) == {"id": [2]}
 
     def test_date_column_preserved(self):
         target = pl.DataFrame({"id": [1]}).lazy()
         value = pa.table({"d": pa.array([dt.date(2024, 1, 1)], type=pa.date32())})
-        result = coerce_to_polars(target, value)
+        result = _move(target, value)
         assert result.collect_schema()["d"] == pl.Date
 
     def test_unrecognized_source_raises(self):
         target = pl.DataFrame({"id": [1]}).lazy()
-        with pytest.raises(Exception, match="Cannot coerce"):
-            coerce_to_polars(target, object())
+        with pytest.raises(Exception, match="Cannot identify backend"):
+            _move(target, object())
 
 
 class TestCoerceToNarwhalsRouteMatrix:
@@ -138,44 +143,44 @@ class TestCoerceToNarwhalsRouteMatrix:
 
     def test_dict_source_builds_target_namespace_directly(self):
         target = _nw_polars({"id": [1]})
-        result = coerce_to_narwhals(target, {"id": [2, 3]})
+        result = _move(target, {"id": [2, 3]})
         assert nw.get_native_namespace(result).__name__ == "polars"
         assert result.to_native().to_dict(as_series=False) == {"id": [2, 3]}
 
     def test_dict_source_preserves_pandas_target(self):
         target = _nw_pandas({"id": [1]})
-        result = coerce_to_narwhals(target, {"id": [2, 3]})
+        result = _move(target, {"id": [2, 3]})
         assert result.to_native().to_dict("list") == {"id": [2, 3]}
 
     def test_list_of_dict_source(self):
         target = _nw_polars({"id": [1]})
-        result = coerce_to_narwhals(target, [{"id": 2}, {"id": 3}])
+        result = _move(target, [{"id": 2}, {"id": 3}])
         assert result.to_native().to_dict(as_series=False) == {"id": [2, 3]}
 
     def test_ibis_source(self):
         target = _nw_polars({"id": [1]})
         con = ibis.duckdb.connect()
         value = con.create_table("t", {"id": [2, 3]})
-        result = coerce_to_narwhals(target, value)
+        result = _move(target, value)
         assert sorted(result.to_native().to_dict(as_series=False)["id"]) == [2, 3]
 
     def test_polars_lazyframe_source_collects_then_matches(self):
         target = _nw_polars({"id": [1]})
         value = pl.DataFrame({"id": [2, 3]}).lazy()
-        result = coerce_to_narwhals(target, value)
+        result = _move(target, value)
         assert nw.get_native_namespace(result).__name__ == "polars"
         assert result.to_native().to_dict(as_series=False) == {"id": [2, 3]}
 
     def test_raw_pyarrow_source(self):
         target = _nw_pyarrow({"id": [1]})
         value = pa.table({"id": [2, 3]})
-        result = coerce_to_narwhals(target, value)
+        result = _move(target, value)
         assert nw.get_native_namespace(result).__name__ == "pyarrow"
 
     def test_unconvertible_source_raises(self):
         target = _nw_polars({"id": [1]})
-        with pytest.raises(Exception, match="Cannot coerce"):
-            coerce_to_narwhals(target, object())
+        with pytest.raises(Exception, match="Cannot identify backend"):
+            _move(target, object())
 
 
 class TestCoerceToIbisRouteMatrix:
@@ -184,28 +189,28 @@ class TestCoerceToIbisRouteMatrix:
     def test_dict_source(self):
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
-        result = coerce_to_ibis(target, {"id": [2, 3]})
+        result = _move(target, {"id": [2, 3]})
         assert isinstance(result, ibis.expr.types.Table)
         assert sorted(result.to_pyarrow()["id"].to_pylist()) == [2, 3]
 
     def test_list_of_dict_source(self):
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
-        result = coerce_to_ibis(target, [{"id": 2}, {"id": 3}])
+        result = _move(target, [{"id": 2}, {"id": 3}])
         assert sorted(result.to_pyarrow()["id"].to_pylist()) == [2, 3]
 
     def test_narwhals_lazy_source(self):
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
         value = _nw_polars({"id": [2, 3]}, lazy=True)
-        result = coerce_to_ibis(target, value)
+        result = _move(target, value)
         assert sorted(result.to_pyarrow()["id"].to_pylist()) == [2, 3]
 
     def test_narwhals_eager_source_passthrough(self):
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
         value = _nw_pandas({"id": [2, 3]})
-        result = coerce_to_ibis(target, value)
+        result = _move(target, value)
         assert sorted(result.to_pandas()["id"].tolist()) == [2, 3]
 
     def test_pandas_source_direct_no_arrow_detour(self):
@@ -214,14 +219,14 @@ class TestCoerceToIbisRouteMatrix:
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
         value = pd.DataFrame({"id": [2, 3]})
-        result = coerce_to_ibis(target, value)
+        result = _move(target, value)
         assert sorted(result.to_pandas()["id"].tolist()) == [2, 3]
 
     def test_unconvertible_source_raises(self):
         con = ibis.duckdb.connect()
         target = con.create_table("t", {"id": [1]})
-        with pytest.raises(Exception, match="Cannot coerce"):
-            coerce_to_ibis(target, object())
+        with pytest.raises(Exception, match="Cannot identify backend"):
+            _move(target, object())
 
 
 class TestCoerceNarwhalsDialect:
@@ -232,30 +237,31 @@ class TestCoerceNarwhalsDialect:
     def test_same_dialect_same_shape_is_noop(self):
         target = _nw_polars({"id": [1]})
         value = _nw_polars({"id": [2]})
-        assert coerce_narwhals_dialect(target, value) is value
+        assert _move(target, value) is value
 
     def test_mismatched_dialect_converts_to_target(self):
         target = _nw_pandas({"id": [1]})
         value = _nw_polars({"id": [2, 3]})
-        result = coerce_narwhals_dialect(target, value)
+        result = _move(target, value)
         assert nw.get_native_namespace(result).__name__ == "pandas"
         assert sorted(result.to_native()["id"].tolist()) == [2, 3]
 
     def test_lazy_value_collected_before_dialect_match(self):
         target = _nw_pandas({"id": [1]})
         value = _nw_polars({"id": [2, 3]}, lazy=True)
-        result = coerce_narwhals_dialect(target, value)
+        result = _move(target, value)
         assert nw.get_native_namespace(result).__name__ == "pandas"
 
-    def test_lazy_target_always_rejected(self):
+    def test_lazy_target_accepts_eager_operand_as_lazy(self):
         target = _nw_polars({"id": [1]}, lazy=True)
         value = _nw_pandas({"id": [2]})
-        with pytest.raises(Exception, match="lazy"):
-            coerce_narwhals_dialect(target, value)
+        result = _move(target, value)
+        assert isinstance(result, nw.LazyFrame)
+        assert result.collect().to_native().to_dict(as_series=False) == {"id": [2]}
 
-    def test_non_narwhals_inputs_are_noop(self):
-        value = {"id": [1]}
-        assert coerce_narwhals_dialect(object(), value) is value
+    def test_non_narwhals_inputs_are_not_recognised(self):
+        with pytest.raises(Exception, match="Cannot identify backend"):
+            _move(object(), {"id": [1]})
 
 
 @pytest.mark.parametrize("wrapped", [False, True])
@@ -271,7 +277,7 @@ def test_polars_conversion_keeps_named_index_out_of_columns(wrapped, endpoint):
     if endpoint == "public":
         result = ma.relation(source).to_polars()
     else:
-        result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), source).collect()
+        result = _move(pl.DataFrame({"id": [1]}).lazy(), source).collect()
     assert result.to_dict(as_series=False) == {"id": [2, 3], "value": [10.0, None]}
     assert result.columns == ["id", "value"]
     assert result.schema == {"id": pl.Int64, "value": pl.Float64}
@@ -288,7 +294,7 @@ def test_polars_conversion_preserves_native_object_identity(wrapped, endpoint):
     if endpoint == "public":
         result = ma.relation(source).to_polars()
     else:
-        result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), source).collect()
+        result = _move(pl.DataFrame({"id": [1]}).lazy(), source).collect()
     assert result.schema == {"obj": pl.Object}
     assert result["obj"][0] is token
     assert result["obj"][1] is None

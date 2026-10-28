@@ -24,6 +24,7 @@ from mountainash.relations.core.materialization import (
     diagnostic_polars_view,
     materialize_native,
 )
+from mountainash.relations.core.execution.location import ExecutionLocation
 from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
@@ -46,41 +47,16 @@ __all__ = [
 ]
 
 
-def _anchor_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
-    """A lightweight empty object of *family* for coercion to target."""
-    
-
+def _consumer_location(family: CONST_BACKEND, dialect: "str | None") -> ExecutionLocation:
+    """The in-memory destination a coerced dependency is moved to for a consumer of *family*."""
     if family is CONST_BACKEND.POLARS:
-        import polars as pl
-
-        return pl.DataFrame({}).lazy()
+        return ExecutionLocation(family, "polars", ExecutionForm.LAZY, "bound")
     if family is CONST_BACKEND.IBIS:
-        import ibis
-
-        return ibis.memtable({})
+        return ExecutionLocation(family, None, ExecutionForm.DEFERRED, "memory")
     if family is CONST_BACKEND.NARWHALS:
-        import narwhals as nw
-
-        if dialect == "narwhals-polars":
-            import polars as pl
-
-            return nw.from_native(pl.DataFrame({}), eager_only=True)
-        if dialect == "narwhals-pyarrow":
-            import pyarrow as pa
-
-            return nw.from_native(pa.table({}), eager_only=True)
-        import pandas as pd
-
-        pandas_empty = pd.DataFrame({})
-        return nw.from_native(pandas_empty, eager_only=True)
-    return None
-
-
-def _consumer_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
-    """Alias for :func:`_anchor_prototype` (the consumer-side prototype
-    reuses the exact same construction the anchor-side already used --
-    without rewriting item 92's territory)."""
-    return _anchor_prototype(family, dialect)
+        implementation = dialect if dialect in ("narwhals-polars", "narwhals-pyarrow") else "narwhals-pandas"
+        return ExecutionLocation(family, implementation, ExecutionForm.EAGER, "bound")
+    raise ValueError(f"no coercion destination for backend family {family!r}")
 
 
 def _is_lazy_narwhals(obj: Any) -> bool:
@@ -96,10 +72,10 @@ def _is_lazy_narwhals(obj: Any) -> bool:
 def _resolve_backend_and_dialect(
     actual_family: "CONST_BACKEND | None",
     actual_dialect: "str | None",
-    backend: "str | None",
+    requested: Any = None,
 ) -> "tuple[CONST_BACKEND, str | None]":
     """Combine a detected physical ``(family, dialect)`` with an optional
-    explicit ``backend=`` override into one coherent resolved pair.
+    resolved ``target=`` location into one coherent resolved pair.
 
     The dialect is trusted only when it was actually detected on a leaf
     belonging to the resolved (possibly overridden) family -- never an
@@ -108,13 +84,12 @@ def _resolve_backend_and_dialect(
     override or fallback to Polars always yields dialect ``"polars"``,
     never an unnecessarily lossy ``None``.
     """
-    if backend is not None:
-        try:
-            resolved = CONST_BACKEND(backend.lower())
-        except ValueError:
-            raise ValueError(f"unknown backend: {backend!r}") from None
+    if requested is not None:
+        resolved = requested.family
         if resolved is CONST_BACKEND.POLARS:
             return resolved, "polars"
+        if requested.dialect is not None:
+            return resolved, requested.dialect
         return resolved, (actual_dialect if actual_family == resolved else None)
     resolved = actual_family if actual_family is not None else CONST_BACKEND.POLARS
     if actual_dialect is not None:
@@ -150,14 +125,22 @@ class _SessionRefResolver:
         session: "DAGMaterializationSession",
         consumer_context: "_ExecutionContext | None" = None,
         destination: Any = None,
+        requirement: Any = None,
+        inherited: Any = None,
+        placement: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
         self._destination = destination
+        self._requirement = requirement
+        self._inherited = inherited
+        self._placement = placement
 
     def __call__(self, name: str) -> Any:
         if self._destination is not None:
-            value = self._session.resolve_at(name, self._destination)
+            value = self._session.resolve_at(
+                name, self._destination, self._requirement, self._inherited, self._placement,
+            )
             self._destination = self._session._destination_for(self._destination)
             return value
         return self._session.resolve(name, self._consumer_context)
@@ -223,13 +206,13 @@ class DAGMaterializationSession:
         dag: "RelationDAG",
         *,
         execution_policy: "CapabilityPolicy",
-        backend: "str | None" = None,
+        target: Any = None,
         isolate_failures: bool = False,
         node_transforms: "Mapping[str, Callable[[Any], Any]] | None" = None,
         mode: SessionMode = SessionMode.NATIVE_COLLECTION,
     ) -> None:
         self.dag = dag
-        self.backend = backend
+        self.target = target
         self.isolate_failures = isolate_failures
         self.mode = mode
         self._node_transforms = dict(node_transforms or {})
@@ -271,17 +254,33 @@ class DAGMaterializationSession:
         values.extend(envelope.value for envelope, _ in self._bound.values())
         return tuple(values)
 
-    def resolver_for(self, destination: Any) -> _SessionRefResolver:
-        """Bind a ref resolver to this consumer's complete physical location."""
-        return _SessionRefResolver(self, destination=destination)
+    def resolver_for(
+        self, destination: Any, requirement: Any = None, inherited: Any = None,
+        placement: Any = None,
+    ) -> _SessionRefResolver:
+        """Bind a ref resolver to this consumer's complete physical location.
 
-    def resolve_at(self, name: str, destination: Any) -> Any:
-        """Resolve a named plan in its own location, then transport for this consumer."""
+        ``requirement`` is the prepared transfer recorded for the ref's
+        ``/ref/<name>`` key, if its named plan does not already live there.
+        ``inherited`` are the consumer plan's transfers beneath that key,
+        re-keyed to the named plan's own root. ``placement`` is the location the
+        consumer's preparation gave the named plan at that key.
+        """
+        return _SessionRefResolver(
+            self, destination=destination, requirement=requirement, inherited=inherited,
+            placement=placement,
+        )
+
+    def resolve_at(
+        self, name: str, destination: Any, requirement: Any = None, inherited: Any = None,
+        placement: Any = None,
+    ) -> Any:
+        """Resolve a named plan in its own location, then apply the prepared transfer for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
         from mountainash.relations.core.execution.metadata import MetadataSession
-        from mountainash.relations.core.execution.preparation import prepare_execution, _route
+        from mountainash.relations.core.execution.preparation import prepare_execution
         from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.core.relation_nodes import ReadRelNode
@@ -298,9 +297,18 @@ class DAGMaterializationSession:
         destination = self._destination_for(destination)
         root = self._canonical_node(name)
         tokens = self._execution_tokens
-        location = LocationResolver(
-            tokens, identity_resolver=self._canonical_node,
-        ).resolve(root)
+        # A resource the consumer placed (bound Ibis connection or Narwhals) keeps
+        # that placement: the named plan resolves against it, not a Polars default.
+        from mountainash.core.constants import CONST_BACKEND
+        placed = (placement if placement is not None and (
+            (placement.family is CONST_BACKEND.IBIS and placement.connection is not None)
+            or placement.family is CONST_BACKEND.NARWHALS) else None)
+        named_resolver = LocationResolver(tokens, identity_resolver=self._canonical_node)
+        location = named_resolver.resolve(root)
+        if location.binding == "memory":
+            placed = None  # a borrowed memory plan follows the consumer's binding below
+        else:
+            location = named_resolver.resolve(root, binding=placed)
         connectionless = location.binding == "memory"
         # Only pure ref aliases of an in-memory read carry the eager payload.
         # A unary transformation is a deferred Ibis plan and cannot borrow a
@@ -336,7 +344,8 @@ class DAGMaterializationSession:
                 prepared = prepare_execution(
                     root, phase=self._execution_phase,
                     identity_resolver=self._canonical_node,
-                    tokens=tokens, binding=destination if connectionless else None,
+                    tokens=tokens, binding=destination if connectionless else placed,
+                    inherited=inherited,
                 )
                 from mountainash.relations.core.owned_copy import assert_prepared_owned_open
                 assert_prepared_owned_open(prepared)
@@ -364,10 +373,6 @@ class DAGMaterializationSession:
             if visitor is not None:
                 self._visitors[name] = visitor
         envelope, visitor = self._bound[binding_key]
-        requirement = _route(
-            name, source_location, destination, derived=not isinstance(root, ReadRelNode),
-            memory_payload=payload_transfer,
-        )
         if requirement is None:
             self._resolved[(name, destination.key)] = envelope
             return envelope.value
@@ -392,7 +397,7 @@ class DAGMaterializationSession:
     def cache_root(self, name: str, envelope: Any, visitor: Any) -> Any:
         """Materialize one bound named result, preserving its source metadata."""
         from mountainash.conform.structured_transport import freeze_structured_field_plans
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.core.limitations import enrich_materialization
         from mountainash.core.types import is_ibis_table, is_polars_lazyframe
 
@@ -418,7 +423,7 @@ class DAGMaterializationSession:
         else:
             native = NativeExecutionValue(
                 envelope.value, envelope.location.capability_identity,
-                identify_backend_identity(envelope.value),
+                native_identity(envelope.value),
                 ExecutionForm.LAZY if is_polars_lazyframe(envelope.value) else envelope.location.form,
                 target=visitor.execution_context.target,
             )
@@ -455,8 +460,12 @@ class DAGMaterializationSession:
         self, name: str, *, honor_override: bool
     ) -> "tuple[CONST_BACKEND, str | None]":
         actual_family, actual_dialect = self.dag._resolve_actual_identity_for(name)
-        backend = self.backend if honor_override else None
-        return _resolve_backend_and_dialect(actual_family, actual_dialect, backend)
+        requested = None
+        if honor_override and self.target is not None:
+            from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+            requested = LocationResolver(IdentityTokens()).resolve_target(self.target)
+        return _resolve_backend_and_dialect(actual_family, actual_dialect, requested)
 
     def _compile_named(
         self, name: str, *, honor_override: bool = False, guard_native_terminal: bool = False
@@ -489,12 +498,15 @@ class DAGMaterializationSession:
             raise ValueError(f"relation {name!r} has no _node attribute")
 
         resolved_backend, dialect = self._resolve_identity(name, honor_override=honor_override)
+        from mountainash.relations.core.execution.location import IdentityTokens
+        from mountainash.relations.core.execution.metadata import MetadataSession
         from mountainash.relations.core.execution.preparation import prepare_execution
+        from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.owned_copy import require_copy_idle
 
         prepared = prepare_execution(
             root, phase=ExecutionPhase.EXPLAIN,
-            backend=self.backend if honor_override else None,
+            target=self.target if honor_override else None,
             identity_resolver=self._canonical_node,
         )
         placement = prepared.locations[prepared.root_key]
@@ -505,7 +517,7 @@ class DAGMaterializationSession:
             resolved_backend, dialect = placement.family, placement.dialect
 
         # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
-        # must reject before caching -- _coerce_to_match's eager-over-lazy
+        # must reject before caching -- a cross-family transfer's eager-over-lazy
         # handling is order-dependent and must not be relied upon. Scoped
         # to this resource's own direct refs; a foreign family reached
         # transitively through an intermediate dependency is caught when
@@ -568,6 +580,10 @@ class DAGMaterializationSession:
         )
 
         ref_resolver = _SessionRefResolver(self, execution_context)
+        if self._execution_transport is None:
+            self._execution_tokens = IdentityTokens()
+            self._execution_metadata = MetadataSession(self._execution_tokens)
+            self._execution_transport = TransportSession(self._execution_tokens)
 
         visitor = UnifiedRelationVisitor(
             relation_system,
@@ -576,11 +592,33 @@ class DAGMaterializationSession:
             key_context=key_context,
             identity_resolver=lambda n: self.dag.relations[n]._node,
             execution_context=execution_context,
+            transport=self._execution_transport,
         )
 
         compiled = root.accept(visitor)
         residue_checks_this = visitor.terminal_residue_checks()
         visitor.residue_checks.clear()
+
+        root_transfer = prepared.transfers.get(prepared.root_key)
+        if root_transfer is not None:
+            # A retargeted native read was compiled where it lives; its recorded
+            # move to the target happens before the canonical value is published.
+            from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree
+
+            compiled = self._execution_transport.transfer(
+                CompiledSubtree(
+                    compiled, placement, self._execution_tokens.token(root), CompilationMetadata(),
+                    repeatable_result=True,
+                ),
+                root_transfer,
+            ).value
+            destination = root_transfer.destination
+            resolved_backend, dialect = destination.family, destination.dialect
+            execution_context = _prepare_capability_context(
+                self._execution_policy,
+                destination.capability_target(default_owner=compiled),
+                package_versions=self._package_versions,
+            )
 
         if guard_native_terminal:
             from mountainash.relations.core.relation_api.relation import (
@@ -589,7 +627,7 @@ class DAGMaterializationSession:
 
             _guard_native_terminal(visitor.structured_field_plans)
 
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.core.capabilities.identity import BackendIdentity
         from mountainash.core.types import (
             is_ibis_table,
@@ -640,7 +678,7 @@ class DAGMaterializationSession:
                 relazified = forced.value.lazy()
                 native = NativeExecutionValue(
                     relazified, forced.compiler_identity,
-                    identify_backend_identity(relazified),
+                    native_identity(relazified),
                     ExecutionForm.LAZY, target=forced.target,
                 )
             else:
@@ -648,7 +686,7 @@ class DAGMaterializationSession:
         else:
             # No residue to enrich -- cache the raw compiled value as-is
             # (possibly still lazy), only detecting its identity.
-            value_identity = identify_backend_identity(compiled)
+            value_identity = native_identity(compiled)
             form = ExecutionForm.LAZY if was_lazy else ExecutionForm.EAGER
             native = NativeExecutionValue(compiled, compiler_identity, value_identity, form, target=execution_context.target)
 
@@ -772,7 +810,7 @@ class DAGMaterializationSession:
                 destination_family=consumer_family.value,
                 destination_dialect=consumer_dialect,
                 source_type=type(native.value).__name__,
-                route="_coerce_to_match",
+                route="transfer_native",
                 reason="no declared Ibis conversion route between distinct connection owners",
             )
         needs_coercion = src_family != consumer_family or (
@@ -783,12 +821,17 @@ class DAGMaterializationSession:
 
         key = (name, consumer_context.target.token, consumer_context.observations)
         if key not in self._coerced:
-            from mountainash.relations.core.unified_visitor.relation_visitor import (
-                UnifiedRelationVisitor,
-            )
+            if self._execution_transport is None:
+                from mountainash.relations.core.execution.location import IdentityTokens
+                from mountainash.relations.core.execution.metadata import MetadataSession
+                from mountainash.relations.core.execution.transport import TransportSession
 
-            proto = _consumer_prototype(consumer_family, consumer_dialect)
-            coerced_value = UnifiedRelationVisitor._coerce_to_match(proto, native.value)
+                self._execution_tokens = IdentityTokens()
+                self._execution_metadata = MetadataSession(self._execution_tokens)
+                self._execution_transport = TransportSession(self._execution_tokens)
+            coerced_value = self._execution_transport.transfer_native(
+                native.value, _consumer_location(consumer_family, consumer_dialect),
+            )
             destination_identity = self._destination_identity(
                 consumer_family, consumer_dialect
             )

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
     import polars as pl
+    import pyarrow as pa
 
     from mountainash.core.capabilities.identity import BackendIdentity
 
@@ -169,33 +170,39 @@ class _BaseSnapshotAdapter:
         return pd.DataFrame(columns)
 
 
+def _column_to_arrow(family: CONST_BACKEND, column: Any) -> Any:
+    """One captured native column as Arrow, through its family's own ``export``.
+
+    Arrow-family captures (PyArrow, Narwhals, Ibis snapshots) already hold
+    Arrow columns and pass through unchanged.
+    """
+    if family not in (CONST_BACKEND.POLARS, CONST_BACKEND.PANDAS):
+        return column
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    # Pandas is a Narwhals carrier: its export is the Narwhals family's.
+    system = CONST_BACKEND.POLARS if family is CONST_BACKEND.POLARS else CONST_BACKEND.NARWHALS
+    source = ExecutionLocation(system, None, ExecutionForm.EAGER, "bound")
+    return get_relation_system(system)().export(column.to_frame(), source=source).column(0)
+
+
 def _native_column_to_polars(family: CONST_BACKEND, column: Any) -> "pl.Series":
     import polars as pl
 
     if family is CONST_BACKEND.POLARS:
-        return cast("pl.Series", column)
-    if family is CONST_BACKEND.PANDAS:
-        return cast(
-            "pl.Series",
-            pl.from_pandas(column),
-        )
-    return cast(
-        "pl.Series",
-        pl.from_arrow(column),
-    )
+        return cast("pl.Series", column)  # same family: dtype-preserving, not a conversion
+    return cast("pl.Series", pl.from_arrow(_column_to_arrow(family, column)))
 
 
 def _native_column_to_pandas(family: CONST_BACKEND, column: Any) -> "pd.Series":
     if family is CONST_BACKEND.PANDAS:
-        return cast("pd.Series", column)
-    if family is CONST_BACKEND.POLARS:
-        return cast(
-            "pd.Series",
-            column.to_pandas(),
-        )
+        return cast("pd.Series", column)  # same family: dtype-preserving, not a conversion
+    # Polars' own Series.to_pandas keeps temporal dates native (date_as_object=False);
+    # Arrow's default would turn them into Python objects.
     return cast(
-        "pd.Series",
-        column.to_pandas(),
+        "pd.Series", _column_to_arrow(family, column).to_pandas(date_as_object=False),
     )
 
 
@@ -416,6 +423,47 @@ def logical_column_values(
     return tuple(_python_value(value) for value in column)
 
 
+def logical_to_arrow(resolved: ResolvedLogicalSnapshot) -> "pa.Table":
+    """Arrow table of one resolved logical snapshot, in the physical column order.
+
+    Untagged columns keep their physical Arrow type; transported columns are
+    built from their Python-native logical values with the resolved target
+    type. A logical value Arrow cannot represent raises ``BackendConversionError``.
+    """
+    import pyarrow as pa
+
+    from mountainash.core.errors import BackendConversionError
+
+    identity = resolved.physical.source_identity
+    family = identity.family if identity is not None else None
+    positions = _keep_positions(resolved)
+    names = [*resolved.physical.columns, *(n for n in resolved.logical_columns if n not in resolved.physical.columns)]
+    columns: dict[str, Any] = {}
+    for name in names:
+        logical = resolved.logical_columns[name]
+        if logical is resolved.physical.columns.get(name):
+            columns[name] = _column_to_arrow(family, _slice_native(family, logical, positions))
+            continue
+        try:
+            columns[name] = pa.array(
+                [v.as_py() if isinstance(v, pa.Scalar) else v for v in logical],
+                type=resolved.target_dtypes.get(name),
+            )
+        except (pa.ArrowInvalid, pa.ArrowTypeError) as error:
+            raise BackendConversionError(
+                f"logical column {name!r} is not Arrow-representable: {error}",
+                boundary_key=None,
+                source_family=str(family),
+                source_dialect=identity.dialect if identity is not None else None,
+                destination_family="pyarrow",
+                destination_dialect="pyarrow",
+                source_type="logical column",
+                route="logical_to_arrow",
+                reason="logical value not Arrow-representable",
+            ) from error
+    return pa.table(columns)
+
+
 def resolved_snapshot_to_pandas(resolved: ResolvedLogicalSnapshot) -> Any:
     """Reconstruct a pandas frame from one resolved logical snapshot,
     retaining untagged-column dtypes and giving transported columns
@@ -430,6 +478,7 @@ __all__ = [
     "ResolvedLogicalSnapshot",
     "logical_column_values",
     "logical_terminal_snapshot",
+    "logical_to_arrow",
     "resolve_logical_snapshot",
     "resolved_snapshot_to_pandas",
     "resolved_snapshot_to_polars",

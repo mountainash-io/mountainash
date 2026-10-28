@@ -251,6 +251,15 @@ MOUNTAINASH_OPERATIONS = [
         extension_uri=MountainashRelExtension.CONFORM,
         protocol_method=ExtProto.empty_frame,
     ),
+    RelationOperationDef(
+        # No node type: the transport import capability key. Its declarations
+        # enrich import refusals and gate owned-copy adoption.
+        operation_key=RM.IMPORT_INTO,
+        node_type=None,
+        is_extension=True,
+        extension_uri=MountainashRelExtension.UTIL,
+        protocol_method=ExtProto.import_into,
+    ),
 ]
 
 # These groups perform declarative relational transformations. Source handlers

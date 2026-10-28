@@ -426,3 +426,29 @@ def test_native_failures_are_attributed_only_to_their_own_operation(
     with pytest.raises(pl.exceptions.PolarsError) as raised:
         query.to_polars()
     assert not isinstance(raised.value, ConformTransformError)
+
+
+def _duration_spec() -> TableSchema:
+    return TableSchema(
+        fields_match="open",
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
+    )
+
+
+def test_valid_duration_egress_terminals_discharge_residue_once() -> None:
+    import polars as pl
+
+    rel = relation(pd.DataFrame({"duration": ["P1D"]})).conform(_duration_spec())
+    assert rel.to_polars().columns == ["duration"]
+    assert list(rel.to_ibis().columns) == ["duration"]
+    assert isinstance(rel.to_pandas(), pd.DataFrame)
+    assert rel.to_pyarrow().column_names == ["duration"]
+    assert isinstance(rel.to_polars(), pl.DataFrame)
+
+
+@pytest.mark.parametrize("terminal", ["to_polars", "to_ibis", "to_pandas", "to_pyarrow"])
+def test_invalid_duration_egress_terminals_still_raise(terminal: str) -> None:
+    rel = relation(pd.DataFrame({"duration": ["not-a-duration"]})).conform(_duration_spec())
+    with pytest.raises(BackendCapabilityError) as raised:
+        getattr(rel, terminal)()
+    assert "not-a-duration" not in str(raised.value)

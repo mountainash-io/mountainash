@@ -188,24 +188,27 @@ class TestExplicitBackendAnchorCoherence:
         dag = RelationDAG()
         dag.add("pandas_only", ma.relation(_nw_pandas({"k": [1]})))
         try:
-            dag.collect("pandas_only", backend="polars")
+            dag.collect("pandas_only", target="polars")
         except Exception:
             pass  # PolarsRelationSystem cannot read a raw Narwhals frame --
             # irrelevant, we assert the identity used to CONSTRUCT the
             # visitor, captured before any read is attempted.
 
-        assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
+        # A retargeted native read compiles where it lives, then moves; the
+        # terminal visitor is the target's. No visitor is ever a hybrid of one
+        # family with another family's dialect.
+        pairs = [(c["backend_type"], c["dialect"]) for c in _visitor_construction_spy]
+        assert set(pairs) <= {(CONST_BACKEND.NARWHALS, "narwhals-pandas"), (CONST_BACKEND.POLARS, "polars")}
         # Task 7: Polars has exactly one dialect, so an override resolves
-        # to the canonical "polars" string, never an unnecessarily lossy
-        # None -- and never the foreign "narwhals-pandas" hybrid either.
-        assert _visitor_construction_spy[0]["dialect"] == "polars"
+        # to the canonical "polars" string, never an unnecessarily lossy None.
+        assert pairs[-1] == (CONST_BACKEND.POLARS, "polars")
 
     def test_adhoc_node_fallback_branch_never_builds_invalid_hybrid(self, _visitor_construction_spy):
         # No refs, no target name (execute() with zero RefRelNode leaves).
         dag = RelationDAG()
         rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
         try:
-            dag.execute(rel, backend="polars")
+            dag.execute(rel, target="polars")
         except Exception:
             pass
 
@@ -390,7 +393,7 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
         # Item 92: the bare narwhals-pandas ref is compiled in its own family
         # (narwhals) and coerced to the explicit polars override -- so its
         # visit entry observes narwhals, not the invalid polars hybrid.
-        result = dag.collect("final", backend="polars")
+        result = dag.collect("final", target="polars")
         assert result is not None
 
         captured = _dialect_spy_factory.captured["pandas_ref"]["entry"]
@@ -567,8 +570,8 @@ def test_same_dialect_connections_preserve_native_ownership():
         session = DAGMaterializationSession(dag, execution_policy=policy)
         assert session.resolve("left", left_context).execute()["x"].tolist() == [11]
         assert session.resolve("right", right_context).execute()["x"].tolist() == [22]
-        # No new cross-connection transport is in scope. Use the existing
-        # coerce_to_ibis conversion-error boundary, never return foreign data.
+        # No cross-connection transport is in scope: the session refuses with
+        # its conversion error before transfer_native, never returns foreign data.
         with pytest.raises(BackendConversionError):
             session.resolve("left", right_context)
         assert session.resolve("right", right_context).execute()["x"].tolist() == [22]

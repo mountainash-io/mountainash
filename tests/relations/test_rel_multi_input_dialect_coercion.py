@@ -25,6 +25,18 @@ from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.constants import CONST_BACKEND
 
 
+def _move(target, value):
+    """Transfer *value* to the location of the native *target* (the unprepared-operand seam)."""
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+    from mountainash.relations.core.execution.transport import TransportSession
+
+    transport = TransportSession(IdentityTokens())
+    try:
+        return transport.transfer_native(value, LocationResolver(transport.tokens)._read(target))
+    finally:
+        transport.close(release_owned=False)
+
+
 def _nw_pandas(data: dict):
     import narwhals as nw
     import pandas as pd
@@ -90,59 +102,44 @@ class TestEagerLazyShapeCoercion:
         import narwhals as nw
         import polars as pl
 
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
 
         target = _nw_polars({"id": [1, 2]})
         value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
-        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
         assert not is_narwhals_lazy(coerced)
         assert coerced.to_native().to_dict(as_series=False) == {"id": [1, 2]}
 
     def test_eager_pandas_target_collects_lazy_pandas_value(self):
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
 
         target = _nw_pandas({"id": [1, 2]})
         value = _nw_pandas({"id": [1, 2]}).lazy()
-        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
         assert not is_narwhals_lazy(coerced)
         assert coerced.to_native().to_dict(orient="list") == {"id": [1, 2]}
 
     def test_eager_pyarrow_target_collects_lazy_pyarrow_value(self):
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
 
         target = _nw_pyarrow({"id": [1, 2]})
         value = _nw_pyarrow({"id": [1, 2]}).lazy()
-        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
         assert not is_narwhals_lazy(coerced)
 
-    def test_lazy_polars_target_rejects_eager_operand(self):
+    def test_lazy_polars_target_receives_eager_operand_as_lazy(self):
         import narwhals as nw
         import polars as pl
 
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
-
         target = nw.from_native(pl.DataFrame({"id": [1]}).lazy())
         value = _nw_pandas({"id": [1]})
-        with pytest.raises(TypeError, match="lazy"):
-            UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
+        assert is_narwhals_lazy(coerced)
+        assert coerced.collect().to_native().to_dict(as_series=False) == {"id": [1]}
 
-    def test_lazy_pandas_target_rejects_eager_operand(self):
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
-
+    def test_lazy_pandas_target_receives_eager_operand_as_lazy(self):
         target = _nw_pandas({"id": [1]}).lazy()
         value = _nw_polars({"id": [1]})
-        with pytest.raises(TypeError, match="lazy"):
-            UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
+        assert is_narwhals_lazy(coerced)
+        assert coerced.collect().to_native().to_dict(orient="list") == {"id": [1]}
 
     def test_lazy_value_needing_conversion_after_collect(self):
         """lazy-Polars value -> collect -> eager-Polars -> convert to
@@ -150,13 +147,10 @@ class TestEagerLazyShapeCoercion:
         import narwhals as nw
         import polars as pl
 
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
 
         target = _nw_pandas({"id": [1, 2]})
         value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
-        coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        coerced = _move(target, value)
         from mountainash.core.backend_detection import narwhals_dialect
 
         assert narwhals_dialect(coerced) == "narwhals-pandas"
@@ -250,52 +244,38 @@ class TestUnionMultiWayDialectCoercion:
 class TestUnsupportedDialectAndErrorWrapping:
     """Design spec testing plan #8-9."""
 
-    def test_unrecognized_target_implementation_raises_clean_typeerror(self):
-        from enum import Enum
-        from unittest.mock import patch
+    def test_lazy_only_implementation_target_raises_clean_typeerror(self):
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.relations.core.errors import UnsupportedRelationTransportError
+        from mountainash.relations.core.execution.location import ExecutionForm, ExecutionLocation
+        from mountainash.relations.core.execution.location import IdentityTokens
+        from mountainash.relations.core.execution.transport import TransportSession
 
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
+        destination = ExecutionLocation(
+            CONST_BACKEND.NARWHALS, "narwhals-duckdb", ExecutionForm.EAGER, "bound",
         )
-
-        class _UnknownImpl(Enum):
-            UNKNOWN = "unknown"
-
-        target = _nw_pandas({"id": [1]})
-        value = _nw_polars({"id": [1]})
-        with patch.object(target, "implementation", _UnknownImpl.UNKNOWN):
-            with pytest.raises(TypeError, match="unsupported target dialect"):
-                UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        with TransportSession(IdentityTokens()) as transport:
+            with pytest.raises(UnsupportedRelationTransportError, match="narwhals-duckdb"):
+                transport.transfer_native(_nw_polars({"id": [1]}), destination)
 
     def test_conversion_failure_is_wrapped_with_dialect_context_not_leaked_raw(self):
+        from unittest.mock import patch
 
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
+        from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
-        target = _nw_pandas({"id": [1]})
-        value = _nw_polars({"id": [1]})
-        frame_type = type(value)
-        original_to_pandas = frame_type.to_pandas
-
-        def _boom(self):
-            raise TypeError("conversion exploded")
-
-        try:
-            frame_type.to_pandas = _boom
-            with pytest.raises(TypeError, match="Failed to coerce"):
-                UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
-        finally:
-            frame_type.to_pandas = original_to_pandas
+        target = _nw_polars({"id": [1]})
+        value = _nw_pandas({"id": [1]})
+        with patch("narwhals.from_arrow", side_effect=ValueError("conversion exploded")):
+            with pytest.raises(UnsupportedRelationTransportError) as caught:
+                _move(target, value)
+        assert caught.value.destination_dialect == "narwhals-polars"
+        assert isinstance(caught.value.__cause__, ValueError)
 
     def test_same_dialect_operands_untouched_no_wasted_round_trip(self):
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
 
         target = _nw_pandas({"id": [1]})
         value = _nw_pandas({"id": [2]})
-        result = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
+        result = _move(target, value)
         assert result is value
         assert result.to_native() is value.to_native()
 

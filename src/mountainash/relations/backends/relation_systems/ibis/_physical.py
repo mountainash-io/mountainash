@@ -23,6 +23,28 @@ def _refusal(dialect: str, reason: str) -> BackendCapabilityError:
     )
 
 
+def owned_adoption_refusal(dialect: str) -> str | None:
+    """Why owned-copy adoption is refused on this Ibis connection, or ``None``.
+
+    Unknown dialects are refused; known ones consult their ``IMPORT_INTO``
+    GATE declaration.
+    """
+    from mountainash.core.capabilities.identity import KNOWN_DIALECTS
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.capabilities.schema import PolicyConsumer
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+    identity = f"ibis-{dialect}"
+    if identity not in KNOWN_DIALECTS[CONST_BACKEND.IBIS]:
+        return "unsupported SQL dialect"
+    fact = CapabilityRegistry.capability_for(
+        RKEY_MOUNTAINASH_REL.IMPORT_INTO, "*", CONST_BACKEND.IBIS, identity,
+        consumer=PolicyConsumer.GATE,
+    )
+    return fact.message if fact is not None else None
+
+
 @contextmanager
 def adopt_connection(connection: Any) -> Iterator[Any]:
     """Borrow an existing SQL connection for the duration of this scope.
@@ -33,8 +55,9 @@ def adopt_connection(connection: Any) -> Iterator[Any]:
     The yielded wrapper must not be retained beyond this scope.
     """
     dialect = connection.name
-    if dialect not in {"sqlite", "duckdb", "postgres"}:
-        raise _refusal(dialect, "unsupported SQL dialect")
+    reason = owned_adoption_refusal(dialect)
+    if reason is not None:
+        raise _refusal(dialect, reason)
     backend = import_mountainash_data().IbisBackend.from_ibis_connection(
         connection, dialect=dialect, owns_connection=False,
     )

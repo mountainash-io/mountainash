@@ -10,9 +10,6 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from mountainash.core.types import (
-    is_polars_dataframe, is_polars_lazyframe,
-)
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes import (
     ExpressionNode, ScalarFunctionNode, CastNode, IfThenNode,
@@ -252,8 +249,10 @@ class UnifiedRelationVisitor:
         metadata_session: "MetadataSession | None" = None,
         execution: Any = None,
         execution_key: str | None = None,
+        transport: Any = None,
     ) -> None:
         self.backend = relation_system
+        self.transport = transport
         self.expr_visitor = expression_visitor
         self.ref_resolver = ref_resolver
         self._resolved_refs_by_name: dict[str, Any] = {}
@@ -290,6 +289,13 @@ class UnifiedRelationVisitor:
         self._conform_metadata_by_node: dict[int, tuple[bool, frozenset[str], frozenset[str]]] = {}
         self._ref_plans_by_node: dict[int, Any] = {}
         self.structured_field_plans: Any = MappingProxyType({})
+
+    @property
+    def location(self):
+        """The prepared execution location of the node being visited, if any."""
+        if self.execution is None:
+            return None
+        return self.execution.prepared.locations[self.execution_key]
 
     @property
     def execution_phase(self):
@@ -399,13 +405,13 @@ class UnifiedRelationVisitor:
         if seen is None:
             seen = set()
         try:
-            from mountainash.core.backend_detection import identify_backend_identity
+            from mountainash.core.backend_detection import native_identity
             from mountainash.relations.core.relation_nodes import ReadRelNode
             from mountainash.relations.core.relation_nodes.extensions_mountainash import (
                 RefRelNode, ResourceReadRelNode, SourceRelNode,
             )
             if isinstance(node, ReadRelNode):
-                ident = identify_backend_identity(node.dataframe)
+                ident = native_identity(node.dataframe)
                 return ident.family, ident.dialect
             if isinstance(node, RefRelNode):
                 if self.identity_resolver is None or node.name in seen:
@@ -713,23 +719,24 @@ class UnifiedRelationVisitor:
                 # Never reinterpret a child's native TypeError as coercion.
                 return list(self.execution.operands(self, self.execution_key))
             anchor = self.visit(value[0])   # anchor must succeed; a TypeError propagates
+            anchor_location = self._native_location(anchor)
             results = [anchor]
             for v in value[1:]:
                 try:
                     results.append(self.visit(v))
                 except TypeError:
                     # Cross-family operand: the shared visitor's read() rejected
-                    # the operand's raw dataframe. Coerce it to the anchor's
-                    # family (and, for a narwhals anchor, exact dialect/shape)
-                    # -- the same catch-and-coerce shape _visit_and_coerce_right
-                    # uses for joins. A derived (non-ReadRelNode) root re-raises:
-                    # that is the join path's pre-existing direct-read-only boundary.
+                    # the operand's raw dataframe. Transfer it to the anchor's
+                    # location -- the same catch-and-transfer shape
+                    # _visit_and_coerce_right uses for joins. A derived
+                    # (non-ReadRelNode) root re-raises: that is the join path's
+                    # pre-existing direct-read-only boundary.
                     if not isinstance(v, ReadRelNode):
                         raise
-                    results.append(self._coerce_to_match(anchor, v.dataframe))
+                    results.append(self._transfer_native(v.dataframe, anchor_location))
             if len(results) > 1:
                 results = [anchor] + [
-                    self._coerce_same_family_dialect(anchor, r) for r in results[1:]
+                    self._align_narwhals(anchor, anchor_location, r) for r in results[1:]
                 ]
             return results
         if binding.kind is ArgKind.EXPRESSION:
@@ -1105,82 +1112,51 @@ class UnifiedRelationVisitor:
             )
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:
-        """Visit the right side of a join, coercing to match the left's type if needed.
+        """Visit the right side of a join, transferring it to the left's location if needed.
 
         If the right side produces a different backend type (e.g. pandas DataFrame
-        when left is a Polars LazyFrame), convert it to match the left side.
+        when left is a Polars LazyFrame), move it to the left's location.
         This enables cross-type joins like ``relation(polars_df).join(pandas_df, ...)``.
 
-        Also coerces a same-family, different-dialect narwhals operand (item
-        91) -- narwhals' own read() never raises for a cross-dialect wrap, so
-        both sides visit successfully; the mismatch is caught here instead,
-        after both are visited, by comparing their actual dialects.
+        A same-family, different-dialect narwhals operand is also moved: narwhals'
+        own read() never raises for a cross-dialect wrap, so both sides visit
+        successfully and the mismatch is caught here, after both are visited.
         """
+        left_location = self._native_location(left_result)
         try:
             right_result = self.visit(right_node)
         except TypeError:
             # The backend's read() rejected the right side's type.
-            # Extract the raw dataframe and coerce it to match the left.
             if isinstance(right_node, ReadRelNode):
-                coerced = self._coerce_to_match(left_result, right_node.dataframe)
-                return coerced
+                return self._transfer_native(right_node.dataframe, left_location)
             raise
-        return self._coerce_same_family_dialect(left_result, right_result)
+        return self._align_narwhals(left_result, left_location, right_result)
 
-    @staticmethod
-    def _coerce_to_match(target: Any, value: Any) -> Any:
-        """Coerce *value* to match *target*'s backend type for a cross-type
-        join/union operand (spec 9). A thin dispatcher: each family's actual
-        conversion route lives in
-        :mod:`mountainash.relations.core.materialization`
-        (``coerce_to_polars``/``coerce_to_narwhals``/``coerce_to_ibis``).
-        """
-        from mountainash.core.types import is_ibis_table, is_narwhals_dataframe, is_narwhals_lazyframe
-        from mountainash.relations.core.materialization import (
-            coerce_to_ibis,
-            coerce_to_narwhals,
-            coerce_to_polars,
-        )
+    def _native_location(self, value: Any) -> Any:
+        from mountainash.relations.core.execution.location import LocationResolver
 
-        if is_polars_dataframe(target) or is_polars_lazyframe(target):
-            return coerce_to_polars(target, value)
-        if is_narwhals_dataframe(target) or is_narwhals_lazyframe(target):
-            return coerce_to_narwhals(target, value)
-        if is_ibis_table(target):
-            return coerce_to_ibis(target, value)
+        return LocationResolver(self._transport().tokens)._read(value)
 
-        # Unreachable for any genuine Polars/Narwhals/Ibis-native target (this
-        # function's sole call site passes the LEFT side's own already-visited,
-        # backend-native compiled result -- always one of the three checks
-        # above). Deliberately reachable for an object that satisfies narwhals'
-        # own permissive detection (hasattr(..., "_compliant_frame")) but fails
-        # the strict TypeGuards used above -- never duck-type where a
-        # non-narwhals object could spoof. Fails loud rather than a silent
-        # no-op.
-        from mountainash.core.errors import BackendConversionError
+    def _transport(self) -> Any:
+        if self.transport is None:
+            from mountainash.relations.core.execution.location import IdentityTokens
+            from mountainash.relations.core.execution.transport import TransportSession
 
-        raise BackendConversionError(
-            f"Cannot coerce {type(value).__name__} to unrecognized target type "
-            f"{type(target).__name__} for cross-type join.",
-            boundary_key=None,
-            source_family=None,
-            source_dialect=None,
-            destination_family=None,
-            destination_dialect=None,
-            source_type=type(value).__name__,
-            route="_coerce_to_match",
-            reason=f"target type {type(target).__name__} is not a recognized Polars/Narwhals/Ibis native",
-        )
+            self.transport = TransportSession(IdentityTokens())
+        return self.transport
 
-    @staticmethod
-    def _coerce_same_family_dialect(target: Any, value: Any) -> Any:
-        """Coerce *value* to match *target*'s narwhals native dialect and
-        eager/lazy shape when both are narwhals frames. A thin dispatcher
-        to :func:`mountainash.relations.core.materialization.coerce_narwhals_dialect`.
-        """
-        from mountainash.relations.core.materialization import coerce_narwhals_dialect
+    def _transfer_native(self, value: Any, destination: Any) -> Any:
+        return self._transport().transfer_native(value, destination)
 
-        return coerce_narwhals_dialect(target, value)
+    def _align_narwhals(self, anchor: Any, anchor_location: Any, value: Any) -> Any:
+        """Give a narwhals operand its anchor's exact dialect and eager/lazy form."""
+        from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
+
+        if (is_narwhals_dataframe(anchor) or is_narwhals_lazyframe(anchor)) and (
+            is_narwhals_dataframe(value) or is_narwhals_lazyframe(value)
+        ):
+            return self._transfer_native(value, anchor_location)
+        return value
 
     def compile_expression(self, expr: Any) -> Any:
         """Compile an expression AST node, or pass through native/string expressions.

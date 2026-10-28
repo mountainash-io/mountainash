@@ -145,6 +145,14 @@ class _RunnerExecutorAdapter:
         if isinstance(data, list) and len(data) == 0:
             return pl.DataFrame().lazy()
         if hasattr(data, "num_rows"):
-            return pl.from_arrow(data).lazy()
+            from mountainash.core.constants import CONST_BACKEND
+            from mountainash.relations.core.execution.location import ExecutionLocation
+            from mountainash.relations.core.materialization import ExecutionForm
+            from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+            memory = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "memory")
+            return get_relation_system(CONST_BACKEND.POLARS)().import_into(
+                data, location=memory, owned=False,
+            ).value
         from mountainash.pydata.ingress import PydataIngress
         return PydataIngress.convert(data).lazy()

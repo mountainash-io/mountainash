@@ -182,7 +182,7 @@ def test_public_conform_reports_intrinsic_capability_error() -> None:
         overrides={"records": nw.from_native(pl.DataFrame({"point": ["[1,2]"]}))}
     )
     with pytest.raises(BackendCapabilityError) as exc_info:
-        dag.collect("records", backend="narwhals")
+        dag.collect("records", target="narwhals")
     error = exc_info.value
     assert error.backend == "narwhals"
     assert error.function_key is FK_GEO.PARSE_GEOPOINT

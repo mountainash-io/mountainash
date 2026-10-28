@@ -249,3 +249,78 @@ def test_sql_query_result_and_table_on_distinct_connections_are_unresolved(backe
     query = left._find_backend(use_default=False).sql("select id from seed")
     mixed = query.union(right)
     assert LocationResolver(IdentityTokens()).resolve(ma.relation(mixed)._node).binding == "unresolved"
+
+
+# --- target vocabulary and single native recognizer (location-centred transfer, Task 1) ---
+
+import narwhals as nw  # noqa: E402
+import pandas as pd  # noqa: E402
+import polars as pl  # noqa: E402
+
+from mountainash.core.capabilities.identity import BackendIdentity  # noqa: E402
+from mountainash.core.dtypes.targets import TypeTarget  # noqa: E402
+from mountainash.relations.core.execution.location import (  # noqa: E402
+    ExecutionLocation,
+    native_identity,
+)
+from mountainash.relations.core.materialization import ExecutionForm  # noqa: E402
+
+
+@pytest.mark.parametrize("value, expected", [
+    (pl.DataFrame({"a": [1]}), BackendIdentity(CONST_BACKEND.POLARS, "polars")),
+    (pd.DataFrame({"a": [1]}), BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-pandas")),
+    (pa.table({"a": [1]}), BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-pyarrow")),
+    (nw.from_native(pd.DataFrame({"a": [1]})), BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-pandas")),
+    ("ibis", BackendIdentity(CONST_BACKEND.IBIS, None)),
+    (CONST_BACKEND.POLARS, BackendIdentity(CONST_BACKEND.POLARS, "polars")),
+])
+def test_native_identity(value, expected):
+    assert native_identity(value) == expected
+
+
+def test_native_identity_bound_ibis():
+    con = ibis.duckdb.connect()
+    assert native_identity(con.create_table("t", {"a": [1]})) == BackendIdentity(CONST_BACKEND.IBIS, "ibis-duckdb")
+
+
+@pytest.mark.parametrize("target, family, dialect, form, binding", [
+    ("polars", CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound"),
+    ("POLARS", CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound"),
+    ("narwhals", CONST_BACKEND.NARWHALS, "narwhals-polars", ExecutionForm.EAGER, "bound"),
+    ("narwhals-pandas", CONST_BACKEND.NARWHALS, "narwhals-pandas", ExecutionForm.EAGER, "bound"),
+    ("narwhals-lazy", CONST_BACKEND.NARWHALS, "narwhals-lazy", ExecutionForm.LAZY, "bound"),
+    ("pandas", CONST_BACKEND.NARWHALS, "narwhals-pandas", ExecutionForm.EAGER, "bound"),
+    ("ibis", CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "unresolved"),
+    ("ibis-duckdb", CONST_BACKEND.IBIS, "ibis-duckdb", ExecutionForm.DEFERRED, "unresolved"),
+])
+def test_resolve_target_strings(target, family, dialect, form, binding):
+    loc = LocationResolver(IdentityTokens()).resolve_target(target)
+    assert (loc.family, loc.dialect, loc.form, loc.binding, loc.connection) == (family, dialect, form, binding, None)
+
+
+def test_resolve_target_connection():
+    resolver = LocationResolver(IdentityTokens())
+    con = ibis.duckdb.connect()
+    loc = resolver.resolve_target(con)
+    assert (loc.family, loc.dialect, loc.binding) == (CONST_BACKEND.IBIS, "ibis-duckdb", "bound")
+    assert loc.connection is con and loc.connection_token == resolver.tokens.token(con)
+
+
+def test_resolve_target_none_and_errors():
+    resolver = LocationResolver(IdentityTokens())
+    assert resolver.resolve_target(None) is None
+    with pytest.raises(ValueError, match="unknown target"):
+        resolver.resolve_target("spark")
+    with pytest.raises(TypeError, match="target must be"):
+        resolver.resolve_target(pl.DataFrame({"a": [1]}))
+
+
+@pytest.mark.parametrize("family, dialect, expected", [
+    (CONST_BACKEND.IBIS, "ibis-duckdb", TypeTarget.IBIS),
+    (CONST_BACKEND.POLARS, "polars", TypeTarget.POLARS),
+    (CONST_BACKEND.NARWHALS, "narwhals-pandas", TypeTarget.PANDAS),
+    (CONST_BACKEND.NARWHALS, "narwhals-pyarrow", TypeTarget.PYARROW),
+    (CONST_BACKEND.NARWHALS, "narwhals-lazy", TypeTarget.POLARS),
+])
+def test_type_target(family, dialect, expected):
+    assert ExecutionLocation(family, dialect, ExecutionForm.EAGER, "bound").type_target is expected

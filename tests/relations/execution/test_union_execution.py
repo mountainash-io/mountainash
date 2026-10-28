@@ -73,7 +73,7 @@ def test_targeted_first_union_exports_foreign_input_only(monkeypatch, distinct, 
     (False, [2, 2, 2, 3, 3, 3]), (True, [2, 3]),
 ])
 def test_targeted_first_set_moves_only_foreign_sources(
-    monkeypatch, named, derived, distinct, expected,
+    monkeypatch, named, derived, distinct, expected, terminal_egress,
 ):
     """The join and a separate A operand each cross to B, but B never does."""
     from mountainash.relations.core.execution.transport import TransportSession
@@ -96,13 +96,14 @@ def test_targeted_first_set_moves_only_foreign_sources(
     if named:
         dag.add("result", relation)
     moves = []
-    real = TransportSession._convert
+    real = TransportSession._move
 
     def observed(self, source, requirement):
-        moves.append((source.location.connection, requirement.destination.connection))
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
+            moves.append((source.location.connection, requirement.destination.connection))
         return real(self, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observed)
+    monkeypatch.setattr(TransportSession, "_move", observed)
     result = dag.collect("result") if named else relation.collect()
     assert result._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert sorted(ma.relation(result).to_dict()["id"]) == expected
@@ -117,10 +118,13 @@ def test_targeted_first_set_moves_only_foreign_sources(
 def test_targeted_first_set_rejects_missing_route_before_native_union(
     monkeypatch, named, distinct,
 ):
-    """A lazy Narwhals destination has no declared foreign-input adapter."""
+    """A lazy-only Narwhals implementation (DuckDB) cannot import a foreign input."""
+    import duckdb
+    import narwhals as nw
+
     from mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_set import SubstraitNarwhalsSetRelationSystem
 
-    b = REGISTRY["narwhals-lazy"].build({"id": [1, 2]}, "target")
+    b = nw.from_native(duckdb.connect().sql("select * from (values (1), (2)) t(id)"))
     a = REGISTRY["ibis-duckdb"].build({"id": [2]}, "foreign")
     dag = ma.RelationDAG()
     dag.add("target", ma.relation(b))
@@ -147,7 +151,7 @@ def test_targeted_first_set_rejects_missing_route_before_native_union(
     assert caught.value.source_family == "ibis"
 
 
-def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypatch):
+def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypatch, terminal_egress):
     from mountainash.relations.core.execution.transport import TransportSession
 
     a = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "source")
@@ -156,14 +160,15 @@ def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypat
     # Separate occurrences of the same recipe are not the same materialized operand.
     second = ma.relation(a).filter(ma.col("id") > 2)
     third = ma.relation(a).filter(ma.col("id") > 2)
-    real = TransportSession._convert
+    real = TransportSession._move
     moves = []
 
     def observed(self, source, requirement):
-        moves.append(source.source_token)
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
+            moves.append(source.source_token)
         return real(self, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observed)
+    monkeypatch.setattr(TransportSession, "_move", observed)
     result = ma.concat([first, second, third]).collect()
     assert result._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert sorted(ma.relation(result).to_dict()["id"]) == [2, 3, 3, 3]

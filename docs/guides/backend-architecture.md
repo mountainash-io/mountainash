@@ -125,14 +125,48 @@ assert joined.collect()._find_backend(use_default=False) is destination
 
 `cross_join(other, execute_on=...)` and `join_asof(other, on=...,
 execute_on=...)` use the same placement rule. Nested joins can target different
-locations; an explicit terminal `backend=` that contradicts any explicit inner
-target fails before execution. `backend="ibis"` is only a family override,
-not a connection; `.to_polars()` selects output representation, not placement.
-A memtable-only Ibis authority without a bound peer now fails as unresolved,
-including at materializing terminals; supply a bound table as in the example.
+locations.
+
+Terminals (`collect`, `collect_with_drift`, `RelationDAG.collect`/`execute`)
+accept an optional `target=`: a family (`"polars"`, `"narwhals"`, `"ibis"`),
+a dialect identifier (`"narwhals-pandas"`, `"ibis-duckdb"`) or an Ibis
+connection object. Omitting it keeps the detected, default-left placement.
+A target that contradicts an explicit inner join target -- a different family,
+dialect or connection -- fails before execution; the same connection, or a
+bare `"ibis"`, keeps the join's selected connection. `.to_polars()` selects
+output representation, not placement.
+A memtable-only Ibis authority without a bound peer fails as unresolved,
+including at materializing terminals; supply a bound table or `target=<connection>`.
 `.compile()` cannot execute a deferred source just to transfer it (including
 late union inputs), and directs you to `.collect()`; `.explain()` describes
 placement and transfers without executing them.
+
+### Transfers between locations
+
+A value crossing between locations is exported by its source family to Arrow
+and imported by the destination family (`export` / `import_into` on the
+registered relation system), once per boundary. Values that stay in one native
+library (Polars wrapped by Narwhals, eager to lazy) move without Arrow.
+Destination specifics:
+
+- **pandas / `narwhals-pandas`** imports use Narwhals' own NumPy-backed
+  conversion, so an imported operand mixes with your pandas frames. That
+  representation turns an integer column with nulls into float, NaN and null
+  into NaN, and decimals into Python objects; a pandas source keeps its own
+  dtypes.
+- **`narwhals-lazy`** (Narwhals over Polars lazy) is a valid target. Lazy-only
+  Narwhals implementations (`narwhals-duckdb`, `narwhals-dask`) cannot import
+  Arrow and refuse with `UnsupportedRelationTransportError`.
+- **Ibis-SQLite** refuses IEEE NaN (stored as NULL), non-null decimals and
+  nested types; an owned table copy (a `target=<sqlite connection>` collect)
+  also refuses decimal columns, including all-null ones.
+- Arrow exported from Ibis names list children `item` whatever the engine
+  uses (DuckDB uses `l`), so the same logical type renders identically across
+  backends.
+
+Refusals carry the destination's declared `IMPORT_INTO` capability fact as
+`UnsupportedRelationTransportError.limitation`. Owned-copy adoption onto MySQL,
+SingleStoreDB and Exasol connections is blocked by the same key's declarations.
 
 Principle: `e.cross-backend/backend-detection.md`.
 
@@ -144,7 +178,7 @@ Use `from_arrow` when data has already been parsed into a PyArrow table:
 import mountainash as ma
 
 local = ma.from_arrow(arrow_table)  # Polars in-process execution
-loaded = ma.from_arrow(arrow_table, connection=connection)  # Ibis-DuckDB
+loaded = ma.from_arrow(arrow_table, target=connection)  # Ibis-DuckDB
 assert loaded.compile().get_backend() is connection
 result = loaded.filter(ma.col("id") > 0).select("id")
 ```
@@ -152,8 +186,8 @@ result = loaded.filter(ma.col("id") > 0).select("id")
 The function is also exported from `mountainash.relations`. It imports eagerly
 and returns a normal Relation over the completed native source. Subsequent
 building and compilation do not repeat ingestion. `ma.relation(data)` remains
-a plan-building operation; terminal `backend="ibis"` is still not a connection
-selector.
+a plan-building operation; a terminal `target="ibis"` names a family, not a
+connection -- pass the connection itself to select one.
 
 Without a connection, conversion uses Polars directly. With a caller-supplied
 Ibis-DuckDB connection, import creates one owned temporary table on that exact

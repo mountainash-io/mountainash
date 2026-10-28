@@ -61,13 +61,13 @@ def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None
     *native*'s recorded ``value_identity``.
 
     The recorded identity is authoritative -- this independent
-    :func:`~mountainash.core.backend_detection.identify_backend_identity`
+    :func:`~mountainash.core.backend_detection.native_identity`
     re-check is only a consistency assertion, never a second source of
     truth.
     """
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
 
-    detected = identify_backend_identity(value)
+    detected = native_identity(value)
     if detected != native.value_identity:
         raise BackendConversionError(
             "prepared validation input's independently detected backend "
@@ -81,7 +81,7 @@ def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None
             route="assert_prepared_identity",
             reason=(
                 "materialize_native()'s recorded value_identity must match "
-                "an independent identify_backend_identity() re-check"
+                "an independent native_identity() re-check"
             ),
         )
 
@@ -172,13 +172,13 @@ def prepare_validation_input(
 
     dag = getattr(rel, "_dag", None)
     prepared = prepare_execution(
-        rel._node, phase=ExecutionPhase.EXPLAIN, backend=backend,
+        rel._node, phase=ExecutionPhase.EXPLAIN, target=backend,
         identity_resolver=(lambda name: dag.relations[name]._node) if dag is not None else None,
         execution_context=execution_context,
     )
     require_copy_idle(prepared.locations[prepared.root_key].connection)
     result, visitor = rel._compile_and_execute_with_visitor(
-        backend=backend, execution_context=execution_context,
+        target=backend, execution_context=execution_context,
     )
     compiler_identity = BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
     native = materialize_native(

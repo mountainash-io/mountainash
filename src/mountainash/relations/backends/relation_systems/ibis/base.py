@@ -8,6 +8,11 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.backends.relation_systems.base import BaseRelationSystem
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pyarrow as pa
+
+    from mountainash.relations.core.execution.metadata import Imported
     from mountainash.core.dtypes.protocols import ResolvedType
     from mountainash.relations.core.execution.location import ExecutionLocation
 
@@ -58,3 +63,88 @@ class IbisBaseRelationSystem(BaseRelationSystem):
     ) -> tuple[str, ...] | None:
         """Ibis supplies its own ``_right`` suffix when none is given."""
         return self._cross_join_names(left_names, right_names, suffix or "_right")
+
+    def export(self, native: Any, *, source: ExecutionLocation) -> pa.Table:
+        """Arrow export; a bare in-memory table is read without execution.
+
+        List child fields take Arrow's default name (``item``): engines name
+        them differently (DuckDB uses ``l``), which would make the same logical
+        type compare unequal across backends.
+        """
+        from ibis.expr.operations import InMemoryTable
+
+        op = native.op()
+        if isinstance(op, InMemoryTable):
+            return op.data.to_pyarrow(native.schema())
+        table = native.to_pyarrow()
+        schema = _canonical_schema(table.schema)
+        # Schema equality ignores list child names; compare the rendered types.
+        if [str(f.type) for f in schema] == [str(f.type) for f in table.schema]:
+            return table
+        return table.cast(schema)
+
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
+        if location.dialect == "ibis-sqlite":
+            from mountainash.relations.backends.relation_systems.ibis import _sqlite_storage
+
+            _sqlite_storage.check(arrow() if callable(arrow) else arrow)
+
+    def import_into(
+        self, arrow: pa.Table, *, location: ExecutionLocation, owned: bool = False,
+    ) -> Imported:
+        import ibis
+
+        from mountainash.relations.core.execution.metadata import Imported
+
+        self.check_import(arrow, location=location)
+        if location.dialect == "ibis-sqlite":
+            from mountainash.relations.backends.relation_systems.ibis import _sqlite_storage
+            from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+                ensure_sqlite_nat_adapter,
+            )
+
+            ensure_sqlite_nat_adapter()
+            if owned:
+                _sqlite_storage.check_owned(arrow)
+        if not owned:
+            return Imported(ibis.memtable(arrow))
+        if location.connection is None:
+            raise ValueError("an owned import requires a location with a connection")
+        from mountainash.relations.core.owned_copy import owned_arrow_table
+
+        copy = owned_arrow_table(arrow, location.connection)
+        return Imported(copy.value, copy.release)
+
+    def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        """Whether ``read_resource`` scans this resource natively (non-executing).
+
+        Local plain CSV/Parquet; CSV also needs a default dialect (the
+        connection's ``read_csv`` ignores ours). JSON takes the fallback route.
+        """
+        return self._native_scan_for(
+            resource, resource.to_dialect(), location=location,
+        )
+
+
+def _canonical_type(dtype: pa.DataType) -> pa.DataType:
+    import pyarrow as pa
+
+    if pa.types.is_list(dtype) or pa.types.is_large_list(dtype) or pa.types.is_fixed_size_list(dtype):
+        child = dtype.value_field
+        field = pa.field("item", _canonical_type(child.type), child.nullable, child.metadata)
+        if pa.types.is_large_list(dtype):
+            return pa.large_list(field)
+        if pa.types.is_fixed_size_list(dtype):
+            return pa.list_(field, dtype.list_size)
+        return pa.list_(field)
+    if pa.types.is_struct(dtype):
+        return pa.struct([f.with_type(_canonical_type(f.type)) for f in dtype])
+    return dtype
+
+
+def _canonical_schema(schema: pa.Schema) -> pa.Schema:
+    import pyarrow as pa
+
+    return pa.schema([f.with_type(_canonical_type(f.type)) for f in schema], metadata=schema.metadata)

@@ -24,7 +24,7 @@ def test_mountainash_rkey_members():
     expected = {
         "DROP_NULLS", "DROP_NANS", "WITH_ROW_INDEX", "EXPLODE", "SAMPLE",
         "UNPIVOT", "PIVOT", "TOP_K", "UNNEST", "FETCH_FROM_END", "JOIN_ASOF",
-        "SOURCE", "REF", "READ_RESOURCE", "CONFORM", "EMPTY_FRAME",
+        "SOURCE", "REF", "READ_RESOURCE", "CONFORM", "EMPTY_FRAME", "IMPORT_INTO",
     }
     assert {m.name for m in RKEY_MOUNTAINASH_REL} == expected
 
