@@ -50,7 +50,7 @@ Compile any schema source — `TableSchema`, dict, Pydantic `BaseModel`, or a Fr
 
 ### [Pipelines](features/pipelines.md)
 
-Multi-step pipelines with typed parameters (`ParamSpec`), explicit dependencies, optional caching, and direct integration into the relation AST. Define a step once with `@step(...)`, compose it with `relation.params(...)`, and collect on any backend.
+Macro-orchestration over the same graph kernel as `RelationDAG`: compose units — `@unit` functions, `DagUnit` relation targets, incremental `CallableSource`s, authored sinks (`IbisTableSink`, `ParquetDirectorySink`) and nested pipelines — and run them with a `Runner` that resumes from a `FileCheckpoint`. Pipelines drive relation DAGs natively on any backend; relations never trigger pipelines.
 
 ### [Ternary logic](features/ternary-logic.md)
 
