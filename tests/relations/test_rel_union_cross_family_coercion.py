@@ -161,11 +161,11 @@ class TestBoundaries:
                             ]).to_polars()
         assert result.to_dict(as_series=False) == {"k": [1, 2, 3]}
 
-    def test_lazy_narwhals_anchor_boundary_raises_clean_typeerror(self):
+    def test_lazy_narwhals_anchor_imports_foreign_operand(self):
         lazy_anchor = _nw_lazy_polars({"k": [1]})
-        with pytest.raises(TypeError):
-            ma.concat([ma.relation(lazy_anchor),
-                       ma.relation(ibis.memtable({"k": [2]}))]).to_polars()
+        result = ma.concat([ma.relation(lazy_anchor),
+                            ma.relation(ibis.memtable({"k": [2]}))]).to_polars()
+        assert sorted(result.to_dict(as_series=False)["k"]) == [1, 2]
 
     def test_lazy_narwhals_operand_polars_anchor_coerces_via_collect(self):
         """Task 5: the Polars-target adapter now handles a lazy Narwhals

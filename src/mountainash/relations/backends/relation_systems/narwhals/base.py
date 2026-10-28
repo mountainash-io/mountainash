@@ -54,10 +54,13 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             frame = frame.collect()
         if frame.implementation.is_pandas():
             # An index is not data; to_arrow() would emit a named index as a column.
+            # Pandas schema metadata is not data either: consumers that rebuild a
+            # pandas frame from it (Ibis SQLite registration) would revive
+            # ArrowDtype/pd.NA columns the destination cannot bind.
             import pyarrow as pa
 
             native_frame = frame.to_native()
-            table = pa.Table.from_pandas(native_frame, preserve_index=False)
+            table = pa.Table.from_pandas(native_frame, preserve_index=False).replace_schema_metadata(None)
             if table.num_rows == 0:
                 # An empty object column has no values to infer from; Arrow reports
                 # null, Polars' pandas import reports String. Keep the latter.
@@ -73,7 +76,11 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
     def check_import(
         self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
     ) -> None:
-        return None
+        impl = (location.dialect or "").removeprefix("narwhals-")
+        if impl in ("duckdb", "dask"):
+            raise ValueError(
+                f"eager Arrow import unsupported for lazy-only narwhals implementation {location.dialect!r}"
+            )
 
     def import_into(
         self, arrow: pa.Table, *, location: ExecutionLocation, owned: bool = False,
@@ -81,28 +88,22 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
         import narwhals as nw
 
         self.check_import(arrow, location=location)
-        from mountainash.core.errors import BackendConversionError
         from mountainash.relations.core.execution.metadata import Imported
 
         impl = (location.dialect or "").removeprefix("narwhals-")
         if impl == "lazy":
             return Imported(nw.from_arrow(arrow, backend="polars").lazy())
-        if impl in ("pandas", "polars", "pyarrow"):
+        if impl == "pandas":
+            # Arrow-backed pandas columns keep the Arrow types: an integer column
+            # with nulls stays integer, NaN stays distinct from null, decimals stay
+            # decimal (NumPy-backed pandas would change all three).
+            import pandas as pd
+
+            frame = nw.from_native(arrow.to_pandas(types_mapper=pd.ArrowDtype), eager_only=True)
+            return Imported(frame.lazy() if location.form is ExecutionForm.LAZY else frame)
+        if impl in ("polars", "pyarrow"):
             frame = nw.from_arrow(arrow, backend=impl)
             return Imported(frame.lazy() if location.form is ExecutionForm.LAZY else frame)
-        if impl in ("duckdb", "dask"):
-            reason = "eager Arrow import unsupported for lazy-only narwhals implementation"
-            raise BackendConversionError(
-                reason,
-                boundary_key=None,
-                source_family="arrow",
-                source_dialect=None,
-                destination_family=str(location.family),
-                destination_dialect=location.dialect,
-                source_type="pyarrow.Table",
-                route="import_into",
-                reason=reason,
-            )
         raise ValueError(f"unknown narwhals dialect: {location.dialect!r}")
 
     def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:

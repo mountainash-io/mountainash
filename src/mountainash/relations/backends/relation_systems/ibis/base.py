@@ -90,11 +90,14 @@ class IbisBaseRelationSystem(BaseRelationSystem):
 
         self.check_import(arrow, location=location)
         if location.dialect == "ibis-sqlite":
+            from mountainash.relations.backends.relation_systems.ibis import _sqlite_storage
             from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
                 ensure_sqlite_nat_adapter,
             )
 
             ensure_sqlite_nat_adapter()
+            if owned:
+                _sqlite_storage.check_owned(arrow)
         if not owned:
             return Imported(ibis.memtable(arrow))
         if location.connection is None:

@@ -72,7 +72,6 @@ def test_raw_ingress_shared_by_distinct_parents(backend_name, payload, monkeypat
     target = ma.relation(frame)
     left = target.filter(ma.col("id") > 0).join(raw, on="id")
     right = target.filter(ma.col("id") < 2).join(raw, on="id")
-    from mountainash.relations.core.errors import UnsupportedRelationTransportError
     from mountainash.relations.core.execution.transport import TransportSession
 
     conversions = []
@@ -84,11 +83,6 @@ def test_raw_ingress_shared_by_distinct_parents(backend_name, payload, monkeypat
         return real_move(session, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_move", observe_move)
-    if backend_name == "narwhals-lazy":
-        # This destination has no declared raw-input transport on baseline.
-        with pytest.raises(UnsupportedRelationTransportError):
-            ma.concat([left, right]).to_dicts()
-        return
     assert ma.concat([left, right]).to_dicts() == [{"id": 1}] * 2
     assert len(conversions) == 1
 

@@ -263,12 +263,12 @@ class TestUnsupportedDialectAndErrorWrapping:
 
         from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
-        target = _nw_pandas({"id": [1]})
-        value = _nw_polars({"id": [1]})
+        target = _nw_polars({"id": [1]})
+        value = _nw_pandas({"id": [1]})
         with patch("narwhals.from_arrow", side_effect=ValueError("conversion exploded")):
             with pytest.raises(UnsupportedRelationTransportError) as caught:
                 _move(target, value)
-        assert caught.value.destination_dialect == "narwhals-pandas"
+        assert caught.value.destination_dialect == "narwhals-polars"
         assert isinstance(caught.value.__cause__, ValueError)
 
     def test_same_dialect_operands_untouched_no_wasted_round_trip(self):

@@ -98,7 +98,15 @@ def _requirement(
             and (source.family is not CONST_BACKEND.IBIS or source.connection_token == target.connection_token):
         return None
     if target.family is CONST_BACKEND.NARWHALS and target.form is ExecutionForm.LAZY:
-        raise _refusal(source, target)
+        # The destination family decides which lazy implementations it can
+        # produce; preparation never exports to ask it.
+        from mountainash.relations.core.execution.transport import import_refusal
+        from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+        try:
+            get_relation_system(target.family)().check_import(_no_payload, location=target)
+        except ValueError as exc:
+            raise import_refusal(source, target, exc) from exc
     if source.family is CONST_BACKEND.IBIS and source.binding == "memory" \
             and target.family is CONST_BACKEND.IBIS:
         return TransferRequirement(key, target, derived)
@@ -115,6 +123,10 @@ def _requirement(
     if target.family not in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS) or source.family is None:
         raise _refusal(source, target)
     return TransferRequirement(key, target, derived or compiled_form is not ExecutionForm.EAGER)
+
+
+def _no_payload() -> Any:
+    raise AssertionError("preparation-time check_import must not request the payload")
 
 
 def _refusal(source: ExecutionLocation, target: ExecutionLocation) -> UnsupportedRelationTransportError:

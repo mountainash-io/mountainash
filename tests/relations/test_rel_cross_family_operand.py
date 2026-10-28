@@ -157,9 +157,9 @@ class TestIbisTableToNarwhalsTarget:
         assert rows == [(2, "y", 10), (3, "z", 20)]
 
 
-class TestLazyNarwhalsTargetRejectsEagerOperand:
-    """A raw operand has no lazy Narwhals form: the prepared join refuses it
-    at preparation with the explicit unsupported-transfer outcome."""
+class TestLazyNarwhalsTargetImportsEagerOperand:
+    """A raw or Polars operand joined onto a lazy Narwhals frame is imported
+    into the frame's implementation in lazy form and joined there."""
 
     @pytest.mark.parametrize(
         "value_factory",
@@ -170,12 +170,10 @@ class TestLazyNarwhalsTargetRejectsEagerOperand:
         ],
         ids=["dict", "list_of_dict", "polars_lazyframe"],
     )
-    def test_lazy_target_raises_unsupported_transport(self, value_factory):
-        from mountainash.relations.core.errors import UnsupportedRelationTransportError
-
+    def test_lazy_target_joins_imported_operand(self, value_factory):
         target = _nw_pandas({"id": [1, 2]}).lazy()
-        with pytest.raises(UnsupportedRelationTransportError):
-            ma.relation(target).join(value_factory(), on="id").collect()
+        out = ma.relation(target).join(value_factory(), on="id").to_polars()
+        assert out.to_dict(as_series=False) == {"id": [1]}
 
 
 class TestJoinAsofNarwhalsTargetDictValue:
@@ -262,12 +260,12 @@ class TestErrorWrappingPreservesOriginalTypeAndContext:
 
         from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
-        target = _nw_pandas({"id": [1, 2]})
+        target = _nw_polars({"id": [1, 2]})
         with patch("narwhals.from_arrow", side_effect=ValueError("boom")):
             with pytest.raises(UnsupportedRelationTransportError) as caught:
                 _move(target, {"id": [1]})
         assert isinstance(caught.value.__cause__, ValueError)
-        assert caught.value.destination_dialect == "narwhals-pandas"
+        assert caught.value.destination_dialect == "narwhals-polars"
 
     def test_ibis_conversion_failure_wraps_original_cause(self):
         from unittest.mock import patch

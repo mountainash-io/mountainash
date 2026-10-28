@@ -10,7 +10,7 @@ import pyarrow as pa
 import pytest
 
 import mountainash as ma
-from fixtures.backend_registry import REGISTRY
+from fixtures.backend_registry import MATRIX_BACKENDS, REGISTRY
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
 
@@ -208,7 +208,7 @@ def test_narwhals_import(dialect, impl, lazy):
 
 @pytest.mark.parametrize("dialect", ["narwhals-duckdb", "narwhals-dask"])
 def test_narwhals_lazy_only_import_refused(dialect):
-    with pytest.raises(BackendConversionError):
+    with pytest.raises(ValueError, match="lazy-only"):
         sys_(CONST_BACKEND.NARWHALS).import_into(ARROW, location=_loc(CONST_BACKEND.NARWHALS, dialect))
 
 
@@ -243,3 +243,79 @@ def test_ibis_sqlite_import_rejects_nan():
     with pytest.raises(ValueError, match="NaN"):
         sys_(CONST_BACKEND.IBIS).import_into(pa.table({"x": [1.0, float("nan")]}),
             location=_loc(CONST_BACKEND.IBIS, "ibis-sqlite", ExecutionForm.DEFERRED, "memory", con, 0))
+
+
+# --- Typed source x destination x value transfer matrix (spec §8, spike J) ---
+
+_CASES = {
+    "int_null": pa.array([1, None, 3], pa.int64()),
+    "float_null": pa.array([1.5, None], pa.float64()),
+    "float_nan": pa.array([1.5, float("nan")], pa.float64()),
+    "string_empty": pa.array(["a", None, ""], pa.string()),
+    "bool_null": pa.array([True, None, False], pa.bool_()),
+    "date": pa.array([date(2020, 1, 1), None], pa.date32()),
+    "ts_us": pa.array([datetime(2020, 1, 1, 12, 0, 0, 123456), None], pa.timestamp("us")),
+    "ts_tz": pa.array([datetime(2020, 1, 1, 12, tzinfo=timezone.utc), None], pa.timestamp("us", "UTC")),
+    "decimal": pa.array([Decimal("1.10"), None], pa.decimal128(10, 2)),
+    "decimal_all_null": pa.array([None, None], pa.decimal128(10, 2)),
+    "list": pa.array([[1, 2], None, []], pa.list_(pa.int64())),
+    "empty": pa.array([], pa.int64()),
+}
+_DESTS = {
+    "polars": lambda: "polars",
+    "narwhals-polars": lambda: "narwhals-polars",
+    "narwhals-pandas": lambda: "narwhals-pandas",
+    "narwhals-pyarrow": lambda: "narwhals-pyarrow",
+    "narwhals-lazy": lambda: "narwhals-lazy",
+    "ibis-duckdb": ibis.duckdb.connect,
+    "ibis-sqlite": ibis.sqlite.connect,
+    "ibis-polars": ibis.polars.connect,
+}
+# Spike J: the only source representation limits observed.
+_SOURCE_LIMITS = {
+    ("ibis-sqlite", c): "SQLite source cannot hold this value domain (spike J)"
+    for c in ("float_nan", "decimal", "decimal_all_null", "list")
+}
+# Typed refusal asserted (SQLite storage checks), any source. A collect to an
+# SQLite connection is an owned create_table copy, which also refuses an
+# all-null decimal column (backlog 336); the memtable path still stores it.
+_REFUSED = {("*", "ibis-sqlite", c) for c in ("float_nan", "decimal", "decimal_all_null", "list")}
+# Add only with an upstream id from registry/upstream-issues.yaml, one cell at a time.
+_DEST_LIMITS: dict[tuple[str, str, str], str] = {}
+
+
+def _matrix_cells():
+    for s in MATRIX_BACKENDS:
+        for d in _DESTS:
+            for c in _CASES:
+                reason = (_SOURCE_LIMITS.get((s, c)) or _DEST_LIMITS.get((s, d, c))
+                          or _DEST_LIMITS.get(("*", d, c)))
+                marks = pytest.mark.xfail(strict=True, reason=reason) if reason else ()
+                yield pytest.param(s, d, c, id=f"{s}__{d}__{c}", marks=marks)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("src, dst, case", list(_matrix_cells()))
+def test_transfer_matrix(src, dst, case):
+    from polars.testing import assert_series_equal
+
+    arr = _CASES[case]
+    table = pa.table({"k": pa.array(range(len(arr)), pa.int64()), "c": arr})
+    expected = pl.from_arrow(table)["c"]
+    source = MATRIX_BACKENDS[src].build_typed(table, "t")
+    held = pl.from_arrow(ma.relation(source).to_pyarrow()).sort("k")["c"]
+    assert_series_equal(held, expected)  # the source holds the case
+    rel = ma.relation(source)
+    if ("*", dst, case) in _REFUSED or (src, dst, case) in _REFUSED:
+        with pytest.raises(UnsupportedRelationTransportError):
+            rel.collect(target=_DESTS[dst]())
+        return
+    out = ma.relation(rel.collect(target=_DESTS[dst]())).to_polars()
+    assert out.columns == ["k", "c"] and out.height == table.num_rows
+    assert_series_equal(out.sort("k")["c"], expected, check_dtypes=True)
+
+
+@pytest.mark.parametrize("dst", ["narwhals-duckdb", "narwhals-dask"])
+def test_lazy_only_narwhals_destinations_refused(dst):
+    with pytest.raises(UnsupportedRelationTransportError):
+        ma.relation(ibis.duckdb.connect().create_table("t", {"k": [1]})).collect(target=dst)

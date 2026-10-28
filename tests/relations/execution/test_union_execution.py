@@ -118,10 +118,13 @@ def test_targeted_first_set_moves_only_foreign_sources(
 def test_targeted_first_set_rejects_missing_route_before_native_union(
     monkeypatch, named, distinct,
 ):
-    """A lazy Narwhals destination has no declared foreign-input adapter."""
+    """A lazy-only Narwhals implementation (DuckDB) cannot import a foreign input."""
+    import duckdb
+    import narwhals as nw
+
     from mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_set import SubstraitNarwhalsSetRelationSystem
 
-    b = REGISTRY["narwhals-lazy"].build({"id": [1, 2]}, "target")
+    b = nw.from_native(duckdb.connect().sql("select * from (values (1), (2)) t(id)"))
     a = REGISTRY["ibis-duckdb"].build({"id": [2]}, "foreign")
     dag = ma.RelationDAG()
     dag.add("target", ma.relation(b))

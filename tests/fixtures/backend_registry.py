@@ -15,6 +15,7 @@ import ibis
 import narwhals as nw
 import pandas as pd
 import polars as pl
+import pyarrow as pa
 
 
 DataDict = dict[str, list[Any]]
@@ -35,6 +36,7 @@ class BackendSpec:
     family: Family
     materialization: Materialization
     build: Callable[[DataDict, str], Any]
+    build_typed: Callable[["pa.Table", str], Any] | None = None
     min_versions: dict[str, str] = field(default_factory=dict)
     capabilities: frozenset[str] = field(default_factory=frozenset)
     extra_marks: Callable[[], tuple] | None = None
@@ -63,6 +65,10 @@ def _build_narwhals_pandas(data: DataDict, table_name: str):
     return nw.from_native(pd.DataFrame(data), eager_only=True)
 
 
+def _build_narwhals_pyarrow(data: DataDict, table_name: str):
+    return nw.from_native(pa.table(data), eager_only=True)
+
+
 def create_ibis_sqlite_table(conn, name: str, data: DataDict, *, overwrite: bool = True):
     """Create an ibis-sqlite table, safe against null date/timestamp values.
 
@@ -89,19 +95,54 @@ def _build_ibis_duckdb(data: DataDict, table_name: str):
     return conn.create_table(table_name, data, overwrite=True)
 
 
-REGISTRY: dict[str, BackendSpec] = {
-    "polars":          BackendSpec("polars",          "polars-eager", "eager",    _build_polars_eager),
-    "polars-lazy":     BackendSpec("polars-lazy",     "polars-lazy",  "lazy",     _build_polars_lazy),
-    "pandas":          BackendSpec("pandas",          "pandas",       "eager",    _build_pandas),
-    "narwhals-polars": BackendSpec("narwhals-polars", "narwhals",     "eager",    _build_narwhals_polars),
-    "narwhals-pandas": BackendSpec("narwhals-pandas", "narwhals",     "eager",    _build_narwhals_pandas),
-    "ibis-duckdb":     BackendSpec("ibis-duckdb",     "ibis",         "deferred", _build_ibis_duckdb),
-    "ibis-sqlite":     BackendSpec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite),
-    # Legacy alias: "narwhals" resolves to narwhals-polars for pre-existing
-    # tests that hardcode this name in their @parametrize lists.
-    # "narwhals":        BackendSpec("narwhals",        "narwhals",     "eager",    _build_narwhals_polars),
-    "narwhals-lazy":   BackendSpec("narwhals-lazy",   "narwhals",     "lazy",    _build_narwhals_polars_lazy),
-}
+def _build_ibis_polars(data: DataDict, table_name: str):
+    conn = ibis.polars.connect()
+    return conn.create_table(table_name, pl.DataFrame(data), overwrite=True)
+
+
+# Typed constructors: build each backend's native object from an Arrow table so
+# the declared Arrow type is the source type (no Python-list inference).
+def _typed_ibis(dialect: str):
+    def build(arrow: "pa.Table", table_name: str):
+        conn = getattr(ibis, dialect).connect()
+        if dialect == "sqlite":
+            from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+                ensure_sqlite_nat_adapter,
+            )
+            ensure_sqlite_nat_adapter()
+        return conn.create_table(table_name, arrow, overwrite=True)
+    return build
+
+
+def _spec(name, family, materialization, build, build_typed) -> BackendSpec:
+    return BackendSpec(name, family, materialization, build, build_typed=build_typed)
+
+
+REGISTRY: dict[str, BackendSpec] = {s.name: s for s in (
+    _spec("polars",          "polars-eager", "eager",    _build_polars_eager,
+          lambda t, _n: pl.from_arrow(t)),
+    _spec("polars-lazy",     "polars-lazy",  "lazy",     _build_polars_lazy,
+          lambda t, _n: pl.from_arrow(t).lazy()),
+    _spec("pandas",          "pandas",       "eager",    _build_pandas,
+          lambda t, _n: t.to_pandas(types_mapper=pd.ArrowDtype)),
+    _spec("narwhals-polars", "narwhals",     "eager",    _build_narwhals_polars,
+          lambda t, _n: nw.from_native(pl.from_arrow(t))),
+    _spec("narwhals-pandas", "narwhals",     "eager",    _build_narwhals_pandas,
+          lambda t, _n: nw.from_native(t.to_pandas(types_mapper=pd.ArrowDtype), eager_only=True)),
+    _spec("ibis-duckdb",     "ibis",         "deferred", _build_ibis_duckdb, _typed_ibis("duckdb")),
+    _spec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite, _typed_ibis("sqlite")),
+    _spec("narwhals-lazy",   "narwhals",     "lazy",     _build_narwhals_polars_lazy,
+          lambda t, _n: nw.from_native(pl.from_arrow(t).lazy())),
+)}
+
+# Transfer-matrix-only backends: sources/destinations for the fidelity matrix,
+# not yet qualified across the cross-backend suite (backlog 389), so they are
+# not in REGISTRY / ALL_BACKENDS.
+MATRIX_BACKENDS: dict[str, BackendSpec] = {**REGISTRY, **{s.name: s for s in (
+    _spec("narwhals-pyarrow", "narwhals",    "eager",    _build_narwhals_pyarrow,
+          lambda t, _n: nw.from_native(t, eager_only=True)),
+    _spec("ibis-polars",     "ibis",         "deferred", _build_ibis_polars, _typed_ibis("polars")),
+)}}
 
 PR_BACKENDS: list[str] = ["polars", "narwhals-polars", "ibis-duckdb"]
 
