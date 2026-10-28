@@ -149,10 +149,11 @@ registered relation system), once per boundary. Values that stay in one native
 library (Polars wrapped by Narwhals, eager to lazy) move without Arrow.
 Destination specifics:
 
-- **pandas / `narwhals-pandas`** imports keep Arrow types (`pd.ArrowDtype`
-  columns): an integer column with nulls stays integer, NaN stays distinct from
-  null, decimals stay decimal. `to_pandas()` on a non-pandas result still
-  returns NumPy-backed columns.
+- **pandas / `narwhals-pandas`** imports use Narwhals' own NumPy-backed
+  conversion, so an imported operand mixes with your pandas frames. That
+  representation turns an integer column with nulls into float, NaN and null
+  into NaN, and decimals into Python objects; a pandas source keeps its own
+  dtypes.
 - **`narwhals-lazy`** (Narwhals over Polars lazy) is a valid target. Lazy-only
   Narwhals implementations (`narwhals-duckdb`, `narwhals-dask`) cannot import
   Arrow and refuse with `UnsupportedRelationTransportError`.

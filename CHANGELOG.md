@@ -13,13 +13,16 @@
 ### Changed
 - Transfers between locations use one per-family contract (`export` to Arrow, `import_into` a location) instead of pairwise routes; same-library moves (Polars wrapped by Narwhals, eager/lazy) skip Arrow.
 - `to_ibis()` keeps the source connection; `to_pyarrow()` exports from the result's own family (no Polars hop) and builds conformed structured results from logical values. Native pandas output stays native.
-- pandas / `narwhals-pandas` imports keep Arrow types via `pd.ArrowDtype`. pandas `join_asof` aligns key backing between NumPy- and Arrow-backed operands.
+- `to_pandas()` on a non-pandas result keeps Polars' date handling (`datetime64`, not Python objects).
 - Arrow exported from Ibis names list children `item` (DuckDB used `l`), so equal logical types render identically across backends.
 
 ### Fixed
 - Resource reads bind to the resolved location (including under `dag.ref`) instead of reverting to Polars; schema-only inspection of a native Narwhals scan reads no rows.
-- ArrowDtype pandas operands transferred to Ibis-SQLite no longer fail binding `pd.NA` (pandas schema metadata is dropped on export).
+- Arrow-backed (`pd.ArrowDtype`) pandas sources transferred to Ibis-SQLite no longer fail binding `pd.NA` (pandas schema metadata is dropped on export).
 - Ibis-SQLite nested types and owned decimal copies (backlog 336) raise a typed refusal instead of a raw Ibis error.
+
+### Known limitations
+- Values imported into pandas (`target="pandas"`/`"narwhals-pandas"`, or a non-pandas operand computed alongside pandas) use Narwhals' NumPy-backed conversion so they mix with the caller's pandas frames: an integer column with nulls becomes float, NaN and null both become NaN, and decimals become Python objects.
 
 ## Unreleased — 2026-10-25
 
