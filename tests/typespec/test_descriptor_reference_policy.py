@@ -70,3 +70,9 @@ def test_dialect_reference_obeys_policy(layout):
     with pytest.raises(LocationNotAllowed): pkg(str(out / "dialect.json")).resources[0].to_dialect()
     with pytest.raises(LocationNotAllowed): pkg(f"http://127.0.0.1:{port}/dialect.json").resources[0].to_dialect()
     assert hits["n"] == 0
+
+
+def test_unknown_scheme_reference_rejected(layout):
+    root, *_ = layout
+    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
+        _pkg(root, "hf://host/schema.json").resources[0].to_table_schema()

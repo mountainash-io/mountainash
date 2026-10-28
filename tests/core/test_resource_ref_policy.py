@@ -47,3 +47,9 @@ def test_remote_without_allow_rejected_before_request(tmp_path, server):
 def test_programmatic_absolute_is_today(outside):
     pkg = ma.DataPackage(name="p", resources=[{"name": "r", "path": str(outside / "s.bin"), "format": "bin"}])
     assert ResourceRef(pkg.resources[0]).read_bytes() == b"secret"
+
+
+def test_unknown_scheme_rejected_under_policy(tmp_path):
+    root = tmp_path / "root"; root.mkdir()
+    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
+        ResourceRef(_pkg(root, "hf://host/data.bin").resources[0]).read_bytes()

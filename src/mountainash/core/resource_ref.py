@@ -51,6 +51,9 @@ class ResourceRef:
 
         location = resolve_resource_location(self.resource, path)
         policy = resource_policy(self.resource)
+        from mountainash_transport.location import require_known_scheme
+
+        require_known_scheme(location, policy)
         if is_remote(location):
             return facade_read_bytes(location, policy)
         from mountainash_transport.location import confine_local

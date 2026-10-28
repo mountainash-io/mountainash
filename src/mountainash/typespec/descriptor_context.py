@@ -22,6 +22,7 @@ from mountainash_transport.location import (
     confine_local,
     identify_scheme,
     local_path,
+    require_known_scheme,
 )
 from mountainash.typespec.errors import (
     DescriptorReferenceInvalid,
@@ -341,6 +342,7 @@ class DefaultDescriptorResolver:
     ) -> Mapping[str, Any]:
         normalized = normalize_document_uri(reference, base_uri=base_uri)
         try:
+            require_known_scheme(normalized, policy)
             if identify_scheme(normalized) in ("", "file"):
                 path = confine_local(
                     str(_file_uri_path(normalized, reference=reference)), policy
