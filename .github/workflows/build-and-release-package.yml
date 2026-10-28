@@ -21,17 +21,17 @@ jobs:
       dist-artifact-id: ${{ steps.dist.outputs.artifact-id }}
       evidence-artifact-id: ${{ steps.evidence.outputs.artifact-id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
       - name: Install public build tools
         run: |
           env -i PATH="$PATH" HOME="$RUNNER_TEMP/build-home" PIP_CONFIG_FILE=/dev/null \
-            python -I -m pip install --index-url https://pypi.org/simple build twine pytest
+            python -I -m pip install --index-url https://pypi.org/simple build==1.6.1 twine==7.0.0 pytest==9.2.0
       - name: Check release provenance regressions
         run: python -m pytest -q -c /dev/null --rootdir . --confcutdir tests/scripts tests/scripts/test_verify_release.py
       - name: Build once and check distributions
@@ -79,7 +79,7 @@ jobs:
         run: |
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
             --output-dir "$RUNNER_TEMP/release-evidence"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         id: dist
         # Keep the candidate available for ARM64 even when public extras cannot resolve.
         if: ${{ !cancelled() && (success() || steps.verify.outcome == 'failure') }}
@@ -88,7 +88,7 @@ jobs:
           path: ${{ runner.temp }}/dist/*
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         id: evidence
         if: always()
         with:
@@ -102,19 +102,19 @@ jobs:
     if: ${{ !cancelled() && needs.build-and-verify.outputs.dist-artifact-id != '' && needs.build-and-verify.outputs.evidence-artifact-id != '' }}
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ needs.build-and-verify.outputs.dist-artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/dist
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ needs.build-and-verify.outputs.evidence-artifact-id }}
           merge-multiple: true
@@ -124,10 +124,10 @@ jobs:
         run: sha256sum --check "$RUNNER_TEMP/approved-evidence/SHA256SUMS"
       - name: Verify the installed candidate on ARM64
         run: |
-          python -I -m pip install --index-url https://pypi.org/simple packaging
+          python -I -m pip install --index-url https://pypi.org/simple packaging==26.3
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
             --output-dir "$RUNNER_TEMP/arm64-evidence" --base-only
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: arm64-evidence-${{ github.run_id }}-${{ github.run_attempt }}
@@ -143,7 +143,7 @@ jobs:
       contents: read
       deployments: read
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const parameters = {
@@ -170,12 +170,12 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ needs.build-and-verify.outputs.dist-artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/dist
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ needs.build-and-verify.outputs.evidence-artifact-id }}
           merge-multiple: true
@@ -207,24 +207,24 @@ jobs:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ needs.build-and-verify.outputs.dist-artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/dist
       - name: Confirm public hashes and the installed hello world
         run: |
-          python -I -m pip install --index-url https://pypi.org/simple packaging
+          python -I -m pip install --index-url https://pypi.org/simple packaging==26.3
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
             --output-dir "$RUNNER_TEMP/public-evidence" --public
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: public-evidence-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
