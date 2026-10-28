@@ -50,24 +50,36 @@ class RelationDAG:
     """Container for named Relations with dependency and constraint edge sets.
 
     ``relations``, ``dependency_edges``, ``constraint_edges`` and
-    ``constraint_metadata`` are public mutable attributes; the supported
-    mutation surface is the method API (``add``, ``add_constraint``,
-    ``source``). Direct mutation (``dag.relations["x"] = other``) can
-    desynchronise edges from ASTs.
+    ``constraint_metadata`` are read-only views over the shared
+    ``Graph[Relation]`` kernel; mutate through the method API (``add``,
+    ``add_constraint``, ``source``, ``bind``).
     """
 
     def __init__(self) -> None:
-        self.relations: dict[str, Relation] = {}
+        from mountainash.graph.container import Graph
+
+        self._graph: Graph[Relation] = Graph()
         self.assets: dict[str, ResourceRef] = {}
-        self.dependency_edges: set[tuple[str, str]] = set()
-        self.constraint_edges: set[tuple[str, str]] = set()
+
+    @property
+    def relations(self) -> dict[str, Relation]:
+        return self._graph.nodes
+
+    @property
+    def dependency_edges(self) -> set[tuple[str, str]]:
+        return self._graph.dependency_edges
+
+    @property
+    def constraint_edges(self) -> set[tuple[str, str]]:
+        return self._graph.constraint_edges
+
+    @property
+    def constraint_metadata(self) -> dict[tuple[str, str], list["ForeignKey"]]:
         # Structured FK detail, strictly subordinate to constraint_edges:
         # set(constraint_metadata.keys()) ⊆ constraint_edges always. An edge
-        # with no metadata entry is a topology-only relationship (consumers
-        # needing field-level detail MUST read constraint_metadata; absent
-        # means non-actionable, not "fields = empty"). The shared helper
+        # with no metadata entry is a topology-only relationship.
         # ``_record_constraint`` is the sole metadata mutation path.
-        self.constraint_metadata: dict[tuple[str, str], list["ForeignKey"]] = {}
+        return self._graph.constraint_metadata
 
     def add(self, name: str, relation: Relation) -> None:
         """Add a named relation to the DAG.
@@ -79,10 +91,32 @@ class RelationDAG:
         """
         if name in self.relations:
             raise ValueError(f"relation {name!r} already in DAG")
-        self.relations[name] = relation
-        root = getattr(relation, "_node", None)
-        for upstream in _walk_refs(root):
-            self.dependency_edges.add((upstream, name))
+        self._graph.add(
+            name, relation, depends_on=_walk_refs(getattr(relation, "_node", None))
+        )
+
+    def bind(self, **sources: Any) -> "RelationDAG":
+        """Fresh execution DAG: ``sources`` registered, then every template
+        relation, constraint and asset. Registration only — no compilation,
+        no execution; the template is not mutated."""
+        from mountainash.graph.errors import DuplicateNodeError
+
+        out = RelationDAG()
+        for name, payload in sources.items():
+            out.source(name, payload)
+        for name, rel in self.relations.items():
+            if name in out.relations:
+                raise DuplicateNodeError(
+                    f"bound source {name!r} collides with template relation"
+                )
+            out.add(name, rel)
+        for edge, fks in self.constraint_metadata.items():
+            for fk in fks:
+                out._record_constraint(edge, fk)
+        for edge in self.constraint_edges - set(self.constraint_metadata):
+            out._graph.constraint_edges.add(edge)
+        out.assets.update(self.assets)
+        return out
 
     def ref(self, name: str) -> "DAGRelation":
         """Return a DAGRelation backed by a ``RefRelNode`` for ``name``.
@@ -170,17 +204,12 @@ class RelationDAG:
         If ``target`` is given, only ancestors of ``target`` (and ``target``
         itself) are included.
 
-        Delegates to the shared :func:`mountainash.graph.topological_order`
-        (Kahn's algorithm with ancestor filtering); the DAG only supplies its
-        node set and ``dependency_edges`` as the graph's edge set.
+        Delegates to the shared ``Graph`` kernel.
 
-        Raises ``ValueError`` if a cycle is detected.
+        Raises ``CycleError`` (a ``ValueError``) if a cycle is detected and
+        ``UnknownNodeError`` if ``target`` is not registered.
         """
-        from mountainash.graph import topological_order as _topological_order
-
-        return _topological_order(
-            set(self.relations.keys()), self.dependency_edges, target
-        )
+        return self._graph.topological_order(target)
 
     # ------------------------------------------------------------------
     # Task 17: collect() — topological compilation with per-call cache
