@@ -129,6 +129,7 @@ class TestFileSystemStoragePathValidation:
         "1step",
         "with space",
         "ünïcode",
+        "step\n",
     ]
 
     def test_valid_step_names_unchanged(self, tmp_path):
@@ -198,3 +199,17 @@ class TestFileSystemStoragePathValidation:
         with pytest.raises(InvalidStorageKeyError):
             dual.write_step_output("../x", _make_result())
         assert mem.read_step_output("../x", "key1") is None
+
+    def test_rejects_non_string_keys(self, tmp_path):
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        with pytest.raises(InvalidStorageKeyError):
+            storage.read_step_output(Path("../x"), "key1")
+        with pytest.raises(InvalidStorageKeyError):
+            storage.read_step_output("fetch", Path("../x"))
+
+    def test_dual_is_fresh_rejects_bad_step_name(self, tmp_path):
+        dual = DualPipelineStorage(
+            memory=MemoryPipelineStorage(), filesystem=FileSystemPipelineStorage(base_path=tmp_path)
+        )
+        with pytest.raises(InvalidStorageKeyError):
+            dual.is_fresh("../x", "key1")
