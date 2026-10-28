@@ -39,19 +39,19 @@ dependencies = [
     "elementpath==5.1.1",
     "email-validator>=2.2,<3",
     "rfc3986>=2,<3",
-    "mountainash-transport>=0.1.1,<0.2",
+    "mountainash-transport>=0.1.0,<0.2",
 ]
 
 [project.optional-dependencies]
 pandas = ["pandas>=3.0.0"]
 # Ibis 12 emits invalid DROP SQL with SQLGlot 30.18.0 and 30.22.0.
-ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "mountainash-files>=0.1.1,<0.2", "sqlglot>=29.0.1,<30.18.0"]
-files = ["mountainash-files>=0.1.1,<0.2"]
+ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "mountainash-files>=0.1.0,<0.2", "sqlglot>=29.0.1,<30.18.0"]
+files = ["mountainash-files>=0.1.0,<0.2"]
 dbos = ["dbos>=1.0.0"]
-s3 = ["mountainash-files[s3]>=0.1.1,<0.2"]
-gcs = ["mountainash-files[gcs]>=0.1.1,<0.2"]
-azure = ["mountainash-files[azure]>=0.1.1,<0.2"]
-sftp = ["mountainash-files[sftp]>=0.1.1,<0.2"]
+s3 = ["mountainash-files[s3]>=0.1.0,<0.2"]
+gcs = ["mountainash-files[gcs]>=0.1.0,<0.2"]
+azure = ["mountainash-files[azure]>=0.1.0,<0.2"]
+sftp = ["mountainash-files[sftp]>=0.1.0,<0.2"]
 all = ["mountainash[pandas,ibis,files,dbos,s3,gcs,azure,sftp]"]
 
 [project.urls]
