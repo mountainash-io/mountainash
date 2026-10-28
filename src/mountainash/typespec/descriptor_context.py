@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -401,7 +401,15 @@ def loader_policy(
     declared = os.getcwd()
     if normalized is not None and urlsplit(normalized).scheme == "file":
         declared = local_path(normalized)
-    return (policy or LocationPolicy()).with_declared_root(declared)
+    effective = policy or LocationPolicy()
+    root = effective.root
+    if (
+        root is not None
+        and not os.path.isabs(root)
+        and identify_scheme(os.fspath(root)) == ""
+    ):
+        effective = replace(effective, root=os.path.abspath(root))  # anchor once at load time
+    return effective.with_declared_root(declared)
 
 
 __all__ = [

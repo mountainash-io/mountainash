@@ -19,24 +19,12 @@ def is_remote(path: str) -> bool:
     return identify_scheme(path) not in ("", "file", None)
 
 
-def _ensure_storage_facade() -> None:
-    """Raise a descriptive error if mountainash_transport is missing."""
-    try:
-        import mountainash_transport  # noqa: F401
-    except ImportError:
-        raise ImportError(
-            "Remote storage requires the 'storage' extra. "
-            "Install it with: pip install mountainash[storage]"
-        ) from None
-
-
 def facade_read_bytes(path: str, policy: LocationPolicy | None = None) -> bytes:
     """Read a remote path via StorageFacade.from_path().
 
     Auto-detects the provider from the URL scheme. Supports all
     transport-registered schemes including HTTP/HTTPS.
     """
-    _ensure_storage_facade()
     from mountainash_transport.storage.facade.facade import StorageFacade
 
     facade = StorageFacade.from_path(path, policy=policy)

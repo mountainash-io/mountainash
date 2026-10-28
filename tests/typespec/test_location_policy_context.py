@@ -111,3 +111,15 @@ def test_malformed_base_keeps_descriptor_error(base, loader):
     arg = doc if loader == "from_descriptor" else json.dumps(doc)
     with pytest.raises(InvalidDescriptorStructure):
         getattr(ma.DataPackage, loader)(arg, base_uri=base)
+
+
+def test_relative_explicit_root_without_base_anchored_once(tmp_path, monkeypatch):
+    from mountainash.core.resource_ref import ResourceRef
+
+    (tmp_path / "data" / "data").mkdir(parents=True)
+    (tmp_path / "data" / "a.csv").write_bytes(b"right")
+    (tmp_path / "data" / "data" / "a.csv").write_bytes(b"wrong")
+    monkeypatch.chdir(tmp_path)
+    descriptor = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
+    pkg = ma.DataPackage.from_json(json.dumps(descriptor), policy=LocationPolicy(root="data"))
+    assert ResourceRef(pkg.resources[0]).read_bytes() == b"right"
