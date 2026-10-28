@@ -73,8 +73,8 @@ dependencies = [
     "narwhals==2.27.1",
     "dask[dataframe]",
     "sqlframe[duckdb]>=4.5.0",
-    "pyarrow>=16",
-    "pydantic>=2.2,<3",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
     "pyyaml>=6.0",
     # CI sibling chain: the checkout-dependencies action clones these into
     # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
@@ -128,8 +128,8 @@ dependencies = [
     "ibis-framework[duckdb,sqlite]>=12.0.0",
     "dask[dataframe]",
     "sqlframe[duckdb]>=4.5.0",
-    "pyarrow>=16",
-    "pydantic>=2.2,<3",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
     "xarray==2024.11.0",
     "pyyaml>=6.0",
     # Local sibling-package chain from ../. Explicit URLs select development
@@ -274,8 +274,8 @@ dependencies = [
     # or coverage tooling test actually runs with.
     "pandas>=3.0.0",
     "ibis-framework[duckdb,sqlite]>=12.0.0",
-    "pyarrow>=16",
-    "pydantic>=2.2,<3",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
     "pyyaml>=6.0",
     "pytest==8.3.5",
     "mountainash_files @       {root:uri}/../mountainash-files",

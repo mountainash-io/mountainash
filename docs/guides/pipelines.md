@@ -130,6 +130,8 @@ runner = SimplePipelineRunner(
 
 Cache keys are derived from `(pipeline name, step name, version, bound params, upstream cache keys)`. The DBOS runner (`mountainash.pipelines.orchestration.dbos_runner`) gives the same shape on top of DBOS workflows.
 
+Filesystem storage uses the step name as a directory name, so step names must be ASCII identifiers (`[A-Za-z_][A-Za-z0-9_]*`) and cache keys a single path component (`[A-Za-z0-9_-]+`); anything else, including path separators and `..`, raises `InvalidStorageKeyError` (a `ValueError`).
+
 ## Custom executors
 
 `source()` accepts an `executor=` kwarg. If provided, `.collect()` delegates to:

@@ -16,8 +16,9 @@ class DualPipelineStorage:
         self._filesystem = filesystem
 
     def write_step_output(self, step_name: str, result: StepResult) -> None:
-        self._memory.write_step_output(step_name, result)
+        # Filesystem first: it validates keys, so a rejected write is never cached in memory.
         self._filesystem.write_step_output(step_name, result)
+        self._memory.write_step_output(step_name, result)
 
     def read_step_output(self, step_name: str, cache_key: str) -> StepResult | None:
         result = self._memory.read_step_output(step_name, cache_key)
