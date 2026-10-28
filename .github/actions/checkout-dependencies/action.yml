@@ -26,13 +26,24 @@ runs:
   steps:
     - name: Process Dependencies
       shell: bash
+      # Inputs reach the script only through env, never interpolated into it.
+      env:
+        DEPENDENCIES: ${{ inputs.dependencies }}
+        TARGET_BRANCH: ${{ inputs.target-branch }}
+        DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        DEFAULT_ORG: ${{ inputs.org-name }}
+        GH_DEP_TOKEN: ${{ inputs.token }}
       run: |
-        # Debug: Show received input
-        # echo "Received dependencies input:"
-        # echo '${{ inputs.dependencies }}' | jq '.'
-        
-        # Process each dependency
-        echo '${{ inputs.dependencies }}' | jq -c '.[]' | while read -r dep; do
+        # The token never appears on a command line or in a clone URL: git gets it
+        # from GIT_CONFIG_* env (not persisted to .git/config), curl from a header
+        # read on stdin.
+        basic_auth=$(printf 'x-access-token:%s' "$GH_DEP_TOKEN" | base64 -w0)
+        echo "::add-mask::$basic_auth"
+        export GIT_CONFIG_COUNT=1
+        export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+        export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic_auth"
+
+        echo "$DEPENDENCIES" | jq -c '.[]' | while read -r dep; do
           # Extract values with error checking
           repo=$(echo "$dep" | jq -r '.name // empty')
           if [ -z "$repo" ]; then
@@ -40,23 +51,27 @@ runs:
             continue
           fi
 
-          org_name=$(echo "$dep" | jq -r '.["org-name"] // "${{ inputs.org-name }}"')
+          org_name=$(echo "$dep" | jq -r --arg org "$DEFAULT_ORG" '.["org-name"] // $org')
 
-          # default_branch=$(echo "$dep" | jq -r '.["default-branch"] // "main"')
-          default_branch=${{ inputs.default-branch }}
-          
+          # Names come from the dependency config; refuse anything that is not a plain slug.
+          if [[ ! "$org_name" =~ ^[A-Za-z0-9._-]+$ || ! "$repo" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Error: Invalid organization or repository name in dependency"
+            continue
+          fi
+
+          default_branch="$DEFAULT_BRANCH"
+          target_branch="$TARGET_BRANCH"
+          selected_branch=""
+
           echo "Processing dependency: $org_name/$repo"
           echo "Target branch: $target_branch"
           echo "Default branch: $default_branch"
-          
+
           # Determine Branch
-          target_branch="${{ inputs.target-branch }}"
-          selected_branch=""
-          
-          response=$(curl -s -H "Authorization: token ${{ inputs.token }}" \
+          response=$(printf 'Authorization: token %s\n' "$GH_DEP_TOKEN" | curl -s -H @- \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/$org_name/$repo/branches/$target_branch")
-          
+
           if echo "$response" | jq -e '.name' >/dev/null 2>&1; then
             selected_branch="$target_branch"
             echo "Using target branch: $selected_branch"
@@ -64,19 +79,19 @@ runs:
             selected_branch="$default_branch"
             echo "Target branch not found, using default: $selected_branch"
           fi
-          
+
           echo "Cloning $org_name/$repo from branch $selected_branch"
-          
+
           # Create temp directory if it doesn't exist
           mkdir -p temp
-          
+
           # Checkout Repository
           git clone --depth 1 --branch "$selected_branch" \
-            "https://x-access-token:${{ inputs.token }}@github.com/$org_name/$repo.git" \
-            "temp/$repo" || {
+            "https://github.com/$org_name/$repo.git" \
+            "temp/$repo" < /dev/null || {
               echo "Error: Failed to clone $org_name/$repo"
               continue
             }
-          
+
           echo "Successfully checked out $org_name/$repo on branch $selected_branch"
         done

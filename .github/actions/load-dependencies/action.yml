@@ -1,4 +1,4 @@
-# .github/workflows/actions/load-dependencies/action.yml
+# .github/actions/load-dependencies/action.yml
 name: "Load Dependencies"
 description: "Loads and processes dependency configuration"
 
@@ -18,24 +18,34 @@ runs:
   steps:
     - name: Install Dependencies
       shell: bash
+      env:
+        YQ_VERSION: v4.40.5
+        # SHA-256 of yq_linux_amd64 for YQ_VERSION (matches the release's published checksums).
+        YQ_SHA256: 0d6aaf1cf44a8d18fbc7ed0ef14f735a8df8d2e314c4cc0f0242d35c0a440c95
       run: |
-        # Install yq for YAML processing
-        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_linux_amd64
-        sudo chmod +x /usr/local/bin/yq
+        set -euo pipefail
+        yq_tmp="$(mktemp)"
+        curl -fsSL -o "$yq_tmp" \
+          "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+        echo "${YQ_SHA256}  ${yq_tmp}" | sha256sum --check --strict -
+        sudo install -m 0755 "$yq_tmp" /usr/local/bin/yq
+        rm -f "$yq_tmp"
 
     - name: Parse Dependencies
       id: parse-deps
       shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
       run: |
-        # Create a properly escaped JSON string
-        DEPS=$(yq eval -o=json '.dependencies' "${{ inputs.config-path }}" | jq -c .)
-        # Use GitHub's special delimiter for multi-line strings
-        echo "deps<<EOF" >> $GITHUB_OUTPUT
-        echo "$DEPS" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        set -euo pipefail
+        # jq -c emits a single line, so a plain name=value output is safe.
+        DEPS=$(yq eval -o=json '.dependencies' "$CONFIG_PATH" | jq -c .)
+        echo "deps=$DEPS" >> "$GITHUB_OUTPUT"
 
     - name: Debug Output
       shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
       run: |
         echo "Generated dependencies:"
-        yq eval -o=json '.dependencies' "${{ inputs.config-path }}" | jq '.'
+        yq eval -o=json '.dependencies' "$CONFIG_PATH" | jq '.'
