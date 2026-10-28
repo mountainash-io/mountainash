@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":dependencyDashboardApproval"],
+  "extends": ["config:recommended", ":dependencyDashboardApproval", "helpers:pinGitHubActionDigests"],
   "timezone": "Australia/Melbourne",
   "baseBranches": ["main"],
   "packageRules": [
@@ -15,7 +15,8 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "github dependencies",
-      "automerge": true,
+      "pinDigests": true,
+      "automerge": false,
       "schedule": ["after 5pm on Saturday"],
       "commitMessagePrefix": "chore(github dependencies):"
     },
