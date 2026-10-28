@@ -39,7 +39,7 @@ dependencies = [
     "elementpath==5.1.1",
     "email-validator>=2.2,<3",
     "rfc3986>=2,<3",
-    "mountainash-transport>=0.1.1,<0.2",
+    "mountainash-transport>=0.1.0,<0.2",
 ]
 
 [project.optional-dependencies]
