@@ -106,6 +106,24 @@ class Runner:
         result = self.execute(plan); self.commit(plan, result); return result
 
     # ---- collaborators
+    def invalidate_descendants(self, name: str) -> None:
+        """Retire records and pending attempts of exactly the transitive descendants of ``name`` (F9/F10): in this graph,
+        and inside every nested PipelineUnit that consumes ``name`` or one of its descendants as an external input."""
+        self._invalidate_in(self.cp, self.pipeline, {name})
+
+    def _invalidate_in(self, cp, pipeline, changed: set[str]) -> None:
+        from mountainash.pipelines.units.nested import PipelineUnit
+        g = pipeline.graph
+        desc: set[str] = set()
+        for c in changed:
+            desc |= g.descendants(c) if c in g.nodes else pipeline.consumers_of(c) | {d for k in pipeline.consumers_of(c) for d in g.descendants(k)}
+        cp.invalidate(desc)
+        for d in desc:
+            u = g.nodes[d]
+            if isinstance(u, PipelineUnit):
+                outer_changed = {x for x in u.inputs() if x in desc or x in changed}
+                self._invalidate_in(cp.scoped(d), u.pipeline, outer_changed if outer_changed else set(u.inputs()))
+
     def retrying(self, fn: Callable[[], Any]) -> Any:
         attempts = self.retry.max_attempts if self.retry else 1
         delay = self.retry.initial_delay_seconds if self.retry else 0.0
