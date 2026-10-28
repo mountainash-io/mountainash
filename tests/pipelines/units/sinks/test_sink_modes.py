@@ -12,15 +12,18 @@ class Mem(SinkUnit):
 def _v(cov): return Value.of([{"p": 1, "k": 1}], Identity.of("i"), cov)
 def _ctx(): return RunContext({}, None, {}, "p", "k", "r")
 
+@pytest.mark.cell("unit:SinkUnit")
 def test_replace_refuses_incomplete_even_through_marker():
     with pytest.raises(IncompleteCoverage): Mem(WriteMode.REPLACE).run({"s": _v(Coverage.partial_marker())}, _ctx())
     with pytest.raises(IncompleteCoverage): Mem(WriteMode.REPLACE).run({"s": _v(Coverage.source({"A"}, set(), {"A"}))}, _ctx())
     assert Mem(WriteMode.REPLACE).run({"s": _v(None)}, _ctx()).locator == "mem://k"
 
+@pytest.mark.cell("unit:SinkUnit")
 def test_replace_partition_requires_partition_sets():
     with pytest.raises(IncompleteCoverage): Mem(WriteMode.REPLACE_PARTITION, partition_columns=("p",)).run({"s": _v(Coverage.partial_marker())}, _ctx())
     Mem(WriteMode.REPLACE_PARTITION, partition_columns=("p",)).run({"s": _v(Coverage.source({1}, {1}, set()))}, _ctx())
 
+@pytest.mark.cell("unit:SinkUnit")
 def test_append_and_upsert_accept_any_coverage():
     for m in (WriteMode.APPEND, WriteMode.UPSERT):
         Mem(m, keys=("k",)).run({"s": _v(Coverage.partial_marker())}, _ctx())

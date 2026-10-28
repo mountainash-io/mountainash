@@ -57,7 +57,7 @@ The relation AST has 10 node types, mapped onto Substrait logical relations:
 | `ExtensionRelNode` | Mountainash-specific ops (unnest, drop_nans, top_k, …) |
 | `ReadResourceRelNode` | Frictionless DataResource load |
 
-Plus two thin orchestration nodes (`RefRelNode`, `ParamsRelNode`) used by the [DAG](#dag-and-frictionless) and the [pipeline framework](pipelines.md).
+Plus a thin orchestration node (`RefRelNode`) used by the [DAG](#dag-and-frictionless). The [pipeline framework](pipelines.md) sits above relations and has no relation node of its own.
 
 The minimal AST is deliberate — most operations are parameter values on these nodes, not new node types. Adding a new relation operation is a structured process; see [Adding operations](../../guides/adding-operations.md).
 
@@ -77,7 +77,6 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Struct expansion | `.unnest(*cols, separator="_")` |
 | Conformance | `.conform(schema)` — see [shared schemas & conformance](typespec-conform.md) |
 | Terminal | `.to_polars()`, `.to_pandas()`, `.collect()`, `.execute()`, `.to_dicts()`, `.to_dict()` |
-| Pipeline params | `.params(**kwargs)` — see [Pipelines](pipelines.md) |
 
 `.group_by()` returns a `GroupedRelation` that exposes only `.agg()` — by design, so you can't accidentally chain a filter onto a partial group.
 
@@ -396,4 +395,4 @@ You drop into native Polars, do the thing, and the rest of your pipeline is stil
 - [Expressions](expressions.md) — what goes inside `.filter()`, `.with_columns()`, `.agg()`
 - [Cross-backend execution](cross-backend.md) — how the same relation runs on three backends
 - [Shared schemas & conformance](typespec-conform.md) — schema-driven `.conform()`
-- [Pipelines](pipelines.md) — named, parameter-bound relations
+- [Pipelines](pipelines.md) — macro-orchestration of units (including relation DAG targets)

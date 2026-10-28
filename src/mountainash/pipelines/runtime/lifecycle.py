@@ -11,12 +11,14 @@ class Identified:
     identity: Identity
     prepared: Any = None
 
+
 @dataclass(frozen=True)
 class Decision:
     tag: str
     record: Record | None = None
     attempt: Any = None
     state: SourceState | None = None
+
 
 @dataclass(frozen=True)
 class Outcome:
@@ -31,13 +33,15 @@ class Lifecycle(Protocol):
     @staticmethod
     def decide(unit, ident: Identified, cp, opts) -> Decision: ...
     @staticmethod
-    def execute(unit, ident: Identified, decision: Decision, upstream: Mapping[str, Value], ctx, cp, runner, result) -> Outcome: ...
+    def execute(
+        unit, ident: Identified, decision: Decision, upstream: Mapping[str, Value], ctx, cp, runner, result
+    ) -> Outcome: ...
     @staticmethod
     def commit(unit, descendants_ok: bool, cp) -> None: ...
 
 
 def _retained(rec: Record | None) -> bool:
-    return rec is not None and rec.value is not None          # Record.value None == not retained (F13)
+    return rec is not None and rec.value is not None  # Record.value None == not retained (F13)
 
 
 def propagate_coverage(unit, upstream: Mapping[str, Value]) -> Coverage | None:
@@ -64,7 +68,12 @@ class UnitLifecycle:
     def decide(unit, ident, cp, opts):
         if opts["resume"] and not opts["force"]:
             rec = cp.lookup(unit.name, ident.identity)
-            if rec and rec.status is Status.COMPLETE and _retained(rec) and (rec.value.kind is not ValueKind.REFERENCE or unit.reference_exists(rec.value.payload)):
+            if (
+                rec
+                and rec.status is Status.COMPLETE
+                and _retained(rec)
+                and (rec.value.kind is not ValueKind.REFERENCE or unit.reference_exists(rec.value.payload))
+            ):
                 return Decision("REUSE", record=rec)
         return Decision("RUN")
 
@@ -85,16 +94,20 @@ class UnitLifecycle:
 class SourceLifecycle:
     @staticmethod
     def identify(unit, upstream, params, cp, opts):
-        att = cp.pending(unit.name); use_pending = att is not None and not opts["force"]
+        att = cp.pending(unit.name)
+        use_pending = att is not None and not opts["force"]
         candidate = unit.identity(upstream, params, att.state_in if use_pending else cp.progress(unit.name))
         if use_pending and att.identity != candidate:
             from mountainash.pipelines.errors import IncompatibleResume
-            raise IncompatibleResume(f"{unit.name}: pending attempt {att.identity.digest} does not match current inputs {candidate.digest}; finish it with the original inputs or run with force=True")
+
+            raise IncompatibleResume(
+                f"{unit.name}: pending attempt {att.identity.digest} does not match current inputs {candidate.digest}; finish it with the original inputs or run with force=True"
+            )
         return Identified(candidate)
 
     @staticmethod
     def decide(unit, ident, cp, opts):
-        att = cp.pending(unit.name)                                        # re-read at execute time (R1)
+        att = cp.pending(unit.name)  # re-read at execute time (R1)
         if att is not None and not opts["force"]:
             return Decision("REPLAY", attempt=att) if _retained(att.record) else Decision("REGENERATE", attempt=att)
         return Decision("RUN", state=cp.progress(unit.name))
@@ -102,31 +115,53 @@ class SourceLifecycle:
     @staticmethod
     def execute(unit, ident, decision, upstream, ctx, cp, runner, result):
         from mountainash.pipelines.core.values import Attempt
+
         if decision.tag == "REPLAY":
-            a = decision.attempt; return Outcome(a.identity, a.record.status, a.record.value)
+            a = decision.attempt
+            return Outcome(a.identity, a.record.status, a.record.value)
         if decision.tag == "REGENERATE":
             a = decision.attempt
-            res = _as_result(runner.retrying(lambda: unit.run(upstream, replace(ctx, state=a.state_in))), a.identity, unit, upstream)
+            res = _as_result(
+                runner.retrying(lambda: unit.run(upstream, replace(ctx, state=a.state_in))), a.identity, unit, upstream
+            )
             runner.apply_empty_policy(unit, res.value)
-            a2 = a.replace(res); cp.set_pending(unit.name, a2)
+            a2 = a.replace(res)
+            cp.set_pending(unit.name, a2)
             runner.invalidate_descendants(unit.name)
             return Outcome(a2.identity, a2.record.status, a2.record.value)
-        if cp.pending(unit.name) is not None: cp.clear_pending(unit.name)   # force discards the pending attempt (spec §7); committed progress untouched
-        res = _as_result(runner.retrying(lambda: unit.run(upstream, replace(ctx, state=decision.state))), ident.identity, unit, upstream)
+        if cp.pending(unit.name) is not None:
+            cp.clear_pending(unit.name)  # force discards the pending attempt (spec §7); committed progress untouched
+        res = _as_result(
+            runner.retrying(lambda: unit.run(upstream, replace(ctx, state=decision.state))),
+            ident.identity,
+            unit,
+            upstream,
+        )
         runner.apply_empty_policy(unit, res.value)
-        cov = res.value.coverage; st = Status.COMPLETE if (cov is None or cov.complete) else Status.PARTIAL
-        cp.set_pending(unit.name, Attempt(decision.state, ident.identity, Record(ident.identity, st, datetime.now(), cov, res.value), res.next_cursor))
+        cov = res.value.coverage
+        st = Status.COMPLETE if (cov is None or cov.complete) else Status.PARTIAL
+        cp.set_pending(
+            unit.name,
+            Attempt(
+                decision.state,
+                ident.identity,
+                Record(ident.identity, st, datetime.now(), cov, res.value),
+                res.next_cursor,
+            ),
+        )
         return Outcome(ident.identity, st, res.value)
 
     @staticmethod
     def commit(unit, descendants_ok, cp):
         att = cp.pending(unit.name)
         if att is not None and descendants_ok:
-            cp.set_progress(unit.name, att.commit()); cp.clear_pending(unit.name)
+            cp.set_progress(unit.name, att.commit())
+            cp.clear_pending(unit.name)
 
 
 def _as_result(res, identity, unit, upstream):
     from mountainash.pipelines.core.values import SourceResult
+
     v = res.value if isinstance(res.value, Value) else Value.of(res.value, identity)
     v = replace(v, identity=identity)
     return SourceResult(v, res.next_cursor)
@@ -136,13 +171,17 @@ class NestedLifecycle(UnitLifecycle):
     @staticmethod
     def identify(unit, upstream, params, cp, opts):
         from mountainash.pipelines.runtime.runner import Runner
+
         inner = Runner(unit.pipeline, checkpoint=cp.scoped(unit.name), workers=opts["workers"], retry=opts["retry"])
-        plan = inner.plan(params=params, target=unit.target, resume=opts["resume"], force=opts["force"], injected_identities=upstream)
+        plan = inner.plan(
+            params=params, target=unit.target, resume=opts["resume"], force=opts["force"], injected_identities=upstream
+        )
         return Identified(plan.identity_of(unit.target), prepared=(inner, plan))
 
     @staticmethod
     def execute(unit, ident, decision, upstream, ctx, cp, runner, result):
         from mountainash.pipelines.errors import UnitFailed
+
         if decision.tag == "REUSE":
             return Outcome(ident.identity, Status.REUSED, decision.record.value)
         inner, plan = ident.prepared
@@ -163,7 +202,9 @@ def bind_lifecycles() -> None:
     from mountainash.pipelines.units.python import PythonUnit
     from mountainash.pipelines.units.sinks.base import SinkUnit
     from mountainash.pipelines.units.source import SourceUnit
+
     PythonUnit.lifecycle = DagUnit.lifecycle = SinkUnit.lifecycle = UnitLifecycle
     SourceUnit.lifecycle = SourceLifecycle
     from mountainash.pipelines.units.nested import PipelineUnit
+
     PipelineUnit.lifecycle = NestedLifecycle

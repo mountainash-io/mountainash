@@ -7,18 +7,40 @@ from mountainash.pipelines.errors import IncompleteCoverage, UnsupportedValueKin
 from mountainash.pipelines.units.base import BaseUnit
 
 
-class WriteMode(Enum): APPEND = "append"; UPSERT = "upsert"; REPLACE_PARTITION = "replace_partition"; REPLACE = "replace"
+class WriteMode(Enum):
+    APPEND = "append"
+    UPSERT = "upsert"
+    REPLACE_PARTITION = "replace_partition"
+    REPLACE = "replace"
 
 
 class SinkUnit(BaseUnit):
-    def __init__(self, *, name, depends_on, mode: WriteMode, keys=(), partition_columns=(), allow_duplicate=False, version="1") -> None:
-        if len(tuple(depends_on)) != 1: raise ValueError("a sink consumes exactly one upstream")
-        self.name, self.depends_on, self.mode, self.keys, self.partition_columns, self.allow_duplicate, self.version = name, tuple(depends_on), mode, tuple(keys), tuple(partition_columns), allow_duplicate, version
-        if mode is WriteMode.UPSERT and not self.keys: raise ValueError("UPSERT requires keys")
-        if mode is WriteMode.REPLACE_PARTITION and not self.partition_columns: raise ValueError("REPLACE_PARTITION requires partition_columns")
+    def __init__(
+        self, *, name, depends_on, mode: WriteMode, keys=(), partition_columns=(), allow_duplicate=False, version="1"
+    ) -> None:
+        if len(tuple(depends_on)) != 1:
+            raise ValueError("a sink consumes exactly one upstream")
+        self.name, self.depends_on, self.mode, self.keys, self.partition_columns, self.allow_duplicate, self.version = (
+            name,
+            tuple(depends_on),
+            mode,
+            tuple(keys),
+            tuple(partition_columns),
+            allow_duplicate,
+            version,
+        )
+        if mode is WriteMode.UPSERT and not self.keys:
+            raise ValueError("UPSERT requires keys")
+        if mode is WriteMode.REPLACE_PARTITION and not self.partition_columns:
+            raise ValueError("REPLACE_PARTITION requires partition_columns")
 
-    def _extras(self):                                   # destination/mode/keys/partitions are output-affecting (F17)
-        return {"destination": self.destination(), "mode": self.mode.value, "keys": self.keys, "partition_columns": self.partition_columns}
+    def _extras(self):  # destination/mode/keys/partitions are output-affecting (F17)
+        return {
+            "destination": self.destination(),
+            "mode": self.mode.value,
+            "keys": self.keys,
+            "partition_columns": self.partition_columns,
+        }
 
     @abstractmethod
     def destination(self) -> str: ...
@@ -33,5 +55,7 @@ class SinkUnit(BaseUnit):
         if self.mode is WriteMode.REPLACE and cov is not None and not cov.complete:
             raise IncompleteCoverage(f"{self.name}: REPLACE from an incomplete value would delete earlier successes")
         if self.mode is WriteMode.REPLACE_PARTITION and (cov is None or (not cov.attempted and not cov.complete)):
-            raise IncompleteCoverage(f"{self.name}: REPLACE_PARTITION needs partition sets (direct source or partitions_preserved chain)")
+            raise IncompleteCoverage(
+                f"{self.name}: REPLACE_PARTITION needs partition sets (direct source or partitions_preserved chain)"
+            )
         return self.write(v)

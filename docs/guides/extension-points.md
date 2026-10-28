@@ -1,6 +1,6 @@
 # Extension Points
 
-Mountainash exposes three registries that let third-party code extend the relation AST without forking the core: `RelationVisitRegistry`, `OptimisationRegistry`, and the `PipelineStorage` protocol. The pipelines module is the canonical reference consumer of all three. The shared-schema boundaries (native type adapters, native schema adapters, schema codecs and physical output description) are covered under [Schema extension recipes](#schema-extension-recipes); they reuse existing registries and are not a plugin framework.
+Mountainash exposes two registries that let third-party code extend the relation AST without forking the core: `RelationVisitRegistry` and `OptimisationRegistry`. Pipelines are a separate layer above relations with their own protocols (`Unit`, `Checkpoint`), covered under [Pipeline units and checkpoints](#pipeline-units-and-checkpoints); they register nothing into the relation AST. The shared-schema boundaries (native type adapters, native schema adapters, schema codecs and physical output description) are covered under [Schema extension recipes](#schema-extension-recipes); they reuse existing registries and are not a plugin framework.
 
 > **Stability:** Public extension points but not yet versioned. The signatures below are accurate as of the current `develop` branch.
 
@@ -9,8 +9,8 @@ Mountainash exposes three registries that let third-party code extend the relati
 | You want to… | Use |
 |--------------|-----|
 | Add a new `RelationNode` subclass and tell the visitor how to compile it | `RelationVisitRegistry` |
-| Rewrite the AST before the visitor runs (algebraic optimisation, predicate pushdown, parameter folding, …) | `OptimisationRegistry` |
-| Plug a custom cache into the pipeline runner | `PipelineStorage` |
+| Rewrite the AST before the visitor runs (algebraic optimisation, predicate simplification, …) | `OptimisationRegistry` |
+| Add a pipeline unit kind, checkpoint backend or sink | [Pipeline units and checkpoints](#pipeline-units-and-checkpoints) |
 | Add a new operation to existing nodes (e.g. a new scalar function on `ScalarFunctionNode`) | Not these — see [adding-operations.md](adding-operations.md) |
 | Add a native dtype family, schema carrier, interchange format, or physical-schema description | [Schema extension recipes](#schema-extension-recipes) |
 
@@ -31,7 +31,7 @@ class MyCustomRelNode(RelationNode):
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
     _leaf_backend: ClassVar[CONST_BACKEND | None] = CONST_BACKEND.POLARS
 
-    step_name: str
+    label: str
     payload: dict[str, Any]
 
     def accept(self, visitor: Any) -> Any:
@@ -48,7 +48,7 @@ RelationVisitRegistry.register(MyCustomRelNode, _visit_my_node)
 
 Once registered, `MyCustomRelNode` can be embedded anywhere a `RelationNode` is expected, and `relation.collect()` will dispatch to your handler when it encounters it.
 
-**Reference implementation:** `src/mountainash/pipelines/integration/relation.py` registers `PipelineStepRelNode` and `ParamsRelNode` via `register_pipeline_bridge()`.
+**Reference:** the registry lives in `src/mountainash/relations/core/unified_visitor/visit_registry.py`; `tests/relations/execution/test_location.py` shows a minimal local leaf node declaring `_leaf_backend`.
 
 ### Rules
 
@@ -77,7 +77,7 @@ register_optimisation(MyCustomRelNode, fold_my_thing)
 
 Optimisations run before the visitor compiles the plan. Registered handlers fire each time `.collect()` is invoked, so they must be idempotent and side-effect-free.
 
-**Reference implementation:** `register_params_optimisation()` in `src/mountainash/pipelines/integration/relation.py` registers `fold_params` against `ParamsRelNode`. The optimiser folds `ParamsRelNode(input=PipelineStepRelNode(…))` into a `PipelineStepRelNode` with merged `bound_params`.
+**Reference:** `tests/relations/test_relation_optimisation_walk.py` registers a local `OptNode` rewrite and checks that the optimiser rebuilds the frozen parent around the rewritten child; use `_reset_registry()` in test teardown.
 
 ### Rules
 
@@ -85,26 +85,37 @@ Optimisations run before the visitor compiles the plan. Registered handlers fire
 - A rewrite that returns a different node type changes the visitor dispatch — make sure the new node has a handler registered.
 - Don't introduce cycles. If your rewrite produces a node that itself triggers your rewrite, you'll loop forever; the optimiser does not detect this.
 
-## `PipelineStorage` protocol — custom caches
+## Pipeline units and checkpoints
+
+`mountainash.pipelines` runs *units* and records execution state in a *checkpoint*. Both are protocols; the full model is in [pipelines.md](pipelines.md).
+
+**A new unit kind.** Subclass `BaseUnit` (or satisfy the same attributes structurally) and implement `run(upstream, ctx)`. Override `_extras()` to add output-affecting configuration to the identity digest — anything that changes what the unit produces must be in it. Pick the lifecycle (classes in `mountainash.pipelines.runtime.lifecycle`) with `lifecycle = UnitLifecycle` (reuse the checkpointed record when the identity matches), `SourceLifecycle` (cursor/coverage/pending-attempt handling) or `NestedLifecycle`.
 
 ```python
-from typing import Protocol
+from mountainash.pipelines import Coverage, Identity, SourceResult, SourceUnit, Value
 
 
-class PipelineStorage(Protocol):
-    def get(self, cache_key: str) -> Any | None: ...
-    def put(self, cache_key: str, value: Any) -> None: ...
-    def has(self, cache_key: str) -> bool: ...
-    def delete(self, cache_key: str) -> None: ...
+class ApiSource(SourceUnit):
+    name = "api"
+
+    def __init__(self, client):
+        self.client = client
+
+    def fetch(self, upstream, params, state):
+        done = self.client.fetch(skip=state.succeeded, retry=state.outstanding, after=state.cursor)
+        value = Value.of(done.rows, Identity.of("api"), Coverage.source(done.attempted, done.succeeded, done.failed))
+        return SourceResult(value, next_cursor=done.next_cursor)
 ```
 
-Built-in implementations: `MemoryPipelineStorage`, `FileSystemPipelineStorage`, `DualPipelineStorage` (memory + disk fallback).
+**A new sink.** Subclass `SinkUnit`, implement `destination()` (a restart-stable string identifying the physical destination) and `write(value) -> LocatorReference`; override `reference_exists(ref)` so the runner re-runs the sink if its destination disappeared. Mode/coverage checks, and the `TABULAR`/`RECORDS`-only input rule, are inherited from `SinkUnit.run`. Raise `NonRetryable(AmbiguousWrite)` when a failure after the write may have committed.
 
-Pass an instance to `SimplePipelineRunner(pipeline, pipeline_storage=…)` or to a custom executor via `source(..., executor=...)`.
+**A new checkpoint backend.** Implement the `Checkpoint` protocol (`lookup`, `record`, `last_status`, `progress`, `set_progress`, `pending`, `pending_all`, `set_pending`, `clear_pending`, `invalidate`, `scoped`). Two rules matter: a backend must never claim to retain a value it cannot reproduce (a record without its value is treated as not reusable), and `scoped(name)` must return an isolated namespace whose pending attempts still appear in the parent's `pending_all()`.
 
-### Cache-key contract
+### Rules
 
-Cache keys are derived from `(pipeline_name, step_name, version, sorted(bound_params), upstream_cache_keys)`. If your storage wraps a system that needs different keying (e.g. content-addressed), do the translation inside `get`/`put`/`has`.
+- Units never touch the checkpoint; the runner does, through the unit's lifecycle.
+- A unit instance never runs concurrently with itself; shared external state is the author's responsibility (`affinity = Affinity.MAIN` pins a unit to the caller thread).
+- Raise `NonRetryable` to opt out of the runner's `RetryConfig`.
 
 ## Schema extension recipes
 
@@ -166,7 +177,6 @@ assert get_native_schema_adapter(TypeTarget.POLARS) is get_native_schema_adapter
 These exist but are out of scope for this guide; see the relevant module:
 
 - **`CustomTypeRegistry`** (`typespec.custom_types`) — register new semantic types for `FieldDefinition` declarations.
-- **`ResolverRegistry`** (`pipelines.resolution`) — multi-tenant pipeline resolution.
 - **Function key registries** (`expressions.core.expression_system.function_keys`) — for adding scalar/aggregate/window functions, see [adding-operations.md](adding-operations.md) (six-step process).
 
 ## Testing your extension

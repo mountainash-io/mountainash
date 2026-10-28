@@ -9,6 +9,8 @@ from mountainash.pipelines.runtime.lifecycle import SourceLifecycle
 from mountainash.pipelines.units.source import CallableSource
 from mountainash.pipelines.errors import IncompatibleResume
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("unit:SourceUnit")
 def test_source_lifecycle_identify_raises_on_incompatible_pending():
     s = CallableSource(lambda u, p, st: None, name="s"); cp = MemoryCheckpoint()
     att = Attempt(SourceState(), s.identity({}, {"t": 1}, SourceState()), Record(Identity.of("x"), Status.COMPLETE, None, None, None), "A")
@@ -17,6 +19,8 @@ def test_source_lifecycle_identify_raises_on_incompatible_pending():
     assert SourceLifecycle.identify(s, {}, {"t": 1}, cp, OPTS).identity == att.identity
     assert SourceLifecycle.identify(s, {}, {"t": 2}, cp, dict(OPTS, force=True)).identity != att.identity
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("unit:SourceUnit")
 def test_source_lifecycle_decide_replay_regenerate_run():
     s = CallableSource(lambda u, p, st: None, name="s"); cp = MemoryCheckpoint()
     ident = SourceLifecycle.identify(s, {}, {}, cp, OPTS)
@@ -26,6 +30,8 @@ def test_source_lifecycle_decide_replay_regenerate_run():
     cp.set_pending("s", Attempt(SourceState(), ident.identity, Record(ident.identity, Status.COMPLETE, None, None, None), None))   # value not retained
     assert SourceLifecycle.decide(s, ident, cp, OPTS).tag == "REGENERATE"
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("unit:SourceUnit")
 def test_source_lifecycle_commit_gated():
     s = CallableSource(lambda u, p, st: None, name="s"); cp = MemoryCheckpoint()
     v = Value.of([{"p": "A"}], Identity.of("i"), Coverage.source({"A"}, {"A"}, set()))

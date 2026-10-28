@@ -1028,42 +1028,42 @@
     },
     {
       "id": 187,
-      "label": "PipelineBuilder",
+      "label": "Pipeline",
       "group": "PIPE"
     },
     {
       "id": 188,
-      "label": "step Decorator",
+      "label": "Unit Protocol",
       "group": "PIPE"
     },
     {
       "id": 189,
-      "label": "source Function",
+      "label": "PythonUnit",
       "group": "PIPE"
     },
     {
       "id": 190,
-      "label": "PipelineSpec",
+      "label": "DagUnit",
       "group": "PIPE"
     },
     {
       "id": 191,
-      "label": "StepDefinition",
+      "label": "SourceUnit",
       "group": "PIPE"
     },
     {
       "id": 192,
-      "label": "StepContext",
+      "label": "Coverage and Cursor",
       "group": "PIPE"
     },
     {
       "id": 193,
-      "label": "StepResult",
+      "label": "Checkpoint",
       "group": "PIPE"
     },
     {
       "id": 194,
-      "label": "SimplePipelineRunner",
+      "label": "Runner",
       "group": "PIPE"
     },
     {
@@ -1073,27 +1073,27 @@
     },
     {
       "id": 196,
-      "label": "Parameter Binding",
+      "label": "Run Parameters",
       "group": "PIPE"
     },
     {
       "id": 197,
-      "label": "relation.params Method",
+      "label": "SinkUnit",
       "group": "PIPE"
     },
     {
       "id": 198,
-      "label": "ParamsRelNode",
+      "label": "WriteMode",
       "group": "PIPE"
     },
     {
       "id": 199,
-      "label": "PipelineStepRelNode",
+      "label": "PipelineUnit",
       "group": "PIPE"
     },
     {
       "id": 200,
-      "label": "fold_params Function",
+      "label": "IncompatibleResume",
       "group": "PIPE"
     }
   ],
@@ -2395,20 +2395,8 @@
       "to": 187
     },
     {
-      "from": 188,
-      "to": 191
-    },
-    {
       "from": 189,
-      "to": 187
-    },
-    {
-      "from": 189,
-      "to": 125
-    },
-    {
-      "from": 189,
-      "to": 96
+      "to": 188
     },
     {
       "from": 190,
@@ -2416,19 +2404,15 @@
     },
     {
       "from": 190,
-      "to": 12
+      "to": 96
     },
     {
       "from": 191,
-      "to": 195
+      "to": 188
     },
     {
       "from": 192,
       "to": 191
-    },
-    {
-      "from": 192,
-      "to": 196
     },
     {
       "from": 193,
@@ -2436,7 +2420,15 @@
     },
     {
       "from": 194,
-      "to": 190
+      "to": 187
+    },
+    {
+      "from": 194,
+      "to": 188
+    },
+    {
+      "from": 194,
+      "to": 193
     },
     {
       "from": 194,
@@ -2456,47 +2448,35 @@
     },
     {
       "from": 196,
+      "to": 194
+    },
+    {
+      "from": 197,
+      "to": 188
+    },
+    {
+      "from": 198,
       "to": 197
     },
     {
-      "from": 197,
-      "to": 96
-    },
-    {
-      "from": 197,
-      "to": 198
-    },
-    {
       "from": 198,
-      "to": 115
-    },
-    {
-      "from": 198,
-      "to": 195
+      "to": 192
     },
     {
       "from": 199,
-      "to": 115
+      "to": 188
     },
     {
       "from": 199,
-      "to": 191
-    },
-    {
-      "from": 199,
-      "to": 131
+      "to": 194
     },
     {
       "from": 200,
-      "to": 198
+      "to": 192
     },
     {
       "from": 200,
-      "to": 199
-    },
-    {
-      "from": 200,
-      "to": 132
+      "to": 193
     }
   ]
 }

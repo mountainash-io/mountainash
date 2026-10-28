@@ -1,15 +1,30 @@
 from __future__ import annotations
-import hashlib
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Hashable, Mapping, Protocol, runtime_checkable
+from typing import Any, Hashable, Mapping, Protocol, runtime_checkable
 from mountainash.pipelines.errors import UnhashableIdentityInput
 
 
-class ValueKind(Enum): TABULAR = "tabular"; RECORDS = "records"; REFERENCE = "reference"; OPAQUE = "opaque"
-class Status(Enum): COMPLETE = "complete"; PARTIAL = "partial"; FAILED = "failed"; SKIPPED = "skipped"; REUSED = "reused"
-class Affinity(Enum): WORKER = "worker"; MAIN = "main"
+class ValueKind(Enum):
+    TABULAR = "tabular"
+    RECORDS = "records"
+    REFERENCE = "reference"
+    OPAQUE = "opaque"
+
+
+class Status(Enum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    REUSED = "reused"
+
+
+class Affinity(Enum):
+    WORKER = "worker"
+    MAIN = "main"
+
 
 Partition = Hashable
 Cursor = Hashable
@@ -22,6 +37,7 @@ class Identity:
     @classmethod
     def of(cls, *parts: Any) -> "Identity":
         from mountainash.typespec._fingerprint import declaration_fingerprint, freeze_declaration
+
         try:
             frozen = freeze_declaration(_canonical(parts))
             return cls(declaration_fingerprint(frozen)[:32])
@@ -34,22 +50,33 @@ def _canonical(o: Any) -> Any:
     mappings stay mappings, sequences stay tuples, sets become a tagged tuple ordered by member fingerprint
     (no value ordering — heterogeneous members allowed, F12), dates/decimals/bytes pass through to the shared encoder."""
     from mountainash.typespec._fingerprint import declaration_fingerprint, freeze_declaration
-    if isinstance(o, Identity): return {"__id__": o.digest}
-    if isinstance(o, Enum): return {"__enum__": o.value}
+
+    if isinstance(o, Identity):
+        return {"__id__": o.digest}
+    if isinstance(o, Enum):
+        return {"__enum__": o.value}
     if isinstance(o, (frozenset, set)):
         members = [_canonical(x) for x in o]
-        return {"__set__": tuple(m for _, m in sorted((declaration_fingerprint(freeze_declaration(m)), m) for m in members))}
-    if isinstance(o, (list, tuple)): return tuple(_canonical(x) for x in o)
+        return {
+            "__set__": tuple(m for _, m in sorted((declaration_fingerprint(freeze_declaration(m)), m) for m in members))
+        }
+    if isinstance(o, (list, tuple)):
+        return tuple(_canonical(x) for x in o)
     if isinstance(o, Mapping):
-        if not all(isinstance(k, str) for k in o): raise TypeError("identity mapping keys must be str")   # no repr() collisions (F5)
+        if not all(isinstance(k, str) for k in o):
+            raise TypeError("identity mapping keys must be str")  # no repr() collisions (F5)
         return {"__map__": {k: _canonical(v) for k, v in o.items()}}
-    if hasattr(o, "__dataclass_fields__"): return {"__dc__": type(o).__name__, **{f: _canonical(getattr(o, f)) for f in o.__dataclass_fields__}}
-    return o          # str/int/float/bool/None/date/time/timedelta/Decimal/bytes: the shared encoder validates
+    if hasattr(o, "__dataclass_fields__"):
+        return {"__dc__": type(o).__name__, **{f: _canonical(getattr(o, f)) for f in o.__dataclass_fields__}}
+    return o  # str/int/float/bool/None/date/time/timedelta/Decimal/bytes: the shared encoder validates
 
 
 @dataclass(frozen=True)
 class Coverage:
-    attempted: frozenset = frozenset(); succeeded: frozenset = frozenset(); failed: frozenset = frozenset(); complete: bool = True
+    attempted: frozenset = frozenset()
+    succeeded: frozenset = frozenset()
+    failed: frozenset = frozenset()
+    complete: bool = True
 
     @classmethod
     def source(cls, attempted, succeeded, failed) -> "Coverage":
@@ -83,6 +110,7 @@ class Reference(Protocol):
 @dataclass(frozen=True)
 class LocatorReference:
     """Plain data. Liveness is answered by the producing unit (``BaseUnit.reference_exists``), never here."""
+
     locator: str
     record_count: int | None = None
 
@@ -91,19 +119,24 @@ def _is_frame_carrier(payload: Any) -> bool:
     if payload is None or isinstance(payload, (str, bytes, int, float, bool, Enum, list, dict, tuple, set)):
         return False
     from mountainash.core.lazy_imports import is_available
+
     if is_available("pyarrow"):
         import pyarrow as pa
+
         if isinstance(payload, pa.Table):
             return True
     from mountainash.core.backend_detection import native_identity
+
     try:
-        native_identity(payload); return True
+        native_identity(payload)
+        return True
     except Exception:
         return False
 
 
 def _location_of(payload: Any) -> Any:
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
     return LocationResolver(IdentityTokens())._read(payload)
 
 
@@ -134,7 +167,8 @@ class Value:
             return self.payload.record_count
         if self.kind is ValueKind.TABULAR:
             from mountainash.relations.core.relation_api.relation import relation
-            return relation(self.payload).count_rows()       # family-native count; executes a lazy input only here
+
+            return relation(self.payload).count_rows()  # family-native count; executes a lazy input only here
         return None
 
     def is_empty(self) -> bool | None:
@@ -167,7 +201,12 @@ class Attempt:
     def replace(self, result: SourceResult) -> "Attempt":
         cov = result.value.coverage
         st = Status.COMPLETE if (cov is None or cov.complete) else Status.PARTIAL
-        return Attempt(self.state_in, self.identity, Record(self.identity, st, datetime.now(), cov, result.value), result.next_cursor)
+        return Attempt(
+            self.state_in,
+            self.identity,
+            Record(self.identity, st, datetime.now(), cov, result.value),
+            result.next_cursor,
+        )
 
     def commit(self) -> SourceState:
         return self.state_in.advance(self.record.coverage or Coverage(), self.next_cursor)

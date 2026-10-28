@@ -1,11 +1,8 @@
 """Pipeline orchestration errors."""
+
 from __future__ import annotations
 
 from mountainash.core.errors import MountainashError
-
-
-class StepEmptyError(MountainashError):
-    """Raised when a pipeline step returns empty data under a non-empty policy."""
 
 
 class PipelineError(MountainashError):
@@ -13,10 +10,24 @@ class PipelineError(MountainashError):
 
 
 class UnitFailed(PipelineError): ...
+
+
 class NonRetryable(PipelineError): ...
+
+
 class AmbiguousWrite(NonRetryable): ...
+
+
 class UnsupportedValueKind(PipelineError, TypeError): ...
+
+
 class IncompleteCoverage(PipelineError, ValueError): ...
+
+
 class EmptyUnitOutput(UnitFailed): ...
+
+
 class UnhashableIdentityInput(PipelineError, TypeError): ...
+
+
 class IncompatibleResume(PipelineError): ...

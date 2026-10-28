@@ -16,6 +16,7 @@ def _ctx():
 
 ORDERS = {"id": [1, 2, 3], "amt": [10, 20, 30]}
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_native_handoff_zero_export(backend_name):
     from unittest import mock
     from fixtures.backend_registry import REGISTRY
@@ -29,6 +30,7 @@ def test_dag_unit_native_handoff_zero_export(backend_name):
     v = Value.of(out, Identity.of("y"))
     assert v.kind is ValueKind.TABULAR and ma.relation(out).count_rows() == 2
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_named_index_pandas_handoff():                        # Review Focus #1 through the handoff
     import narwhals as nw, pandas as pd
     df = pd.DataFrame({"id": [1, 2], "amt": [10, 99]}, index=pd.Index(["x", "y"], name="k"))
@@ -39,6 +41,7 @@ def test_dag_unit_named_index_pandas_handoff():                        # Review 
     assert type(nw.to_native(out)).__module__.startswith("pandas")           # native carrier preserved through the handoff (no Arrow/Polars hop)
     frame = nw.from_native(df); assert DagUnit.adapt(Value.of(frame, Identity.of("x"))) is frame      # TABULAR adaptation is the identity function
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_runs_twice_with_different_inputs_and_after_failure(backend_name):
     from fixtures.backend_registry import REGISTRY
     B = lambda data, n: Value.of(REGISTRY[backend_name].build(data, n), Identity.of(n))   # noqa: E731
@@ -49,16 +52,21 @@ def test_dag_unit_runs_twice_with_different_inputs_and_after_failure(backend_nam
         ma.relation(u.run({"orders": B({"id": [1]}, "o3")}, _ctx())).collect()           # missing column → fails at run (eager) or materialisation (lazy)
     assert ma.relation(u.run({"orders": B({"id": [3], "amt": [99]}, "o4")}, _ctx())).collect()["id"].to_list() == [3]   # fresh bind after failure
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_identity_includes_target_name_and_target():
     t = RelationDAG(); t.add("a", t.ref("l").select("id")); t.add("b", t.ref("l").select("id"))
     assert DagUnit(t, "a", name="d", inputs={"up": "l"}).identity({"up": Identity.of("u")}, {}, None) != DagUnit(t, "b", name="d", inputs={"up": "l"}).identity({"up": Identity.of("u")}, {}, None)
     assert DagUnit(t, "a", name="d", inputs={"up": "l"}, target="polars").identity({"up": Identity.of("u")}, {}, None) != DagUnit(t, "a", name="d", inputs={"up": "l"}, target="ibis-duckdb").identity({"up": Identity.of("u")}, {}, None)
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_records_via_rows_to_arrow_sparse():
     u = DagUnit(_t(), "out", name="dag", inputs={"orders": "orders"})
     out = u.run({"orders": Value.of([{"id": 1, "amt": 10}, {"id": 2}], Identity.of("x"))}, _ctx())
     assert ma.relation(out).collect().shape[0] == 0           # amt null → filtered out, no KeyError on sparse row
 
+@pytest.mark.cell("unit:DagUnit")
+@pytest.mark.cell("kind:REFERENCE")
+@pytest.mark.cell("kind:OPAQUE")
 def test_dag_unit_refuses_reference_and_passes_opaque():
     from dataclasses import dataclass
     from mountainash.pipelines.core.values import LocatorReference
@@ -70,6 +78,7 @@ def test_dag_unit_refuses_reference_and_passes_opaque():
     out = u.run({"orders": Value.of([Row(1, 20)], Identity.of("x"))}, _ctx())      # existing Python-model ingress
     assert ma.relation(out).collect().shape[0] == 1
 
+@pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_identity_includes_inputs_mapping():
     t = RelationDAG(); t.add("out", t.ref("l").select("id")); t.add("r", t.ref("l"))
     a = DagUnit(t, "out", name="d", inputs={"up": "l"}).identity({"up": Identity.of("u")}, {}, None)

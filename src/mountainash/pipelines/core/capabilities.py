@@ -8,6 +8,7 @@ from typing import Any, Iterator, Sequence
 @dataclass(frozen=True)
 class ParamSpec:
     """Declares one parameter a pipeline step accepts."""
+
     name: str
     type: type
     required: bool = True
@@ -21,6 +22,7 @@ class ParamAxis:
     names: a single param name (str) or a tuple of param names for multi-value rows.
     values: a sequence of values (or tuples when names is a tuple).
     """
+
     names: str | tuple[str, ...]
     values: Sequence[Any]
 
@@ -30,10 +32,7 @@ class ParamAxis:
                 raise ValueError("ParamAxis names tuple must not be empty")
             for i, v in enumerate(self.values):
                 if not isinstance(v, tuple) or len(v) != len(self.names):
-                    raise ValueError(
-                        f"Value at index {i} must be a tuple of length {len(self.names)}, "
-                        f"got {v!r}"
-                    )
+                    raise ValueError(f"Value at index {i} must be a tuple of length {len(self.names)}, got {v!r}")
 
 
 def expand_axes(*axes: ParamAxis) -> Iterator[dict[str, Any]]:
@@ -51,9 +50,7 @@ def expand_axes(*axes: ParamAxis) -> Iterator[dict[str, Any]]:
         names = [axis.names] if isinstance(axis.names, str) else list(axis.names)
         for name in names:
             if name in all_names:
-                raise ValueError(
-                    f"duplicate param name '{name}' across axes"
-                )
+                raise ValueError(f"duplicate param name '{name}' across axes")
             all_names.append(name)
 
     if not axes:

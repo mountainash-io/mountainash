@@ -18,13 +18,19 @@ def con(request, tmp_path):
     if not url: pytest.skip("blocked: MA_PG_URL unset — PostgreSQL sink cells not qualified in this environment")
     c = ibis.connect(url); yield c                                   # URL-aware entry point (F29)
     for t in c.list_tables():
-        if t.startswith(("t", "_ma_")): c.drop_table(t, force=True)
+        if t.startswith(("t", "src", "_ma_")): c.drop_table(t, force=True)
 
 def _ctx(): return RunContext({}, None, {}, "p", "k", "r")
 def _rows(*t): return [{"id": i, "p": p, "v": v} for i, p, v in t]
 
 @pytest.mark.parametrize("mode", [WriteMode.APPEND, WriteMode.UPSERT, WriteMode.REPLACE_PARTITION, WriteMode.REPLACE])
 @pytest.mark.parametrize("composite", [False, True])
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE")
 def test_modes_from_records(con, mode, composite):
     keys = ("id", "p") if composite else ("id",); parts = ("p", "q") if composite else ("p",)
     def R(*t): return [{"id": i, "p": p, "q": q, "v": v} for i, p, q, v in t]
@@ -40,28 +46,42 @@ def test_modes_from_records(con, mode, composite):
     else:   # REPLACE_PARTITION: composite replaces only (a,x) and keeps (a,y); single-column replaces all p=a
         assert got == ({(1, "a", "x"): 9, (2, "b", "x"): 1, (3, "a", "y"): 1} if composite else {(1, "a", "x"): 9, (2, "b", "x"): 1})
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
 def test_replace_partition_inserts_only_succeeded_rows(con):                    # F19
     k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p",))
     k.run({"s": Value.of(_rows((1, "a", 1), (2, "b", 1)), Identity.of("i"), Coverage.source({"a", "b"}, {"a"}, {"b"}))}, _ctx())
     assert {r["p"] for r in con.table("t").to_pyarrow().to_pylist()} == {"a"}       # failed partition never touched, even on first create
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
 def test_replace_partition_with_no_successes_creates_empty_destination(con):    # F37
     k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p",))
     ref = k.run({"s": Value.of(_rows((1, "a", 1)), Identity.of("i"), Coverage.source({"a"}, set(), {"a"}))}, _ctx())
     assert k.reference_exists(ref) and ref.record_count == 0 and set(con.table("t").columns) == {"id", "p", "v"}
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
 def test_sink_identity_includes_destination_and_mode(con):                      # F17
     a = IbisTableSink(con, "t1", name="k", depends_on=("s",), mode=WriteMode.APPEND).identity({"s": Identity.of("u")}, {}, None)
     b = IbisTableSink(con, "t2", name="k", depends_on=("s",), mode=WriteMode.APPEND).identity({"s": Identity.of("u")}, {}, None)
     c = IbisTableSink(con, "t1", name="k", depends_on=("s",), mode=WriteMode.UPSERT, keys=("id",)).identity({"s": Identity.of("u")}, {}, None)
     assert len({a, b, c}) == 3
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
+@pytest.mark.cell("kind:REFERENCE")
 def test_reference_exists_is_destination_owned(con):                              # F16
     k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND)
     ref = k.run({"s": Value.of(_rows((1, "a", 1)), Identity.of("i"))}, _ctx())
     assert ref.locator.endswith("/t") and k.reference_exists(ref)
     con.drop_table("t"); assert not k.reference_exists(ref)
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
 def test_destination_distinguishes_databases(tmp_path):                            # F6/F17
     a = ibis.sqlite.connect(tmp_path / "a.db"); b = ibis.sqlite.connect(tmp_path / "b.db")
     ka = IbisTableSink(a, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND); kb = IbisTableSink(b, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND)
@@ -81,6 +101,11 @@ def test_destination_distinguishes_databases(tmp_path):                         
     d2.raw_sql("SET schema 's2'")
     assert IbisTableSink(d2, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND).destination() != before     # active schema is part of identity (F40)
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("status:REUSED")
 def test_completed_append_is_reused_after_a_real_process_restart(tmp_path):     # F16 end to end
     import subprocess, sys, textwrap
     script = textwrap.dedent(f"""
@@ -107,6 +132,8 @@ def test_completed_append_is_reused_after_a_real_process_restart(tmp_path):     
     assert run(True) == ["complete", "1"]                      # X appended once, Y failed → S pending
     assert run(False) == ["reused", "1"]                       # fresh process: X REUSED via destination-owned liveness; no duplicate row
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
 def test_foreign_connection_input_exports_once_then_imports(con):
     from unittest import mock
     from mountainash.relations.backends.relation_systems.ibis.base import IbisBaseRelationSystem
@@ -116,6 +143,9 @@ def test_foreign_connection_input_exports_once_then_imports(con):
         k.run({"s": Value.of(other.table("src"), Identity.of("i"))}, _ctx())
     assert spy.call_count == 1 and con.table("t").count().execute() == 1
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
 def test_same_connection_native_write_zero_exports(con):
     from unittest import mock
     from mountainash.relations.backends.relation_systems.ibis.base import IbisBaseRelationSystem
@@ -128,6 +158,12 @@ def test_same_connection_native_write_zero_exports(con):
 
 @pytest.mark.parametrize("mode", [WriteMode.UPSERT, WriteMode.REPLACE_PARTITION, WriteMode.REPLACE, WriteMode.APPEND])
 @pytest.mark.parametrize("composite", [False, True])
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE")
 def test_self_dependent_input_every_mode(con, mode, composite):                  # full product: mode × shape × self-dependent
     con.create_table("t", pl.DataFrame({"id": [1, 2], "p": ["a", "a"], "q": ["x", "y"], "v": [1, 2]}).to_arrow())
     expr = con.table("t").mutate(v=ibis._.v * 10)
@@ -138,6 +174,10 @@ def test_self_dependent_input_every_mode(con, mode, composite):                 
     vs = sorted(r["v"] for r in con.table("t").to_pyarrow().to_pylist())
     assert vs == ([1, 2, 10, 20] if mode is WriteMode.APPEND else [10, 20])
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("unit:CallableSource")
 def test_recovery_contract_with_real_upsert_sink(con, tmp_path):                 # §8 two-run contract end to end with IbisTableSink
     from pathlib import Path
     from mountainash.pipelines.core.pipeline import Pipeline
@@ -153,6 +193,12 @@ def test_recovery_contract_with_real_upsert_sink(con, tmp_path):                
     Runner(p, checkpoint=FileCheckpoint(tmp_path / "cp")).run(); Runner(p, checkpoint=FileCheckpoint(tmp_path / "cp")).run()
     assert {r["p"] for r in con.table("t").to_pyarrow().to_pylist()} == {"a", "b"} and FileCheckpoint(tmp_path / "cp").progress("S").cursor == "a"
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("status:REUSED")
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("unit:CallableSource")
 def test_interrupted_and_two_sink_contracts_with_real_sinks(con, tmp_path):     # §8 interrupted + partial-plus-two-sinks on IbisTableSink
     from mountainash.pipelines.core.pipeline import Pipeline
     from mountainash.pipelines.runtime.checkpoint import FileCheckpoint
@@ -184,6 +230,12 @@ def test_interrupted_and_two_sink_contracts_with_real_sinks(con, tmp_path):     
     assert {r["p"] for r in con.table("tx").to_pyarrow().to_pylist()} == {"a", "b"} == {r["p"] for r in con.table("ty").to_pyarrow().to_pylist()}
     assert FileCheckpoint(tmp_path / "cp").progress("S").cursor == "a"
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("unit:DagUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:COMPLETE")
 def test_partial_source_through_dag_unit_refuses_replace_and_preserved_chain_allows_partition(con, tmp_path):
     import mountainash as ma
     from mountainash.relations.dag import RelationDAG
@@ -199,6 +251,9 @@ def test_partial_source_through_dag_unit_refuses_replace_and_preserved_chain_all
     q = Pipeline("d").add(CallableSource(fetch, name="S")).add(PythonUnit(lambda r, ctx: r, name="T", depends_on=("S",), partitions_preserved=True)).add(IbisTableSink(con, "t2", name="K", depends_on=("T",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p",)))
     assert Runner(q).run().statuses["K"] is Status.COMPLETE
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
 def test_self_dependent_replace_partition_preserves_rows(con):
     con.create_table("t", pl.DataFrame({"id": [1, 2], "p": ["a", "a"], "v": [1, 2]}).to_arrow())
     expr = con.table("t").mutate(v=ibis._.v * 10)            # reads the destination
@@ -207,6 +262,9 @@ def test_self_dependent_replace_partition_preserves_rows(con):
     assert sorted(r["v"] for r in con.table("t").to_pyarrow().to_pylist()) == [10, 20]
 
 @pytest.mark.parametrize("failing", ["_count", "_cleanup"])
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
 def test_append_ambiguous_post_write_failure_is_non_retryable(con, monkeypatch, failing):      # F20
     k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND)
     k.run({"s": Value.of(_rows((1, "a", 1)), Identity.of("i"))}, _ctx())                     # table exists → second write stages
@@ -218,6 +276,9 @@ def test_append_ambiguous_post_write_failure_is_non_retryable(con, monkeypatch, 
     with pytest.raises(RuntimeError):                                                            # ordinary, retryable
         k2.run({"s": Value.of(_rows((3, "a", 1)), Identity.of("i"))}, _ctx())
 
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE")
 def test_transaction_rolls_back_on_insert_failure(con, monkeypatch):
     k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.REPLACE)
     k.run({"s": Value.of(_rows((1, "a", 1)), Identity.of("i"))}, _ctx())

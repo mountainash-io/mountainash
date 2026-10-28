@@ -9,6 +9,7 @@ from mountainash.pipelines.units.base import BaseUnit
 
 class SourceUnit(BaseUnit):
     partitions_preserved = True
+
     @abstractmethod
     def fetch(self, upstream, params, state) -> SourceResult: ...
     def run(self, upstream, ctx) -> SourceResult:
@@ -16,7 +17,17 @@ class SourceUnit(BaseUnit):
 
 
 class CallableSource(SourceUnit):
-    def __init__(self, fn: Callable, *, name: str, version="1", depends_on=(), affinity=Affinity.WORKER, empty=EmptyPolicy.WARN) -> None:
-        self.fn, self.name, self.version, self.depends_on, self.affinity, self.empty = fn, name, version, tuple(depends_on), affinity, empty
+    def __init__(
+        self, fn: Callable, *, name: str, version="1", depends_on=(), affinity=Affinity.WORKER, empty=EmptyPolicy.WARN
+    ) -> None:
+        self.fn, self.name, self.version, self.depends_on, self.affinity, self.empty = (
+            fn,
+            name,
+            version,
+            tuple(depends_on),
+            affinity,
+            empty,
+        )
+
     def fetch(self, upstream, params, state):
         return self.fn(upstream, params, state)

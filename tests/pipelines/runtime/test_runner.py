@@ -11,6 +11,10 @@ from mountainash.pipelines.units.python import PythonUnit, unit
 
 def rows(*ps): return [{"p": p} for p in ps]
 
+@pytest.mark.cell("unit:PythonUnit")
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:SKIPPED")
 def test_order_layers_inline_and_skip_on_failure():
     seen = []
     a = PythonUnit(lambda ctx: seen.append(("a", threading.current_thread().name)) or rows(1), name="a")
@@ -20,6 +24,10 @@ def test_order_layers_inline_and_skip_on_failure():
     assert r.statuses == {"a": Status.COMPLETE, "b": Status.FAILED, "c": Status.COMPLETE, "d": Status.SKIPPED}
     assert seen[0][1] == threading.current_thread().name and r.executed == ("a", "c") or set(r.executed) == {"a", "c"}
 
+@pytest.mark.cell("unit:PythonUnit")
+@pytest.mark.cell("status:REUSED")
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("kind:REFERENCE")
 def test_reuse_then_force_and_record_reference_liveness():
     calls = []
     u = PythonUnit(lambda ctx: calls.append(1) or rows(1), name="u")
@@ -35,6 +43,9 @@ def test_reuse_then_force_and_record_reference_liveness():
     Runner(p2, checkpoint=cp2).run(); assert Runner(p2, checkpoint=cp2).run().statuses["k"] is Status.REUSED
     k.alive = False; assert Runner(p2, checkpoint=cp2).run().statuses["k"] is Status.COMPLETE       # destination says gone → re-run
 
+@pytest.mark.cell("unit:PythonUnit")
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("status:FAILED")
 def test_retry_then_non_retryable_and_empty_policy():
     n = {"k": 0}
     def flaky(ctx):
@@ -56,6 +67,7 @@ def test_retry_then_non_retryable_and_empty_policy():
     Runner(Pipeline("p").add(PythonUnit(lambda ctx: V(), name="s", empty=EmptyPolicy.SILENT))).run()
     assert spy["count"] == 0                                              # SILENT never counts
 
+@pytest.mark.cell("unit:PythonUnit")
 def test_coverage_propagation_including_value_returns():                 # F11
     src_cov = Coverage.source({"A", "B"}, {"B"}, {"A"})
     s = PythonUnit(lambda ctx: Value.of(rows("B"), Identity.of("t"), src_cov), name="s")
@@ -67,6 +79,7 @@ def test_coverage_propagation_including_value_returns():                 # F11
     w = PythonUnit(lambda r, ctx: r, name="w", depends_on=("s",), partitions_preserved=True)
     assert Runner(Pipeline("q").add(s).add(w)).run().values["w"].coverage == src_cov
 
+@pytest.mark.cell("unit:PythonUnit")
 def test_parallel_workers_policy_isolation_and_unit_exclusion():
     from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy, _resolve_policy
     seen = {}
@@ -91,6 +104,10 @@ def test_parallel_workers_policy_isolation_and_unit_exclusion():
     [t.start() for t in ts]; [t.join() for t in ts]
     assert active["max"] == 1 and pols["t"] == CapabilityPolicy.trusted() and pols["c"] == CapabilityPolicy.checked()
 
+@pytest.mark.cell("unit:PythonUnit")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:SKIPPED")
+@pytest.mark.cell("status:COMPLETE")
 def test_worker_failure_with_sibling_main_running():                     # Review Focus #5
     inner_main = PythonUnit(lambda ctx: time.sleep(0.2) or rows(1), name="m", affinity=Affinity.MAIN)
     boom = PythonUnit(lambda ctx: (_ for _ in ()).throw(RuntimeError("x")), name="boom")
@@ -98,6 +115,7 @@ def test_worker_failure_with_sibling_main_running():                     # Revie
     r = Runner(p, workers=2).run(force=True)
     assert r.statuses["boom"] is Status.FAILED and r.statuses["after"] is Status.SKIPPED and r.statuses["m"] is Status.COMPLETE
 
+@pytest.mark.cell("status:COMPLETE")
 def test_structural_unit_without_baseunit_runs():                         # P10: the protocol, not inheritance, is the contract
     import threading
     from mountainash.pipelines.runtime.lifecycle import UnitLifecycle
@@ -112,6 +130,7 @@ def test_structural_unit_without_baseunit_runs():                         # P10:
     r = Runner(Pipeline("p").add(Bare())).run()
     assert r.statuses["bare"] is Status.COMPLETE
 
+@pytest.mark.cell("unit:PythonUnit")
 def test_external_inputs_are_a_supported_planning_case():                 # F10
     inner = Pipeline("inner", inputs=("S",)).add(PythonUnit(lambda s, ctx: s, name="V", depends_on=("S",)))
     assert inner.graph.topological_order() == ["V"] and inner.graph.nodes["V"].inputs() == ("S",)

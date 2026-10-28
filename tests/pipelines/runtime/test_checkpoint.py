@@ -11,6 +11,8 @@ def _rec(payload, st=Status.COMPLETE):
 def cp(request, tmp_path):
     return MemoryCheckpoint() if request.param == "memory" else FileCheckpoint(tmp_path)
 
+@pytest.mark.cell("checkpoint:MemoryCheckpoint")
+@pytest.mark.cell("checkpoint:FileCheckpoint")
 def test_record_lookup_progress_pending_roundtrip(cp, tmp_path):
     cp.record("u", _rec([{"a": 1}]))
     assert cp.lookup("u", Identity.of("i")).value.payload == [{"a": 1}]
@@ -23,6 +25,9 @@ def test_record_lookup_progress_pending_roundtrip(cp, tmp_path):
         assert again.progress("s") == st and again.pending("s") == att and again.lookup("u", Identity.of("i")).value.payload == [{"a": 1}]
     cp.clear_pending("s"); assert cp.pending("s") is None
 
+@pytest.mark.cell("checkpoint:MemoryCheckpoint")
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+@pytest.mark.cell("status:COMPLETE")
 def test_file_checkpoint_never_serialises_tabular(tmp_path):
     cp = FileCheckpoint(tmp_path)
     cp.record("u", _rec(pl.DataFrame({"a": [1]})))
@@ -30,6 +35,9 @@ def test_file_checkpoint_never_serialises_tabular(tmp_path):
     assert again.value is None and again.status is Status.COMPLETE                 # TABULAR is not retained: Record.value is None
     assert MemoryCheckpoint().record("u", _rec(pl.DataFrame({"a": [1]}))) is None   # memory retains by reference (no error)
 
+@pytest.mark.cell("checkpoint:MemoryCheckpoint")
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+@pytest.mark.cell("kind:REFERENCE")
 def test_reference_roundtrip_and_scoped_pending_all(cp, tmp_path):
     cp.record("k", _rec(LocatorReference("mem://t", 3)))
     assert cp.lookup("k", Identity.of("i")).value.payload == LocatorReference("mem://t", 3)
@@ -40,6 +48,9 @@ def test_reference_roundtrip_and_scoped_pending_all(cp, tmp_path):
     if isinstance(cp, FileCheckpoint):
         assert sorted(p for p, _ in FileCheckpoint(tmp_path).pending_all()) == [("N", "S"), ("T",)]
 
+@pytest.mark.cell("checkpoint:MemoryCheckpoint")
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+@pytest.mark.cell("status:PARTIAL")
 def test_last_status_and_tagged_partitions_and_names(cp, tmp_path):
     att = Attempt(SourceState(("k", 1), frozenset({1, "A", ("x", 2)}), frozenset()), Identity.of("i"), _rec([{"p": 1}], Status.PARTIAL), ("c", 9))
     cp.set_pending("tenant/fetch__daily", att)
@@ -51,6 +62,7 @@ def test_last_status_and_tagged_partitions_and_names(cp, tmp_path):
         assert again.pending("tenant/fetch__daily") == att and again.last_status("tenant/fetch__daily") is Status.PARTIAL
 
 
+@pytest.mark.cell("checkpoint:FileCheckpoint")
 def test_delimiter_bearing_and_dotted_names_roundtrip_and_invalidate_selectively(tmp_path):     # F30
     cp = FileCheckpoint(tmp_path)
     cp.record("fetch--daily", _rec([{"x": 1}])); cp.record("fetch", _rec([{"x": 2}]))
@@ -61,12 +73,15 @@ def test_delimiter_bearing_and_dotted_names_roundtrip_and_invalidate_selectively
     again.invalidate({"fetch"})
     assert FileCheckpoint(tmp_path).lookup("fetch--daily", Identity.of("i")) is not None
 
+@pytest.mark.cell("checkpoint:FileCheckpoint")
 def test_long_names_persist_within_filesystem_limits(tmp_path):                     # F36/P12
     cp = FileCheckpoint(tmp_path); long = "u" * 300
     cp.record(long, _rec([{"x": 1}])); cp.scoped(long).set_progress(long, SourceState("c"))
     again = FileCheckpoint(tmp_path)
     assert again.lookup(long, Identity.of("i")) is not None and again.scoped(long).progress(long).cursor == "c"
 
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+@pytest.mark.cell("status:COMPLETE")
 def test_parallel_record_writes_are_serialised(tmp_path):
     import threading
     cp = FileCheckpoint(tmp_path)
@@ -76,6 +91,8 @@ def test_parallel_record_writes_are_serialised(tmp_path):
     assert all(again.lookup(f"u{i}", Identity.of("i")) is not None and again.last_status(f"u{i}") is Status.COMPLETE for i in range(8))
 
 
+@pytest.mark.cell("checkpoint:MemoryCheckpoint")
+@pytest.mark.cell("checkpoint:FileCheckpoint")
 def test_invalidate_exact_units_only(cp):
     cp.record("a", _rec([{"x": 1}])); cp.record("b", _rec([{"x": 2}]))
     att = Attempt(SourceState(), Identity.of("i"), _rec([{"p": 1}]), None)

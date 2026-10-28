@@ -316,12 +316,6 @@ class Relation(RelationBase):
             )
         return result
 
-    # --- Pipeline Parameters ---
-
-    def params(self, **kwargs: Any) -> Relation:
-        from mountainash.pipelines.integration.relation import ParamsRelNode
-        return self._make(ParamsRelNode(input=self._node, params=kwargs))
-
     # --- Conformance ---
 
     def conform(

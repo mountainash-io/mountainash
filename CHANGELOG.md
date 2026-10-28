@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — 2026-10-28 (pipelines as macro-orchestration)
+
+### Breaking
+- Pipelines rewritten as macro-orchestration over the shared graph kernel: `Pipeline`, `Runner`, units (`PythonUnit`/`@unit`, `DagUnit`, `SourceUnit`/`CallableSource`, `SinkUnit` with `IbisTableSink` and `ParquetDirectorySink`, `PipelineUnit`), runner-owned `MemoryCheckpoint`/`FileCheckpoint`, and source coverage/cursor recovery. See `docs/guides/pipelines.md`.
+- Removed: `PipelineBuilder`, `source()`, `@step`, `StepContext`, `StepDefinition`, `StepResult`, `StepMetadata`, `PipelineSpec`, `SimplePipelineRunner`, the DBOS runner, the pipeline resolver and workflow-id helpers, `PipelineStorage` and its memory/filesystem/dual implementations, the pipeline executor protocol and cache-key helpers, `PipelineStepRelNode`, `ParamsRelNode`, `fold_params`, `register_pipeline_bridge`, `register_params_optimisation`, `Relation.params()`, and `StepEmptyError` (including its `mountainash.exceptions` re-export).
+- Kept with unchanged names and import paths: `ParamSpec`, `ParamAxis`, `expand_axes`, `EmptyPolicy`, `RetryConfig` (now also exported from `mountainash.pipelines`).
+- `optimisation_registry` is unchanged; only the pipeline registration into it is gone.
+
+### Added
+- `RelationDAG.bind(**sources)` and the `mountainash.graph` container used by `Pipeline` and `RelationDAG`.
+- Sink support matrix (DuckDB, SQLite, PostgreSQL × write mode × composite keys × self-dependent input). PostgreSQL cells need `MA_PG_URL`; they were run locally against `postgres:16`, no CI outcome observed.
+- Closed-by-default sweep over unit kinds, checkpoint implementations, value kinds, write modes and run statuses (`tests/pipelines/test_closed_by_default.py`, `@pytest.mark.cell`).
+
 ## Unreleased — 2026-10-28 (location-centred transfer, backlog 248 C1 / 9 WI1+WI4)
 
 ### Breaking

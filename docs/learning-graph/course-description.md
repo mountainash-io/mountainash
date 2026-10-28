@@ -75,7 +75,7 @@ After studying this package, developers will be able to:
 - Analyze backend detection and automatic coercion in cross-type join scenarios
 - Compare expression compilation strategies across Polars, Narwhals, and Ibis backends
 - Evaluate known divergences and their impact on cross-backend consistency
-- Analyze the pipeline parameter binding flow from ParamSpec through fold_params
+- Analyze the pipeline recovery flow from a source's coverage and cursor through the checkpoint to a committed run
 
 ### Evaluate
 

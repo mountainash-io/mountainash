@@ -7,6 +7,9 @@ from mountainash.pipelines.errors import UnsupportedValueKind
 
 def _ctx(): return RunContext({}, None, {}, "p", "k", "r")
 
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:ParquetDirectorySink:REPLACE_PARTITION")
 def test_replace_partition_clears_empty_partition(tmp_path):            # Review Focus #4
     k = ParquetDirectorySink(tmp_path, name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p",))
     k.run({"s": Value.of(pl.DataFrame({"p": ["a", "b"], "v": [1, 2]}), Identity.of("i"), Coverage.source({"a", "b"}, {"a", "b"}, set()))}, _ctx())
@@ -14,6 +17,11 @@ def test_replace_partition_clears_empty_partition(tmp_path):            # Review
     k.run({"s": Value.of(pl.DataFrame({"p": ["a"], "v": [9]}), Identity.of("i"), Coverage.source({"a", "b"}, {"a", "b"}, set()))}, _ctx())
     assert not (tmp_path / "p=b").exists() and pl.read_parquet(tmp_path / "p=a" / "*.parquet")["v"].to_list() == [9]
 
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:ParquetDirectorySink:APPEND")
+@pytest.mark.cell("mode:ParquetDirectorySink:REPLACE")
+@pytest.mark.cell("mode:ParquetDirectorySink:UPSERT")
 def test_append_replace_and_upsert_unsupported(tmp_path, backend_name, backend_df):
     k = ParquetDirectorySink(tmp_path, name="k", depends_on=("s",), mode=WriteMode.APPEND)
     k.run({"s": Value.of(backend_df, Identity.of("i"))}, _ctx()); k.run({"s": Value.of(backend_df, Identity.of("i"))}, _ctx())
@@ -24,6 +32,9 @@ def test_append_replace_and_upsert_unsupported(tmp_path, backend_name, backend_d
     with pytest.raises(UnsupportedValueKind):                                     # before key validation (F23)
         ParquetDirectorySink(tmp_path, name="k", depends_on=("s",), mode=WriteMode.UPSERT)
 
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:ParquetDirectorySink:REPLACE_PARTITION")
 def test_composite_partition_directories(tmp_path):                                # F18
     k = ParquetDirectorySink(tmp_path, name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p", "q"))
     df = pl.DataFrame({"p": ["a", "a"], "q": ["x", "y"], "v": [1, 2]})

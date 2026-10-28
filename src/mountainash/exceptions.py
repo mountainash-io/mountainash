@@ -71,7 +71,6 @@ from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
     InvalidFieldMatchDeclaration,
 )
-from mountainash.pipelines.errors import StepEmptyError
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
     MembershipArgumentError,
@@ -140,7 +139,6 @@ __all__ = [
     "InvalidKeyShapeError",
     "IncompatibleFieldPropertiesError",
     "InvalidFieldMatchDeclaration",
-    "StepEmptyError",
     "UnsupportedCollectionError",
     "ValidationError",
     "CheckDeclarationError",

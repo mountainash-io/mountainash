@@ -13,7 +13,6 @@ def test_facade_reexports_are_same_objects():
     from mountainash.core.dtypes.errors import DtypeError, UnknownDtypeError, DtypeMappingError
     from mountainash.core.types import BackendCapabilityError
     from mountainash.typespec.validation import SchemaValidationError
-    from mountainash.pipelines.errors import StepEmptyError
 
     expected = {
         "MountainashError": MountainashError,
@@ -29,7 +28,6 @@ def test_facade_reexports_are_same_objects():
         "DtypeMappingError": DtypeMappingError,
         "BackendCapabilityError": BackendCapabilityError,
         "SchemaValidationError": SchemaValidationError,
-        "StepEmptyError": StepEmptyError,
     }
     for name, cls in expected.items():
         assert getattr(exc, name) is cls, name

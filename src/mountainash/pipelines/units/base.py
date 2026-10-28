@@ -1,13 +1,14 @@
 # src/mountainash/pipelines/units/base.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
+import threading
 from typing import Any, ClassVar, Mapping
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.values import Affinity, Identity, SourceState, Value
 
 
 class BaseUnit(ABC):
-    lifecycle: ClassVar[type]                 # assigned by mountainash.pipelines.runtime.lifecycle at import
+    lifecycle: ClassVar[type]  # assigned by mountainash.pipelines.runtime.lifecycle at import
     name: str
     version: str = "1"
     affinity: Affinity = Affinity.WORKER
@@ -18,9 +19,17 @@ class BaseUnit(ABC):
     def inputs(self) -> tuple[str, ...]:
         return self.depends_on
 
-    def identity(self, upstream: Mapping[str, Identity], params: Mapping[str, Any], state: SourceState | None) -> Identity:
-        return Identity.of(type(self).__name__, self.version, dict(params),
-                           {k: upstream[k] for k in self.inputs()}, state, self._extras())
+    def identity(
+        self, upstream: Mapping[str, Identity], params: Mapping[str, Any], state: SourceState | None
+    ) -> Identity:
+        return Identity.of(
+            type(self).__name__,
+            self.version,
+            dict(params),
+            {k: upstream[k] for k in self.inputs()},
+            state,
+            self._extras(),
+        )
 
     def _extras(self) -> Any:
         return None
@@ -30,9 +39,8 @@ class BaseUnit(ABC):
         return True
 
     @property
-    def exec_lock(self) -> "threading.Lock":
+    def exec_lock(self) -> threading.Lock:
         """One lock per unit instance: a unit never runs concurrently with itself (spec §7; F14)."""
-        import threading
         return self.__dict__.setdefault("_exec_lock", threading.Lock())
 
     @abstractmethod

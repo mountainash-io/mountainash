@@ -20,100 +20,31 @@ Fine — until two things happen. First, somebody wants to cache `customers` so 
 
 ## How we approach it
 
-mountainash pipelines are a library-level pipeline framework. No daemon, no UI, no deployment story. They drop into existing code.
+mountainash pipelines are a library-level macro-orchestrator. No daemon, no UI, no deployment story. They drop into existing code.
 
 ```python
-from datetime import datetime
+import ibis
 import mountainash as ma
-from mountainash.pipelines import step, PipelineBuilder, source
-from mountainash.pipelines.core.capabilities import ParamSpec
-
-@step(
-    "orders",
-    params=(
-        ParamSpec(name="since",  type=datetime, required=True),
-        ParamSpec(name="region", type=str,      required=False, default="ALL"),
-    ),
+from mountainash.pipelines import (
+    CallableSource, DagUnit, FileCheckpoint, IbisTableSink, Pipeline, Runner, WriteMode,
 )
-def fetch_orders(ctx):
-    return _fetch(since=ctx.params["since"], region=ctx.params["region"])
+from mountainash.relations.dag import RelationDAG
+
+template = RelationDAG()
+template.add("enriched", template.ref("orders").join(template.ref("customers"), on="customer_id"))
 
 pipeline = (
-    PipelineBuilder("sales", version="1.0")
-      .step("orders", fetch_orders)
-      .step("customers", fetch_customers)
-      .step("enriched", join_step, depends_on=["orders", "customers"])
-      .build()
+    Pipeline("sales")
+    .add(CallableSource(fetch_orders, name="orders"))
+    .add(CallableSource(fetch_customers, name="customers"))
+    .add(DagUnit(template, "enriched", name="enriched", inputs={"orders": "orders", "customers": "customers"}))
+    .add(IbisTableSink(con, "enriched_orders", name="sink", depends_on=("enriched",),
+                       mode=WriteMode.UPSERT, keys=("order_id",)))
 )
+result = Runner(pipeline, checkpoint=FileCheckpoint("./.checkpoint")).run(params={"since": "2026-01-01"})
 ```
 
-A step is just a function that takes a `StepContext`. Parameters are declared with `ParamSpec` — typed, validated, with optional defaults. Dependencies are explicit. The builder is immutable.
-
-## The integration the inline version can't give
-
-Pipelines compose with relations. A single step isn't a closed box — it's a relation source:
-
-```python
-result = (
-    source("orders", pipeline=pipeline)
-      .params(since=datetime(2026, 1, 1), region="EMEA")
-      .filter(ma.col("amount").gt(100))
-      .sort("order_id")
-      .to_polars()
-)
-```
-
-`source(...)` returns a relation. `.params(...)` binds values. Ordinary relation operations chain on top. When the terminal call runs, the pipeline step executes and the rest of the relation chain runs against its output — on whichever backend the caller asked for.
-
-This is the integration the inline version can never have. The output of a step is the same kind of object as everything else in the data code. Filter, project, join, aggregate, conform, dispatch to any backend — all in the same vocabulary.
-
-## Side-by-side: inline pipeline vs. mountainash
-
-```python
-# Inline, after the second feature request
-_cache = {}
-
-def get_orders(since, region):
-    key = ("orders", since, region)
-    if key not in _cache:
-        _cache[key] = _fetch_orders(since, region)
-    return _cache[key]
-
-def get_customers(tenant_id):
-    key = ("customers", tenant_id)
-    if key not in _cache:
-        _cache[key] = _fetch_customers(tenant_id)
-    return _cache[key]
-
-def run(since, region, tenant_id):
-    orders    = get_orders(since, region)
-    customers = get_customers(tenant_id)
-    enriched  = join(orders, customers)
-    # …
-```
-
-```python
-# mountainash
-@step("orders", params=(ParamSpec("since", datetime), ParamSpec("region", str, default="ALL")))
-def fetch_orders(ctx): ...
-
-@step("customers", params=(ParamSpec("tenant_id", str),))
-def fetch_customers(ctx): ...
-
-pipeline = PipelineBuilder("sales", "1.0") \
-    .step("orders", fetch_orders) \
-    .step("customers", fetch_customers) \
-    .step("enriched", join_step, depends_on=["orders", "customers"]) \
-    .build()
-
-runner = SimplePipelineRunner(pipeline, pipeline_storage=FileSystemPipelineStorage(root="./.cache"))
-results = runner.run(initial_params={
-    "orders":    {"since": datetime(2026, 1, 1), "region": "EMEA"},
-    "customers": {"tenant_id": "acme"},
-})
-```
-
-The mountainash form is roughly the same line count. The dividend is the implicit list of things that come with it: typed parameters with validation, pluggable cache backend, declared dependencies, structured metadata on each step result (timing, record count, resolved params, upstream cache keys), and the relation integration above.
+The mountainash form is roughly the same line count. The dividend is what comes with it: explicit dependencies, resumable incremental sources (failed partitions are retried on the next run; successful ones are not refetched), idempotent sinks, a file-backed checkpoint that survives restarts, and relation work that stays on its native backend between steps.
 
 ## What this is not
 
@@ -125,15 +56,15 @@ The mountainash form is roughly the same line count. The dividend is the implici
 
 [Hamilton](https://github.com/dagworks-inc/hamilton) is the closest comparison — a library-level dataflow framework where dependencies come from function arguments. The differences worth knowing:
 
-- mountainash pipelines integrate natively into the relation AST. A step's output is a relation node, so downstream operations can compose cross-backend without leaving the framework.
-- Hamilton uses function arguments to declare dependencies; mountainash uses explicit `depends_on=` lists. Both shapes have trade-offs.
+- mountainash pipelines run relation DAG targets as units and hand native frames across, so cross-backend work flows through without leaving the framework.
+- Hamilton uses function arguments to declare dependencies; mountainash uses explicit `depends_on=` / `inputs=` declarations. Both shapes have trade-offs.
 - mountainash pipelines come bundled with the rest of mountainash (relations, conform, contracts). A project that only wants the pipeline shape may find Hamilton leaner.
 
 For a pipeline shape with no interest in cross-backend execution, Hamilton is a sharper tool. For pipelines that flow into the rest of mountainash's vocabulary, this is the integrated path.
 
 ## What this costs
 
-- **Recent redesign.** The current `ParamSpec` system replaced a pushdown-based design in 2026-05. The shape above is current; older code or docs encountered elsewhere will be wrong.
+- **Recent, breaking redesign.** Pipelines were rewritten in 2026-10 (`PipelineBuilder`, `@step`, `source()`, `SimplePipelineRunner` and `Relation.params()` are gone). The shape above is current; older code or docs encountered elsewhere will be wrong.
 - **Less operational depth than the heavyweight orchestrators.** No web UI, no DAG visualisation tool, no alerting hooks. By design — we scoped this at the library level.
 
 ## Where we'd point elsewhere

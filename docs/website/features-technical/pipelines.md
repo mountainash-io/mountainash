@@ -1,147 +1,68 @@
 # Pipelines
 
-mountainash pipelines are declarative, multi-step data flows with explicit dependencies, typed parameters, optional caching, and native integration into the relation AST.
+mountainash pipelines are a **macro-orchestrator**: they run heterogeneous units — relation DAG targets, Python functions, external-data sources, data sinks — one at a time, pass values between them, and record enough runner-owned state to resume after a partial failure.
 
-> **Status:** Recently redesigned. The current `ParamSpec` parameter system replaced a pushdown-based design in 2026-05. The shape below is current; treat anything you read elsewhere as out of date.
+> **Status:** Rewritten in 2026-10 (breaking). Everything on this page is the current shape; the earlier `PipelineBuilder`/`@step`/`source()` API and `Relation.params()` no longer exist. The full guide is [`docs/guides/pipelines.md`](../../guides/pipelines.md).
 
 ## The shape
 
 ```python
-from datetime import datetime
+import ibis
 import mountainash as ma
-from mountainash.pipelines import step, PipelineBuilder, source
-from mountainash.pipelines.core.capabilities import ParamSpec
-
-@step(
-    "orders",
-    params=(
-        ParamSpec(name="since", type=datetime, required=True),
-        ParamSpec(name="region", type=str, required=False, default="ALL"),
-    ),
+from mountainash.pipelines import (
+    CallableSource, DagUnit, FileCheckpoint, IbisTableSink, Pipeline, Runner, WriteMode,
 )
-def fetch_orders(ctx):
-    return _fetch(since=ctx.params["since"], region=ctx.params["region"])
+from mountainash.relations.dag import RelationDAG
 
+template = RelationDAG()
+template.add("big", template.ref("orders").filter(ma.col("amt").gt(15)))
 
 pipeline = (
-    PipelineBuilder("sales", version="1.0")
-      .step("orders", fetch_orders)
-      .step("customers", fetch_customers)
-      .step("enriched", join_step, depends_on=["orders", "customers"])
-      .build()
+    Pipeline("sales")
+    .add(CallableSource(fetch_orders, name="orders"))                       # external data, incremental
+    .add(DagUnit(template, "big", name="big", inputs={"orders": "orders"}))  # a relation target
+    .add(IbisTableSink(con, "big_orders", name="sink", depends_on=("big",),
+                       mode=WriteMode.UPSERT, keys=("id",)))                 # authored business output
 )
+result = Runner(pipeline, checkpoint=FileCheckpoint(".checkpoint")).run()
 ```
 
 Three things to notice:
 
-1. **A step is just a function** that takes a `StepContext`. There's no inheritance, no decoration of complex framework objects.
-2. **Parameters are typed and declared.** `ParamSpec(name=..., type=..., required=..., default=...)` is the entire surface. The pipeline knows what each step expects.
-3. **Dependencies are explicit.** The builder is immutable; `depends_on` declares the DAG.
+1. **Units are small objects with one job.** `@unit` wraps a plain function into a `PythonUnit` and keeps the function directly testable.
+2. **Macro drives micro.** A `DagUnit` binds upstream values into a `RelationDAG` template and collects one target; the relation never calls back into the pipeline. Native frames (including Ibis expressions) are handed over without an Arrow hop.
+3. **Checkpoint and sink are different things.** The runner-owned checkpoint stores execution state (identity, status, cursor, coverage). A `SinkUnit` is your authored output. A pipeline can have either, both, or neither.
 
-## Pipelines compose with relations
+## Resuming after partial failure
 
-You don't have to run the whole pipeline as a black box. A single step can be lifted into a relation:
+A `SourceUnit` returns a value plus `Coverage` (which partitions were attempted, succeeded, failed) and a proposed `next_cursor`. The runner commits source progress only after every downstream unit completed; until then the attempt stays pending and is replayed on the next run. Partitions that failed are fed back to the source as `outstanding`; partitions that already succeeded are not refetched. A pending attempt whose configuration changed raises `IncompatibleResume` before anything runs.
 
-```python
-result = (
-    source("orders", pipeline=pipeline)
-      .params(since=datetime(2026, 1, 1), region="EMEA")
-      .filter(ma.col("amount").gt(100))
-      .sort("order_id")
-      .to_polars()
-)
-```
+Sink modes interact with coverage: `REPLACE` refuses an incomplete value, `REPLACE_PARTITION` replaces exactly the partitions that succeeded, `APPEND` and `UPSERT` accept anything.
 
-`source(...)` returns a `Relation` wrapping a `PipelineStepRelNode`. You bind parameters with `.params(...)`. You chain ordinary relation operations on top. When you call `.to_polars()`, the pipeline step executes and the rest of the relation chain runs against its output.
+**Known limit:** a non-retained TABULAR pending attempt (always the case with `FileCheckpoint`) is regenerated on replay and may differ from the first fetch, so an `APPEND` sink downstream may duplicate rows. Retain the source output as RECORDS, or sink and read back.
 
-This means a pipeline step is not a closed box. It's a node in the same AST that ordinary relation operations live in, and the same visitor compiles both.
+## Built-in sinks
 
-## What `ParamSpec` does
+- `IbisTableSink(connection, table, mode=…)` — DuckDB, SQLite and PostgreSQL; `APPEND`, `UPSERT` (single and composite keys), `REPLACE_PARTITION`, `REPLACE`; same-connection inputs write natively, including inputs that read the destination. PostgreSQL cells need a service (`MA_PG_URL`); they have been run locally against `postgres:16`, with no CI result observed yet.
+- `ParquetDirectorySink(path, mode=…)` — `APPEND`, `REPLACE`, `REPLACE_PARTITION`; `UPSERT` is explicitly unsupported.
 
-`ParamSpec` is a frozen dataclass:
+See the support matrix in the guide.
 
-```python
-@dataclass(frozen=True)
-class ParamSpec:
-    name: str
-    type: type
-    required: bool = True
-    default: Any = None
-```
+## Nested pipelines, parallelism, policy
 
-When you call `.params(...)`, mountainash:
-
-1. Validates each name against the step's declared `ParamSpec`s. Unknown parameters raise.
-2. Applies defaults for missing optional parameters.
-3. Raises if a required parameter is unsupplied and has no default.
-4. Merges the resolved values into the pipeline node's bound parameters.
-
-The step's function receives the resolved values in `ctx.params` (a plain `dict[str, Any]`). No magic, no decorators on the function body, no globals.
-
-## End-to-end runner
-
-For the case where you want to run the entire pipeline and collect every step's result:
-
-```python
-from mountainash.pipelines.orchestration.simple import SimplePipelineRunner
-
-runner = SimplePipelineRunner(pipeline)
-results = runner.run(initial_params={
-    "orders":    {"since": datetime(2026, 1, 1), "region": "EMEA"},
-    "customers": {"tenant_id": "acme"},
-})
-
-orders_df = results["orders"].data
-```
-
-`StepResult` carries the data and a `StepMetadata` (timings, record count, resolved params, upstream cache keys).
-
-A DBOS-based runner is also available for durable execution on top of DBOS workflows.
-
-## Caching
-
-```python
-from mountainash.pipelines.storage import FileSystemPipelineStorage
-
-runner = SimplePipelineRunner(
-    pipeline,
-    pipeline_storage=FileSystemPipelineStorage(root="./.cache"),
-)
-```
-
-Cache keys are derived from `(pipeline name, step name, version, bound params, upstream cache keys)`. If you re-run with the same params and unchanged upstream, the cached value is returned.
-
-`PipelineStorage` is a protocol — bring your own (Redis, S3, content-addressed). The built-ins are `MemoryPipelineStorage`, `FileSystemPipelineStorage`, and `DualPipelineStorage` (memory + disk fallback).
-
-## Executors
-
-A `source()` call accepts `executor=`. By default, the step function runs in-process. You can swap in:
-
-- a remote executor that submits to a queue,
-- a database executor that translates the upstream relation into SQL,
-- anything else implementing the `PipelineExecutor` protocol.
-
-The protocol is small:
-
-```python
-class PipelineExecutor(Protocol):
-    def execute(self, pipeline, step_name, params, data_key) -> Any: ...
-```
+- `PipelineUnit(inner, "target")` runs a pipeline as one unit against a scoped checkpoint; the outermost runner commits inner source progress.
+- `Runner(workers=n)` runs independent units on a thread pool; `workers=1` runs inline on the caller thread. `affinity=Affinity.MAIN` pins a unit to the caller thread (thread-affine connections).
+- The capability policy active at `run()` is frozen and applied around every unit, on workers too.
 
 ## Why not Airflow / Prefect / Dagster?
 
-mountainash pipelines are not a competitor to those orchestrators. They are a **library-level abstraction over named, parameter-bound, possibly cached data producers** — small enough to embed inside a notebook, a unit test, or a single function. The DAG ordering and dependency tracking exist because relations need named producers, not because we want to be a scheduler.
+mountainash pipelines are a library-level abstraction — small enough to embed in a notebook, a unit test or a single function. They do not schedule, alert or distribute. If you need that, run one `Runner.run()` *inside* an Airflow task or a Prefect flow; checkpointing is optional and runner-owned, so it does not conflict with the outer system.
 
-If you want crons, retries-with-backoff, distributed orchestration, observability dashboards, then run mountainash pipelines *inside* an Airflow task or a Prefect flow. That works fine.
+## Migration
 
-## Migration from the old pushdown API
-
-Before 2026-05, mountainash had a different parameter mechanism: capability-based pushdown, where filter predicates above a pipeline step were rewritten into pushed predicates that the step received. That design has been removed entirely. The new design — explicit `ParamSpec` plus caller-supplied values via `.params(...)` — is simpler, more typeable, and more honest about where the parameter values come from.
-
-If you have code using `StepCapabilities`, `PushableParam`, `PushedPredicates`, `apply_pushdown`, or `register_pipeline_optimisations`, it will not import. See [`docs/guides/pipelines.md`](../../guides/pipelines.md#migration-from-the-old-pushdown-api) for the migration table.
+Removed with no replacement alias: `PipelineBuilder`, `source()`, `@step`, `StepContext`, `StepResult`, `PipelineSpec`, `SimplePipelineRunner`, the DBOS runner, `PipelineStorage` implementations, the pipeline relation nodes, `Relation.params()` (full list in `CHANGELOG.md`). `ParamSpec`, `ParamAxis`, `expand_axes`, `EmptyPolicy` and `RetryConfig` keep their names and import paths.
 
 ## Related
 
-- [Relations](relations.md) — `.params()` and `source()` are relation-level
-- [Shared schemas and conformance](typespec-conform.md) — schema-aware steps
-- [Cross-backend execution](cross-backend.md) — pipelines work on any backend the relation API supports
+- [Relations](relations.md) — `RelationDAG` is the micro-orchestrator that `DagUnit` drives
+- [Cross-backend execution](cross-backend.md) — values keep their native location through the pipeline

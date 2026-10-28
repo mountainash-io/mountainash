@@ -20,6 +20,7 @@ class LogSink(PythonUnit):
         if self._fail: self._fail -= 1; raise RuntimeError("sink down")
         self.log.append(rows_); return LocatorReference("mem://" + self.name, len(rows_))
 
+@pytest.mark.cell("unit:CallableSource")
 def test_two_run_contract(tmp_path):
     calls = []
     def fetch(up, params, state):
@@ -33,6 +34,8 @@ def test_two_run_contract(tmp_path):
     Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
     assert calls[1] == SourceState(None, frozenset({A}), frozenset({B})) and FileCheckpoint(tmp_path).progress("S") == SourceState(C, frozenset(), frozenset())
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("status:FAILED")
 def test_interrupted_run_replays_and_commits_saved_cursor(tmp_path):
     calls = []
     def fetch(up, params, state):
@@ -43,6 +46,7 @@ def test_interrupted_run_replays_and_commits_saved_cursor(tmp_path):
     r = Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
     assert len(calls) == 1 and x.log == [rows(A)] and FileCheckpoint(tmp_path).progress("S").cursor == A and FileCheckpoint(tmp_path).pending("S") is None
 
+@pytest.mark.cell("unit:CallableSource")
 def test_two_pending_sources_first_compatible_second_incompatible_nothing_runs(tmp_path):   # Review Focus #2
     ran = []
     def fetch(up, params, state): return SourceResult(Value.of(rows(A), Identity.of("t"), Coverage.source({A}, {A}, set())), A)
@@ -55,6 +59,7 @@ def test_two_pending_sources_first_compatible_second_incompatible_nothing_runs(t
         Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
     assert ran == []
 
+@pytest.mark.cell("unit:CallableSource")
 def test_partial_plus_two_sinks(tmp_path):
     calls = []
     def fetch(up, params, state):
@@ -68,6 +73,7 @@ def test_partial_plus_two_sinks(tmp_path):
     Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
     assert x.log[-1] == rows(A) and y.log[-1] == rows(A) and FileCheckpoint(tmp_path).progress("S").cursor == A
 
+@pytest.mark.cell("unit:CallableSource")
 def test_regenerate_replaces_attempt_and_reexecutes_descendants(tmp_path):
     import polars as pl
     calls, seen = [], []
@@ -80,6 +86,7 @@ def test_regenerate_replaces_attempt_and_reexecutes_descendants(tmp_path):
     assert len(calls) == 2 and len(seen) == 2 and seen[1] is not None            # S regenerated; T's pending retired → refetch against regenerated S
     assert FileCheckpoint(tmp_path).progress("S").cursor == A and FileCheckpoint(tmp_path).progress("T").cursor == A
 
+@pytest.mark.cell("unit:CallableSource")
 def test_same_runner_two_runs_force_then_failure_keeps_attempt_pending(tmp_path):
     def fetch(up, params, state): return SourceResult(Value.of(rows(A), Identity.of("t"), Coverage.source({A}, {A}, set())), A)
     t = LogSink("T", "S", fail_times=0)
@@ -88,6 +95,9 @@ def test_same_runner_two_runs_force_then_failure_keeps_attempt_pending(tmp_path)
     t._fail = 1; r.run(force=True)
     assert FileCheckpoint(tmp_path).pending("S") is not None                        # source-commit invariant (nested variant lives in 6c)
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:COMPLETE")
 def test_force_discards_pending_even_if_replacement_fetch_fails(tmp_path):
     import polars as pl
     fail = [False]
@@ -105,6 +115,8 @@ def test_force_discards_pending_even_if_replacement_fetch_fails(tmp_path):
     r = Runner(p, checkpoint=FileCheckpoint(tmp_path)).run(params={"revision": 2})          # no IncompatibleResume
     assert r.statuses["S"] is Status.COMPLETE
 
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("status:FAILED")
 def test_regenerate_applies_empty_policy_fail(tmp_path):
     import polars as pl
     from mountainash.pipelines.core.policies import EmptyPolicy

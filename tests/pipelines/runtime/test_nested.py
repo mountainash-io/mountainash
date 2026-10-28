@@ -17,6 +17,9 @@ def _src(calls, cursor=A, partial=False):
         return SourceResult(Value.of(rows(cursor), Identity.of("t"), Coverage.source({cursor}, {cursor}, set())), cursor)
     return fetch
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("unit:CallableSource")
+@pytest.mark.cell("status:COMPLETE")
 def test_nested_outer_sink_failure_keeps_inner_pending_then_replays(tmp_path):
     calls = []
     inner = Pipeline("inner").add(CallableSource(_src(calls), name="S")).add(PythonUnit(lambda r, ctx: r, name="T", depends_on=("S",)))
@@ -26,6 +29,8 @@ def test_nested_outer_sink_failure_keeps_inner_pending_then_replays(tmp_path):
     r = Runner(outer, checkpoint=FileCheckpoint(tmp_path)).run()
     assert len(calls) == 1 and r.statuses["X"] is Status.COMPLETE and FileCheckpoint(tmp_path).scoped("N").progress("S").cursor == A
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("unit:CallableSource")
 def test_reused_outer_commits_inner_via_last_status_without_promoting_partial(tmp_path):
     calls = []
     inner = Pipeline("inner").add(CallableSource(_src(calls, partial=True), name="S")).add(PythonUnit(lambda r, ctx: r, name="T", depends_on=("S",)))
@@ -34,6 +39,8 @@ def test_reused_outer_commits_inner_via_last_status_without_promoting_partial(tm
     cp = FileCheckpoint(tmp_path)
     assert cp.scoped("N").pending("S") is None and cp.scoped("N").progress("S").outstanding == frozenset({A})   # committed as PARTIAL progress via last_status path
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("unit:CallableSource")
 def test_regenerate_invalidates_only_inner_descendants_of_source(tmp_path):      # Review Focus #3, F9/F10
     import polars as pl
     s_calls, w_calls, v_seen = [], [], []
@@ -52,6 +59,8 @@ def test_regenerate_invalidates_only_inner_descendants_of_source(tmp_path):     
     cp = FileCheckpoint(tmp_path)
     assert cp.scoped("N").progress("W").cursor == "W" and cp.scoped("N").progress("V").cursor == "V" and cp.progress("S").cursor == A
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("unit:CallableSource")
 def test_two_levels_of_nesting_invalidate_recursively(tmp_path):
     import polars as pl
     deep_seen = []
@@ -64,6 +73,7 @@ def test_two_levels_of_nesting_invalidate_recursively(tmp_path):
     Runner(outer, checkpoint=FileCheckpoint(tmp_path)).run(); Runner(outer, checkpoint=FileCheckpoint(tmp_path)).run()
     assert len(deep_seen) == 2 and FileCheckpoint(tmp_path).scoped("N").scoped("M").progress("D").cursor == "D"
 
+@pytest.mark.cell("unit:CallableSource")
 def test_commit_leaves_pending_attempts_outside_target_subgraph_untouched(tmp_path):
     calls = []
     p = Pipeline("t").add(CallableSource(_src(calls), name="S1")).add(CallableSource(_src(calls, cursor="B"), name="S2")).add(LogSink("X", "S1", fail_times=1))
@@ -73,12 +83,14 @@ def test_commit_leaves_pending_attempts_outside_target_subgraph_untouched(tmp_pa
     after = dict(FileCheckpoint(tmp_path).pending_all())
     assert before.get(("S1",)) == after.get(("S1",))
 
+@pytest.mark.cell("unit:CallableSource")
 def test_slash_named_source_commits(tmp_path):                                  # F38/P13
     calls = []
     p = Pipeline("t").add(CallableSource(_src(calls), name="tenant/fetch__daily")).add(LogSink("X", "tenant/fetch__daily"))
     Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
     assert FileCheckpoint(tmp_path).progress("tenant/fetch__daily").cursor == A and FileCheckpoint(tmp_path).pending("tenant/fetch__daily") is None
 
+@pytest.mark.cell("unit:PipelineUnit")
 def test_nested_main_affinity_runs_on_caller_thread():
     seen = {}
     inner = Pipeline("inner").add(PythonUnit(lambda ctx: seen.update({"m": threading.current_thread().name}) or rows(A), name="m", affinity=Affinity.MAIN))
@@ -86,6 +98,7 @@ def test_nested_main_affinity_runs_on_caller_thread():
     Runner(p, workers=3).run(force=True)
     assert seen["m"] == threading.current_thread().name
 
+@pytest.mark.cell("unit:PipelineUnit")
 def test_same_runner_nested_force_then_inner_failure_does_not_commit_stale(tmp_path):   # F8, nested
     calls = []
     inner = Pipeline("inner").add(CallableSource(_src(calls), name="S")).add(PythonUnit(lambda r, ctx: r, name="T", depends_on=("S",)))
@@ -96,6 +109,9 @@ def test_same_runner_nested_force_then_inner_failure_does_not_commit_stale(tmp_p
     r.run(force=True)
     assert FileCheckpoint(tmp_path).scoped("N").pending("S") is not None            # run-2 attempt pending; run-1's inner result not reused for commit
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:SKIPPED")
 def test_inner_failure_fails_outer_and_skips_outer_descendants():
     inner = Pipeline("inner").add(PythonUnit(lambda ctx: (_ for _ in ()).throw(RuntimeError("x")), name="bad"))
     p = Pipeline("e").add(PipelineUnit(inner, "bad", name="N")).add(PythonUnit(lambda n, ctx: n, name="after", depends_on=("N",)))
@@ -104,6 +120,9 @@ def test_inner_failure_fails_outer_and_skips_outer_descendants():
 
 
 @pytest.mark.parametrize("depth", [1, 2])
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("status:FAILED")
+@pytest.mark.cell("status:COMPLETE")
 def test_nested_regeneration_invalidates_enclosing_runner_descendants(tmp_path, depth):
     import polars as pl
     calls, x_seen, y_seen, y_fail = [], [], [], [1]
@@ -136,6 +155,10 @@ def test_nested_regeneration_invalidates_enclosing_runner_descendants(tmp_path, 
     assert cp.progress("S").cursor == A and cp.pending("S") is None
 
 
+@pytest.mark.cell("unit:PipelineUnit")
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("status:REUSED")
+@pytest.mark.cell("status:COMPLETE")
 def test_outer_reuse_checks_inner_sink_destination(tmp_path):            # F32/P8
     from mountainash.pipelines.units.sinks.base import WriteMode
     from mountainash.pipelines.units.sinks.parquet_dir import ParquetDirectorySink

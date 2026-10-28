@@ -558,6 +558,17 @@ def pytest_configure(config):
     load_all_capability_declarations()
 
 
+@pytest.fixture(scope="session")
+def collected_cells(request) -> set[str]:
+    """Every ``@pytest.mark.cell(name)`` argument across the collected session."""
+    return {
+        str(m.args[0])
+        for item in request.session.items
+        for m in item.iter_markers("cell")
+        if m.args
+    }
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Select backend scope and assign tiers without catalogue-owned expectations.

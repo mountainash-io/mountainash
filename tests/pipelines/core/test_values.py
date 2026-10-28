@@ -1,17 +1,22 @@
 # tests/pipelines/core/test_values.py
 import pytest, pyarrow as pa, polars as pl
-from mountainash.pipelines.core.values import (Coverage, Identity, SourceState, Value, ValueKind, SourceResult, Attempt, Record, Status)
+from mountainash.pipelines.core.values import (Coverage, Identity, LocatorReference, SourceState, Value, ValueKind, SourceResult, Attempt, Record, Status)
 from mountainash.pipelines.errors import UnhashableIdentityInput
 
 
 @pytest.mark.parametrize("payload,kind", [
     ([{"a": 1}, {"a": 2}], ValueKind.RECORDS), ({"a": [1, 2]}, ValueKind.RECORDS), ({}, ValueKind.RECORDS),
-    (pa.table({"a": [1]}), ValueKind.TABULAR), ("polars", ValueKind.OPAQUE), (object(), ValueKind.OPAQUE),
+    (pa.table({"a": [1]}), ValueKind.TABULAR), (LocatorReference("mem://x", 1), ValueKind.REFERENCE), ("polars", ValueKind.OPAQUE), (object(), ValueKind.OPAQUE),
 ])
+@pytest.mark.cell("kind:TABULAR")
+@pytest.mark.cell("kind:RECORDS")
+@pytest.mark.cell("kind:OPAQUE")
+@pytest.mark.cell("kind:REFERENCE")
 def test_value_of_kinds(payload, kind):
     assert Value.of(payload, Identity.of("x")).kind is kind
 
 
+@pytest.mark.cell("kind:TABULAR")
 def test_value_of_backend_frames_detect_location(backend_name, backend_df):
     v = Value.of(backend_df, Identity.of("x"))
     assert v.kind is ValueKind.TABULAR and v.location is not None and v.location.family is not None
@@ -49,6 +54,7 @@ def test_identity_distinguishes_mapping_from_pairs_and_is_restart_stable():
     assert Identity.of(datetime.date(2026, 1, 1), decimal.Decimal("1.10")).digest == "a3c18432aad55f8f04aae2a3c758abd5"  # restart-stability pin
 
 
+@pytest.mark.cell("kind:TABULAR")
 def test_value_of_narwhals_pandas_named_index_is_tabular():      # Review Focus #1
     import narwhals as nw, pandas as pd
     df = pd.DataFrame({"a": [1, 2]}, index=pd.Index(["x", "y"], name="k"))
@@ -62,6 +68,8 @@ def test_coverage_partial_marker_is_incomplete():
     assert Coverage.source({"A"}, {"A"}, set()).complete
 
 
+@pytest.mark.cell("status:COMPLETE")
+@pytest.mark.cell("status:PARTIAL")
 def test_attempt_replace_and_commit():
     st = SourceState(None, frozenset(), frozenset())
     v = Value.of([{"p": "A"}], Identity.of("i"), Coverage.source({"A"}, {"A"}, set()))
