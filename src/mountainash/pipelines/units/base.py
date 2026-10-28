@@ -2,13 +2,15 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import threading
-from typing import Any, ClassVar, Mapping, Protocol, runtime_checkable
+from typing import Any, ClassVar, Mapping, Protocol, TypeVar, runtime_checkable
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.values import Affinity, Identity, SourceState, Value
 
+R_co = TypeVar("R_co", covariant=True)
+
 
 @runtime_checkable
-class Unit(Protocol):
+class Unit(Protocol[R_co]):
     """The declared unit contract the Runner, lifecycles and ``Pipeline.graph`` are typed against.
 
     Structural: ``BaseUnit`` is the convenient implementation, not a requirement (design spec §7).
@@ -34,10 +36,10 @@ class Unit(Protocol):
 
     def reference_exists(self, ref) -> bool: ...
 
-    def run(self, upstream: Mapping[str, Value], ctx) -> Any: ...
+    def run(self, upstream: Mapping[str, Value], ctx) -> R_co: ...
 
 
-class BaseUnit(ABC, Unit):
+class BaseUnit(ABC, Unit[Any]):
     lifecycle: ClassVar[type]  # assigned by mountainash.pipelines.runtime.lifecycle at import
     name: str
     version: str = "1"
