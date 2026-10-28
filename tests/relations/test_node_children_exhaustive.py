@@ -31,11 +31,6 @@ def _import_all_node_modules() -> None:
         _nodes_pkg.__path__, prefix=_nodes_pkg.__name__ + "."
     ):
         importlib.import_module(mod.name)
-    # Walk the pipelines bridge module so its concrete RelationNode subclasses
-    # enter __subclasses__ discovery.
-    import contextlib
-    with contextlib.suppress(ModuleNotFoundError):
-        importlib.import_module("mountainash.pipelines.integration.relation")
 
 
 def _all_concrete_node_classes() -> set[type[RelationNode]]:
@@ -73,11 +68,9 @@ def _involves_relation_node(annotation: object) -> bool:
 # they use a scanned name. A NEW Any-typed field on a concrete node that is NOT
 # scanned must be added here explicitly (closed-by-default).
 ANY_TYPED_CHILD_EXEMPTIONS: set[str] = {
-    "ParamsRelNode.input",
     "ConformRelNode.spec",    # TypeSpec, not a relation node
     "FilterRelNode.predicate",  # Expression, not a relation node
     "JoinRelNode.tolerance",    # Literal value, not a relation node
-    "PipelineStepRelNode.pipeline",  # Pipeline config, not a relation node
     "ReadRelNode.dataframe",    # DataFrame, not a relation node
     "SourceRelNode.data",       # Generic data, not a relation node
 }
@@ -103,11 +96,6 @@ def test_discovery_finds_both_node_packages():
     # subclass discovery actually worked (guards against a silently-empty sweep).
     assert "ProjectRelNode" in names          # relations/core substrait node
     assert "RefRelNode" in names              # relations/core extension node
-    # Pipelines bridge canary: the pipelines import is wrapped in
-    # suppress(ModuleNotFoundError), so a future rename/move would silently
-    # degrade the walk to zero pipeline nodes and the Any-guard sweep would pass
-    # vacuously. Assert a real pipelines node is discovered so that regresses LOUDLY.
-    assert "PipelineStepRelNode" in names
 
 
 def test_every_child_field_is_scanned_or_children_overridden():

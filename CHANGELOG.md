@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — 2026-10-28 (pipelines as macro-orchestration)
+
+### Breaking
+- Pipelines rewritten as macro-orchestration over the shared graph kernel: `Pipeline`, `Runner`, units (`PythonUnit`/`@unit`, `DagUnit`, `SourceUnit`/`CallableSource`, `SinkUnit` with `IbisTableSink` and `ParquetDirectorySink`, `PipelineUnit`), runner-owned `MemoryCheckpoint`/`FileCheckpoint`, and source coverage/cursor recovery. See `docs/guides/pipelines.md`.
+- Removed: `PipelineBuilder`, `source()`, `@step`, `StepContext`, `StepDefinition`, `StepResult`, `StepMetadata`, `PipelineSpec`, `SimplePipelineRunner`, the DBOS runner, the pipeline resolver and workflow-id helpers, `PipelineStorage` and its memory/filesystem/dual implementations, the pipeline executor protocol and cache-key helpers, `PipelineStepRelNode`, `ParamsRelNode`, `fold_params`, `register_pipeline_bridge`, `register_params_optimisation`, `Relation.params()`, and `StepEmptyError` (including its `mountainash.exceptions` re-export).
+- Kept with unchanged names and import paths: `ParamSpec`, `ParamAxis`, `expand_axes`, `EmptyPolicy`, `RetryConfig` (now also exported from `mountainash.pipelines`).
+- `optimisation_registry` is unchanged; only the pipeline registration into it is gone.
+
+### Added
+- `RelationDAG.bind(**sources)` and the `mountainash.graph` container used by `Pipeline` and `RelationDAG`.
+- Sink support matrix (DuckDB, SQLite, PostgreSQL × write mode × composite keys × self-dependent input). PostgreSQL cells need `MA_PG_URL`; they were run locally against `postgres:16`, no CI outcome observed.
+- Closed-by-default sweep over unit kinds, checkpoint implementations, value kinds, write modes and run statuses (`tests/pipelines/test_closed_by_default.py`, `@pytest.mark.cell`).
+
 ## Unreleased — 2026-10-28 (location-centred transfer, backlog 248 C1 / 9 WI1+WI4)
 
 ### Breaking
@@ -17,7 +30,7 @@
 - Arrow exported from Ibis names list children `item` (DuckDB used `l`), so equal logical types render identically across backends.
 
 ### Fixed
-- Security gate: pipeline filesystem storage rejects `step_name` values that are not identifiers and `cache_key` values that are not a single path component (raises `InvalidStorageKeyError`, a `ValueError`), so a step name can no longer traverse out of the cache directory; the `py.typed` marker now ships; dependency floors raised to patched versions (`pyarrow>=23.0.1`, `pydantic>=2.4`, `typing_extensions>=4.12.0`).
+- Security gate: the `py.typed` marker now ships; dependency floors raised to patched versions (`pyarrow>=23.0.1`, `pydantic>=2.4`, `typing_extensions>=4.12.0`). The develop-side step-name/cache-key validation for pipeline filesystem storage (`InvalidStorageKeyError`) is superseded by this release's removal of that storage: `FileCheckpoint` never uses unit or scope names as path components (fixed-length sha256 stems; names stored inside the JSON), so names cannot traverse out of the checkpoint root.
 - Resource reads bind to the resolved location (including under `dag.ref`) instead of reverting to Polars; schema-only inspection of a native Narwhals scan reads no rows.
 - Arrow-backed (`pd.ArrowDtype`) pandas sources transferred to Ibis-SQLite no longer fail binding `pd.NA` (pandas schema metadata is dropped on export).
 - Ibis-SQLite nested types and owned decimal copies (backlog 336) raise a typed refusal instead of a raw Ibis error.

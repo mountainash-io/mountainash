@@ -4,7 +4,7 @@ This section contains the concept dependency graph for the mountainash package. 
 
 A concept graph serves as a navigable roadmap of the package's knowledge space, useful for onboarding contributors, planning documentation, and understanding architectural dependencies.
 
-At the left of the graph are foundational concepts (Python type hints, DataFrames, SQL databases, etc.) with no prerequisites. At the far right are the most advanced concepts (pipeline fold_params, cross-type joins, FK integrity checks) that require understanding many upstream concepts.
+At the left of the graph are foundational concepts (Python type hints, DataFrames, SQL databases, etc.) with no prerequisites. At the far right are the most advanced concepts (pipeline checkpoint recovery, cross-type joins, FK integrity checks) that require understanding many upstream concepts.
 
 ## Source Data
 

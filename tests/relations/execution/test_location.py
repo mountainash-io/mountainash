@@ -161,7 +161,14 @@ def test_ref_resolution_cycle_missing_and_standalone():
 
 
 def test_resource_and_registered_extension_location_does_not_execute(monkeypatch):
-    from mountainash.pipelines.integration.relation import PipelineStepRelNode
+    from typing import ClassVar
+
+    class ExtNode(RelationNode):
+        _leaf_backend: ClassVar[CONST_BACKEND | None] = CONST_BACKEND.POLARS
+
+        def accept(self, visitor):
+            return visitor.visit(self)
+
     from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import MountainashPolarsExtensionRelationSystem
 
     def forbidden(*args, **kwargs):
@@ -171,7 +178,7 @@ def test_resource_and_registered_extension_location_does_not_execute(monkeypatch
     resolver = LocationResolver(IdentityTokens())
     resource = ResourceReadRelNode(resource=DataResource(name="source", data=[{"id": 1}]))
     assert resolver.resolve(resource).family is CONST_BACKEND.POLARS
-    assert resolver.resolve(PipelineStepRelNode(step_name="step", pipeline=object())).family is CONST_BACKEND.POLARS
+    assert resolver.resolve(ExtNode()).family is CONST_BACKEND.POLARS
 
 
 def test_error_context_is_safe_and_preserved():

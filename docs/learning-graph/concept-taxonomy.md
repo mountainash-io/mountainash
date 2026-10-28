@@ -46,7 +46,7 @@ Multi-resource orchestration: RelationDAG with two-edge graph model (dependency 
 
 ### PIPE — Pipeline Framework
 
-Declarative pipeline orchestration: PipelineBuilder fluent API, step/source decorators, PipelineSpec, ParamSpec typed parameter binding, ParamsRelNode/PipelineStepRelNode AST integration, fold_params, and pipeline runners.
+Macro-orchestration of units: Pipeline, the Unit protocol, PythonUnit, DagUnit, SourceUnit, SinkUnit and PipelineUnit, coverage and cursor, Checkpoint, Runner, WriteMode, IncompatibleResume, and ParamSpec run parameters.
 
 ### RELBK — Relation Backends
 

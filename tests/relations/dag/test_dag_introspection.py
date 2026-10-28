@@ -87,6 +87,49 @@ class TestDAGToDot:
         assert '"raw" -> "derived"' in dot
 
 
+class TestKernelOwnedStructure:
+    """Structure (edges, ordering, DOT skeleton) comes from the graph kernel; introspection layers schema info on top."""
+
+    def _dag(self):
+        dag = RelationDAG()
+        dag.add("raw", ma.relation(pl.LazyFrame({"a": [1], "b": [2]})))
+        dag.add("derived", dag.ref("raw").select("a"))
+        dag.add("other", ma.relation(pl.LazyFrame({"id": [1]})))
+        dag.constraint_edges.add(("other", "derived"))
+        return dag
+
+    def test_to_dot_exact_output_pinned(self):
+        assert self._dag().to_dot() == "\n".join([
+            "digraph RelationDAG {",
+            "    rankdir=BT;",
+            '    "derived" [label="derived (1 cols)"];',
+            '    "other" [label="other (1 cols)"];',
+            '    "raw" [label="raw (2 cols)"];',
+            '    "raw" -> "derived";',
+            '    "other" -> "derived" [style=dashed, label="FK"];',
+            "}",
+        ])
+
+    def test_describe_exact_output_pinned(self):
+        assert self._dag().describe() == {
+            "raw": {"columns": 2, "dependencies": [], "constrained_by": []},
+            "derived": {"columns": 1, "dependencies": ["raw"], "constrained_by": ["other"]},
+            "other": {"columns": 1, "dependencies": [], "constrained_by": []},
+        }
+
+    def test_structure_is_delegated_to_the_kernel(self, monkeypatch):
+        from mountainash.graph.container import Graph
+
+        calls = []
+        real_describe, real_dot = Graph.describe, Graph.to_dot
+        monkeypatch.setattr(Graph, "describe", lambda self: calls.append("describe") or real_describe(self))
+        monkeypatch.setattr(Graph, "to_dot", lambda self, **kw: calls.append("to_dot") or real_dot(self, **kw))
+        dag = self._dag()
+        dag.describe()
+        dag.to_dot()
+        assert calls == ["describe", "to_dot"]
+
+
 class TestTraversalReexport:
     """The relation-tree traversal helpers are part of the public package surface."""
 

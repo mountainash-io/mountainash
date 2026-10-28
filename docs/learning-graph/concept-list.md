@@ -220,17 +220,17 @@ Total concepts: 200
 
 ## Pipeline Framework (187–200)
 
-187. PipelineBuilder
-188. step Decorator
-189. source Function
-190. PipelineSpec
-191. StepDefinition
-192. StepContext
-193. StepResult
-194. SimplePipelineRunner
+187. Pipeline
+188. Unit Protocol
+189. PythonUnit
+190. DagUnit
+191. SourceUnit
+192. Coverage and Cursor
+193. Checkpoint
+194. Runner
 195. ParamSpec
-196. Parameter Binding
-197. relation.params Method
-198. ParamsRelNode
-199. PipelineStepRelNode
-200. fold_params Function
+196. Run Parameters
+197. SinkUnit
+198. WriteMode
+199. PipelineUnit
+200. IncompatibleResume

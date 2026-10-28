@@ -25,10 +25,6 @@ class RelationAPIProtocol(Protocol):
     def drop(self, *columns: Any) -> Self: ...
     def rename(self, mapping: dict[str, str]) -> Self: ...
 
-    # ── Pipeline Parameters ──
-
-    def params(self, **kwargs: Any) -> Self: ...
-
     # ── Conformance ──
 
     def conform(
