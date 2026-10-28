@@ -1,0 +1,3028 @@
+# Review package: c617c79a..HEAD
+
+## Commits
+2bb56b67 docs: correct datacontract policy and absolute-path claims (381)
+a87bb6ec test,docs: migrate unconfined fixtures; document LocationPolicy (381)
+f1e42a23 fix(typespec): reject unknown schemes under an active policy (381)
+0f0ae848 feat(typespec)!: references and ResourceRef obey LocationPolicy; one descriptor resolver (381)
+7e834618 test(resources): allow-any-http uses empty host set (381)
+60c91410 feat(resources): confine native and fallback resource reads; decision-7 allow-list (381)
+f3155048 fix(datapackage): validate loader base before deriving policy root (381)
+e18c6eec feat(datapackage)!: loaders carry a LocationPolicy; context survives copy and revalidation (381)
+
+## Files changed
+ CHANGELOG.md                                       |  15 ++
+ docs/reference/datapackage.md                      |  81 +++++--
+ docs/reference/resource-read-support-matrix.md     |  26 ++-
+ .../website/features-technical/typespec-conform.md |   2 +-
+ pyproject.toml                                     |  16 +-
+ src/mountainash/core/io.py                         |  51 ++---
+ src/mountainash/core/location.py                   |  43 ++++
+ src/mountainash/core/resource_ref.py               |  17 +-
+ src/mountainash/exceptions.py                      |   2 -
+ .../relsys_ib_ext_ma_util.py                       |  46 +++-
+ .../relsys_nw_ext_ma_util.py                       |  25 ++-
+ .../relsys_pl_ext_ma_util.py                       |  19 +-
+ .../backends/relation_systems/resource_files.py    |  91 ++++++--
+ src/mountainash/typespec/__init__.py               |   6 +-
+ src/mountainash/typespec/datapackage.py            |  49 ++++-
+ src/mountainash/typespec/descriptor_context.py     | 143 ++++++------
+ src/mountainash/typespec/errors.py                 |   5 -
+ src/mountainash/typespec/frictionless_codec.py     |  11 +-
+ .../typespec/frictionless_resolution.py            |  34 +--
+ tests/core/test_io.py                              |   6 +-
+ tests/core/test_resource_ref_policy.py             |  55 +++++
+ .../cross_backend/test_location_policy_reads.py    | 239 +++++++++++++++++++++
+ tests/relations/dag/test_e2e_real_descriptor.py    |   7 +-
+ tests/typespec/test_datapackage_resource.py        |   6 +-
+ tests/typespec/test_descriptor_context.py          |  41 ++--
+ tests/typespec/test_descriptor_errors.py           |   2 -
+ tests/typespec/test_descriptor_reference_policy.py |  78 +++++++
+ tests/typespec/test_f113_12_construction_parity.py |  16 +-
+ tests/typespec/test_location_policy_context.py     | 113 ++++++++++
+ 29 files changed, 982 insertions(+), 263 deletions(-)
+
+## Diff
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index a7a1fa37..a7fa55c4 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,12 +1,27 @@
+ # Changelog
+ 
++## Unreleased — 2026-10-28 (path and URL confinement by default, backlog 381)
++
++### Breaking
++- Descriptor loaders (`DataPackage.from_path`/`from_json`/`from_descriptor`, `datacontract`) confine locations by default. Relative resource paths resolve beside the descriptor (or against `base_uri` / the working directory), matching Frictionless. Absolute paths outside the root and remote resource paths and references need `policy=LocationPolicy(...)` (an `allowed_remote` allow-list, a different `root`, or `allow_unconfined=True` to opt out); `datacontract(source)` has no `policy` and confines to the source's parent directory. Packages and resources built in code stay unconfined.
++- `mountainash-transport` is now a required dependency; the `storage` extra is removed. The `ibis` extra now includes `mountainash-files` (policy-confined Ibis reads that are not on the native allow-list use the files fallback).
++- `StorageDescriptorResolver(allowed_schemes=...)` and `DescriptorReferenceSchemeDenied` are removed. Use `LocationPolicy(allowed_remote=...)`; violations raise `LocationNotAllowed`. The local and storage resolvers are merged into `DefaultDescriptorResolver`.
++- Under a policy, an Ibis directory read is native only on DuckDB for paths without `[`, `*`, `?`; other Ibis directory reads raise `LocationNotAllowed` (use a glob). The existing Ibis `SCHEMA` directory limitation is unchanged.
++
++### Added
++- `DescriptorContext.policy` and `policy=` on `DataPackage.from_path`/`from_json`/`from_descriptor`. Policy and root survive `DataResource.model_copy` and `model_validate` of bound resources and packages.
++- `ResourceRef.read_bytes`, schema and dialect references, native Polars/Narwhals/Ibis reads and the files fallback all obey the policy; native reads open the confined effective path literally (no glob expansion).
++
++### Fixed
++- A relative resource path in a loaded descriptor no longer resolves against the process working directory.
++
+ ## Unreleased — 2026-10-28 (location-centred transfer, backlog 248 C1 / 9 WI1+WI4)
+ 
+ ### Breaking
+ - `backend=` on `collect`, `collect_with_drift` and `RelationDAG.collect`/`collect_with_drift`/`execute` is replaced by `target=`; `from_arrow(table, connection=...)` becomes `from_arrow(table, target=...)`. `RelationDAG.validate`/`validate_quick` keep `backend=`.
+ 
+ ### Added
+ - `target=` accepts a family (`"polars"`, `"narwhals"`, `"ibis"`), a dialect identifier (`"narwhals-pandas"`, `"narwhals-lazy"`, `"ibis-duckdb"`, ...) or an Ibis connection; a collect can now land on a specific connection.
+ - `RKEY_MOUNTAINASH_REL.IMPORT_INTO` capability declarations: SQLite and lazy-only Narwhals import limits enrich `UnsupportedRelationTransportError.limitation`; MySQL/SingleStoreDB/Exasol owned-copy adoption is declared blocked.
+ - Ibis-Polars owned ingress imports Arrow in-process.
+ 
+diff --git a/docs/reference/datapackage.md b/docs/reference/datapackage.md
+index 7d1004ab..9f4c9924 100644
+--- a/docs/reference/datapackage.md
++++ b/docs/reference/datapackage.md
+@@ -51,20 +51,69 @@ explicit path input and the replacement for path-overloaded `from_descriptor()`
+ ```python
+ from mountainash import DataPackage
+ 
+ package = DataPackage.from_path("datapackage.json")
+ resource = package.resources[0]
+ ```
+ 
+ The package must contain at least one resource. Resource names are unique, and each
+ resource declares exactly one of `path` or `data`.
+ 
++## Location policy
++
++Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
++every resource, schema and dialect location by default. `from_path`, `from_json` and
++`from_descriptor` accept `policy=`, a `mountainash_transport.location.LocationPolicy`;
++`datacontract(source)` takes no `policy` and always confines to the source's parent directory.
++
++| Loader call | Root when `policy` has none |
++|---|---|
++| `from_path(path)` | the descriptor directory |
++| `from_json` / `from_descriptor` with a local `base_uri` | that directory |
++| the same with a remote `base_uri`, or no `base_uri` | the working directory at load time |
++| `datacontract(source)` | the source file's parent directory |
++| `DataPackage(...)` / `DataResource(...)` built in code | none (unconfined) |
++
++- Relative resource paths resolve beside the descriptor (or against `base_uri` / the
++  working directory), matching Frictionless. A remote `base_uri` joins relative paths but
++  grants no permission to fetch from its host.
++- Absolute local paths outside the root, symlinks leaving the root, and `file://` URIs outside
++  the root raise `LocationNotAllowed` at read time (absolute paths inside the root are accepted),
++  including paths assigned after load. `..` and hidden
++  segments are still rejected at decode time with the existing error.
++- Remote resources and references (`http(s)`, `s3`, ...) need
++  `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
++  allows any host for that scheme. Unknown schemes are rejected.
++- `LocationPolicy(root=...)` replaces the declared root; `allowed_remote` alone keeps it.
++  `LocationPolicy(allow_unconfined=True)` is the single opt-out.
++- `model_copy`, `DataResource.model_validate(bound)` and `DataPackage.model_validate(bound)`
++  keep the context and its policy. `to_package()` exports build a new package in code and
++  are rootless.
++- Reads are confined on Polars, Narwhals and Ibis alike; the descriptor round-trip is
++  unchanged because the policy is a private, non-serialized context field.
++
++```python
++from mountainash import DataPackage
++from mountainash_transport.location import LocationPolicy
++
++package = DataPackage.from_path("pkg/datapackage.json")  # confined to pkg/
++open_pkg = DataPackage.from_path(
++    "pkg/datapackage.json", policy=LocationPolicy(allow_unconfined=True)
++)
++```
++
++Not covered: a writer who can change the filesystem inside the root between check and open,
++DNS rebinding, custom `DescriptorResolver` code, and endpoints named by profiles you
++supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed` unless
++the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
++see the [resource-read support matrix](resource-read-support-matrix.md).
++
+ ## Outputs and ownership
+ 
+ The default writer is preserve mode:
+ 
+ ```python
+ preserved = package.to_descriptor()
+ ```
+ 
+ `to_descriptor()` returns a fresh, independently owned output graph. It keeps authored
+ schema and dialect mappings or reference strings, extension values, profile identities,
+@@ -232,49 +281,45 @@ values raise typed structure errors.
+ Resolution is one hop. A resolved schema or dialect mapping is converted at the
+ accessor boundary; references embedded inside the resolved document are not followed
+ recursively by that accessor.
+ 
+ `resource.effective_sources` returns a fresh list. Explicit resource sources take
+ precedence; otherwise the package sources from the descriptor context are inherited
+ without mutating package or resource storage.
+ 
+ ## Resolver security
+ 
+-The default resolver is local-only. It reads absolute local paths and `file://` URIs,
+-and it resolves relative references only when a base URI is available. It denies every
+-non-local URI scheme with `DescriptorReferenceSchemeDenied`. Missing bases, missing
+-files, malformed JSON, and wrong document kinds use the typed errors exported from
++There is one default resolver, `DefaultDescriptorResolver`. It resolves a reference under
++the context `LocationPolicy` (the one passed to the loader): local references (absolute
++paths, `file://` URIs, and base-relative paths) must stay inside the policy root, and
++remote references (including references relative to a remote base) are read through the
++storage facade only when the policy's `allowed_remote` allow-list names their scheme and
++host. Violations raise `mountainash_transport.location.LocationNotAllowed`, before any
++network request. With no policy (a programmatic package with no base) local reads are
++allowed and every remote reference is denied with `LocationNotAllowed`. Missing bases,
++missing files, malformed JSON, and wrong document kinds use the typed errors exported from
+ `mountainash.exceptions`.
+ 
+-Remote resolution requires an injected resolver with an explicit scheme allow-list. To
+-use the storage-backed resolver, install the optional dependency:
+-
+-```bash
+-uv pip install "mountainash[storage]"
+-```
+-
+-Then construct an opt-in resolver and pass it to an input method:
+-
+ ```python
+ from mountainash import DataPackage
+-from mountainash.typespec.descriptor_context import StorageDescriptorResolver
++from mountainash_transport.location import LocationPolicy
+ 
+-resolver = StorageDescriptorResolver(allowed_schemes={"s3"})
++policy = LocationPolicy(allowed_remote={"s3": frozenset({"bucket"})})
+ package = DataPackage.from_json(
+     text,
+     base_uri="s3://bucket/descriptors/",
+-    resolver=resolver,
++    policy=policy,
+ )
+ ```
+ 
+-The storage resolver still denies schemes that are not in its allow-list. Do not use a
+-remote resolver when local-only resolution is sufficient.
++A custom resolver may accept an optional `policy` keyword; it receives the context policy
++and may ignore it (custom resolvers are caller code).
+ 
+ ## V2-only policy
+ 
+ The decoder rejects recognized v1 profile identities in HTTP(S) `$schema` values. The
+ recognized families are:
+ 
+ - `datapackage.org/profiles/1.0/{datapackage,dataresource,tabledialect,tableschema}.json`;
+ - `specs.frictionlessdata.io/schemas/{data-package,data-resource,tabular-data-resource,tabular-data-package,fiscal-data-package,table-schema,csv-dialect}.json`;
+ - `frictionlessdata.io/schemas/{data-package,data-resource,tabular-data-resource,tabular-data-package,fiscal-data-package,table-schema,csv-dialect}.json`.
+ 
+diff --git a/docs/reference/resource-read-support-matrix.md b/docs/reference/resource-read-support-matrix.md
+index c0d323f1..9e3c880c 100644
+--- a/docs/reference/resource-read-support-matrix.md
++++ b/docs/reference/resource-read-support-matrix.md
+@@ -18,20 +18,41 @@ they are not registry-distributed requirements.
+ | local CSV/Parquet, default dialect | native `scan_*` | native `scan_*` | native `con.read_*` | works (native) |
+ | local CSV, native-safe non-default dialect (delimiter/header/quote/null) | native (kwargs) | native (kwargs) | files fallback | `MissingFilesDependency` (Ibis) |
+ | local CSV, `escape_char` dialect (mappable, not native-representable) | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | any CSV, UNmappable dialect field | `UnsupportedResourceFormat` | `UnsupportedResourceFormat` | `UnsupportedResourceFormat` | same (fail-closed is pure) |
+ | local JSON | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | plain multi-path (concrete local CSV/Parquet) | native `scan_*` concat | native `scan_*` concat | native `con.read_*` | works (native) |
+ | glob *pattern* | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | gzip / zip archive | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | remote (any format) | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ 
++## Location policy
++
++Under an active `LocationPolicy` (descriptor loaders set one by default; see
++[datapackage](datapackage.md#location-policy)) transport decides the location and the
++engine reads natively only on a probed allow-list. Everything else goes through the
++files fallback (transport → Arrow → `ibis.memtable` on Ibis). With no policy, or with
++`LocationPolicy(allow_unconfined=True)`, the table above applies unchanged.
++
++| Resource kind | Polars / Narwhals (`narwhals-polars`, `narwhals-lazy`) | Ibis on DuckDB | Other Ibis backends |
++|---|---|---|---|
++| local file | native `scan_*`, effective path, `glob=False` | native `read_*`, `[` `*` `?` escaped | files fallback → memtable |
++| local directory (tree-checked) | native, `glob=False`; Polars expands it | native only if path has none of `[` `*` `?`; otherwise `LocationNotAllowed` | `LocationNotAllowed` (use a glob) |
++| glob pattern, archive, JSON | files fallback | files fallback | files fallback |
++| remote | `allowed_remote` required; files fallback | same | same |
++| unknown scheme | `LocationNotAllowed` | `LocationNotAllowed` | `LocationNotAllowed` |
++
++Ibis directory reads under a policy are narrower than today (owner-approved 2026-10-27):
++the memtable route cannot read a bare directory. The existing Ibis `SCHEMA` directory
++limitation is unchanged and adds no new route. Native Windows drive and UNC handling is
++specified but not CI-verified. Native engine reads beyond this allow-list are backlog 387.
++
+ ## Dialect fidelity
+ 
+ `TableDialect` maps onto `CsvSpec` (mountainash-files ≥26.7.1):
+ `delimiter`, `header`, `quote_char`, `escape_char`, `null_sequence`. These are
+ the **CsvSpec-mappable** (seam-supported) fields. Within them there is a stricter
+ **native-representable** subset — `delimiter`, `header`, `quote_char`,
+ `null_sequence` — that a native `pl.scan_csv` can express via kwargs. A
+ native-safe non-default dialect (e.g. `delimiter=";"`) is honoured natively with
+ kwargs on Polars/Narwhals (stays lazy) and via the `CsvSpec` fallback on Ibis —
+ identical values across backends.
+@@ -54,22 +75,23 @@ ignored.
+ 
+ ## Laziness
+ 
+ Only inline and native local CSV/Parquet scans are genuinely lazy. Every
+ fallback-routed read materializes the whole file into an in-memory `pa.Table`
+ first; the resulting `.lazy()` / `memtable` wrapper is lazy-typed over
+ already-read bytes, not a lazy scan.
+ 
+ ## Dependency wiring
+ 
+-`mountainash-files` is the opt-in `files` extra; descriptor storage helpers use
+-the `storage` extra. Development test environments select sibling checkouts.
++`mountainash-files` is the opt-in `files` extra (also included in the `ibis` extra);
++`mountainash-transport` is a required dependency and the `storage` extra is removed.
++Development test environments select sibling checkouts.
+ Installed-artifact verification instead selects exact files, transport,
+ settings and auth-client wheels, without the retired secrets distribution.
+ 
+ For the settings 0.1 migration rehearsal, files `>=26.8.0,<27` and transport
+ `>=26.7.0,<27` are provisional ranges. Those version numbers alone do not
+ identify the migrated candidates: use the hash-qualified artifact handoff in
+ the M4b execution receipt. Before publication, dependency floors must advance
+ to the migrated published releases. Downstream merge/publication remains on
+ hold until settings 0.1.0 is published.
+ 
+diff --git a/docs/website/features-technical/typespec-conform.md b/docs/website/features-technical/typespec-conform.md
+index b1b68a73..a4922489 100644
+--- a/docs/website/features-technical/typespec-conform.md
++++ b/docs/website/features-technical/typespec-conform.md
+@@ -606,21 +606,21 @@ is not supported by this operation.
+ ## DataPackage
+ 
+ Frictionless `datapackage.json` is the multi-resource container format. mountainash supports it natively:
+ 
+ ```python
+ pkg = ma.DataPackage.from_descriptor("datapackage.json")
+ dag = pkg.to_relation_dag()
+ df  = dag.collect("orders")
+ ```
+ 
+-`DataResource` knows how to load its data via the storage facade — local paths bypass it, remote paths (S3, GCS, HTTPS) go through `mountainash-utils-files`'s `StorageFacade` (optional install).
++`DataResource` knows how to load its data via the storage facade — local paths are confined to the descriptor's `LocationPolicy` root, and remote paths (S3, GCS, HTTPS) go through `mountainash-transport`'s `StorageFacade` only when the policy's remote allow-list permits them.
+ 
+ Round-trip:
+ 
+ ```python
+ pkg2 = dag.to_package()
+ pkg2.write("./out/datapackage.json")
+ ```
+ 
+ `DataResource.table_schema` owns the raw Frictionless schema mapping, independently of typed conversion. `DataResource.to_table_schema()` provides the typed view; raw read/write does not silently migrate descriptors.
+ 
+diff --git a/pyproject.toml b/pyproject.toml
+index 0b44cce1..e63dd391 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -32,34 +32,34 @@ dependencies = [
+     "typing_extensions>=4.0.0",
+     "lazy_loader>=0.3",
+     "universal-pathlib>=0.2.0",
+     "pyarrow>=16",
+     "python-dateutil>=2.9,<2.10",
+     "jsonschema==4.25.1",
+     "referencing>=0.36,<1",
+     "elementpath==5.1.1",
+     "email-validator>=2.2,<3",
+     "rfc3986>=2,<3",
++    "mountainash-transport>=0.1.1,<0.2",
+ ]
+ 
+ [project.optional-dependencies]
+ pandas = ["pandas>=3.0.0"]
+ # Ibis 12 emits invalid DROP SQL with SQLGlot 30.18.0 and 30.22.0.
+-ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "sqlglot>=29.0.1,<30.18.0"]
+-storage = ["mountainash-transport>=0.1.0,<0.2"]
+-files = ["mountainash-files>=0.1.0,<0.2"]
++ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "mountainash-files>=0.1.1,<0.2", "sqlglot>=29.0.1,<30.18.0"]
++files = ["mountainash-files>=0.1.1,<0.2"]
+ dbos = ["dbos>=1.0.0"]
+-s3 = ["mountainash-files[s3]>=0.1.0,<0.2"]
+-gcs = ["mountainash-files[gcs]>=0.1.0,<0.2"]
+-azure = ["mountainash-files[azure]>=0.1.0,<0.2"]
+-sftp = ["mountainash-files[sftp]>=0.1.0,<0.2"]
+-all = ["mountainash[pandas,ibis,storage,files,dbos,s3,gcs,azure,sftp]"]
++s3 = ["mountainash-files[s3]>=0.1.1,<0.2"]
++gcs = ["mountainash-files[gcs]>=0.1.1,<0.2"]
++azure = ["mountainash-files[azure]>=0.1.1,<0.2"]
++sftp = ["mountainash-files[sftp]>=0.1.1,<0.2"]
++all = ["mountainash[pandas,ibis,files,dbos,s3,gcs,azure,sftp]"]
+ 
+ [project.urls]
+ Homepage = "https://github.com/mountainash-io/mountainash"
+ Documentation = "https://github.com/mountainash-io/mountainash#readme"
+ Issues = "https://github.com/mountainash-io/mountainash/issues"
+ Source = "https://github.com/mountainash-io/mountainash"
+ 
+ #================
+ # Tool: Coverage
+ #================
+diff --git a/src/mountainash/core/io.py b/src/mountainash/core/io.py
+index 7820f064..9c4024af 100644
+--- a/src/mountainash/core/io.py
++++ b/src/mountainash/core/io.py
+@@ -1,70 +1,43 @@
+ """Shared storage helpers — thin wrappers around mountainash_transport.StorageFacade."""
+ from __future__ import annotations
+ 
++from typing import TYPE_CHECKING
+ 
+-def is_remote(path: str) -> bool:
+-    """Return True if path uses a non-local storage scheme.
++if TYPE_CHECKING:
++    from mountainash_transport.location import LocationPolicy
+ 
+-    Delegates to mountainash_transport's scheme registry
+-    (``StoragePath.identify_scheme``), which automatically recognises every
+-    scheme the transport layer supports — S3-family (s3/r2/minio/b2/s3express),
+-    HTTP/HTTPS, SSH/SFTP/FTP, GCS, Azure, and any future providers.
+ 
+-    ``identify_scheme`` returns ``""`` for bare/local paths, ``"file"`` for
+-    ``file://`` URLs, the canonical scheme token for known remotes, and
+-    ``None`` for an unrecognised scheme. Only a recognised non-local scheme is
+-    treated as remote; an unknown scheme falls through to a local read that
+-    surfaces a clear filesystem error rather than a silent remote misroute.
++def is_remote(path: str) -> bool:
++    """Return True if path uses a recognised non-local storage scheme.
+ 
+-    Falls back to a simple prefix check if mountainash_transport is not
+-    installed, so local-path detection never requires the optional package.
++    Delegates to ``mountainash_transport.location.identify_scheme``: ``""`` is a
++    bare path, ``"file"`` a file URI, ``None`` an unrecognised scheme (treated as
++    local so the filesystem or the policy surfaces a clear error).
+     """
+-    try:
+-        from mountainash_transport.storage.path_helpers.storage_path import (
+-            StoragePath,
+-        )
++    from mountainash_transport.location import identify_scheme
+ 
+-        scheme = StoragePath.identify_scheme(path)
+-        return scheme not in ("", "file", None)
+-    except ImportError:
+-        _FALLBACK_REMOTE_PREFIXES = (
+-            "http://",
+-            "https://",
+-            "s3://",
+-            "r2://",
+-            "minio://",
+-            "b2://",
+-            "s3express://",
+-            "gs://",
+-            "az://",
+-            "azure://",
+-            "ssh://",
+-            "sftp://",
+-            "ftp://",
+-            "ftps://",
+-        )
+-        return any(path.startswith(s) for s in _FALLBACK_REMOTE_PREFIXES)
++    return identify_scheme(path) not in ("", "file", None)
+ 
+ 
+ def _ensure_storage_facade() -> None:
+     """Raise a descriptive error if mountainash_transport is missing."""
+     try:
+         import mountainash_transport  # noqa: F401
+     except ImportError:
+         raise ImportError(
+             "Remote storage requires the 'storage' extra. "
+             "Install it with: pip install mountainash[storage]"
+         ) from None
+ 
+ 
+-def facade_read_bytes(path: str) -> bytes:
++def facade_read_bytes(path: str, policy: LocationPolicy | None = None) -> bytes:
+     """Read a remote path via StorageFacade.from_path().
+ 
+     Auto-detects the provider from the URL scheme. Supports all
+     transport-registered schemes including HTTP/HTTPS.
+     """
+     _ensure_storage_facade()
+     from mountainash_transport.storage.facade.facade import StorageFacade
+ 
+-    facade = StorageFacade.from_path(path)
++    facade = StorageFacade.from_path(path, policy=policy)
+     return facade.read(path)
+diff --git a/src/mountainash/core/location.py b/src/mountainash/core/location.py
+new file mode 100644
+index 00000000..9da9a80b
+--- /dev/null
++++ b/src/mountainash/core/location.py
+@@ -0,0 +1,43 @@
++"""Storage-location helpers for descriptor-bound resources (spec §5)."""
++from __future__ import annotations
++
++import os
++import posixpath
++from typing import TYPE_CHECKING, Any
++
++if TYPE_CHECKING:
++    from mountainash_transport.location import LocationPolicy
++
++
++def resource_policy(resource: Any) -> "LocationPolicy | None":
++    """Return the resource's active location policy, or None (programmatic or opted out)."""
++    ctx = getattr(resource, "_descriptor_context", None)
++    pol = getattr(ctx, "policy", None)
++    return pol if pol is not None and pol.active else None
++
++
++def resolve_resource_location(resource: Any, path: str) -> str:
++    """Join a resource path to its descriptor base (spec §5): bare paths literally, URIs hierarchically.
++
++    Applies whether or not confinement is active: opting out of confinement does not
++    opt out of descriptor-relative resolution. Without a base, a loader policy's root
++    is the base; programmatic contexts (no policy) return the path unchanged.
++    """
++    from urllib.parse import urlsplit, urlunsplit
++
++    from mountainash_transport.location import identify_scheme, local_path
++
++    ctx = getattr(resource, "_descriptor_context", None)
++    base = getattr(ctx, "base_uri", None)
++    if base is None:
++        pol = getattr(ctx, "policy", None)
++        base = getattr(pol, "root", None)
++    if base is None or identify_scheme(path) != "" or os.path.isabs(path):
++        return path
++    if identify_scheme(str(base)) in ("", "file"):
++        return os.path.join(local_path(str(base)), path)
++    from mountainash.typespec.descriptor_context import _normalize_remote_path
++
++    parts = urlsplit(base)
++    joined = posixpath.join(parts.path or "/", path)
++    return urlunsplit((parts.scheme, parts.netloc, _normalize_remote_path(joined), "", ""))
+diff --git a/src/mountainash/core/resource_ref.py b/src/mountainash/core/resource_ref.py
+index 15afea27..8612eefb 100644
+--- a/src/mountainash/core/resource_ref.py
++++ b/src/mountainash/core/resource_ref.py
+@@ -37,19 +37,30 @@ class ResourceRef:
+ 
+     def read_bytes(self) -> bytes:
+         if self.resource.data is not None:
+             raise ValueError(
+                 f"resource {self.resource.name!r} has inline data, not bytes"
+             )
+         path: Any = self.resource.path
+         if isinstance(path, list):
+             path = path[0]
+         from mountainash.core.io import facade_read_bytes, is_remote
++        from mountainash.core.location import (
++            resolve_resource_location,
++            resource_policy,
++        )
+ 
+-        if is_remote(path):
+-            return facade_read_bytes(path)
+-        return Path(path).read_bytes()
++        location = resolve_resource_location(self.resource, path)
++        policy = resource_policy(self.resource)
++        from mountainash_transport.location import require_known_scheme
++
++        require_known_scheme(location, policy)
++        if is_remote(location):
++            return facade_read_bytes(location, policy)
++        from mountainash_transport.location import confine_local
++
++        return Path(confine_local(location, policy)).read_bytes()
+ 
+     def relation(self) -> Relation:
+         from mountainash.relations.dag.packaging import resource_to_relation
+ 
+         return resource_to_relation(self)
+diff --git a/src/mountainash/exceptions.py b/src/mountainash/exceptions.py
+index 8e082564..68b35084 100644
+--- a/src/mountainash/exceptions.py
++++ b/src/mountainash/exceptions.py
+@@ -48,21 +48,20 @@ from mountainash.core.dtypes.errors import (
+ from mountainash.core.types import BackendCapabilityError
+ from mountainash.typespec.validation import SchemaValidationError
+ from mountainash.typespec.errors import (
+     DescriptorError,
+     InvalidDescriptorSyntax,
+     InvalidDescriptorStructure,
+     UnsupportedDescriptorVersion,
+     MissingDescriptorBase,
+     DescriptorReferenceNotFound,
+     DescriptorReferenceInvalid,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorRelationship,
+     UnsupportedResourceDialect,
+     TypeSpecError,
+     InvalidTypeSpecSemantics,
+     InvalidConstraintDeclaration,
+     InvalidJSONSchemaConstraint,
+     JSONSchemaReferenceDenied,
+     AmbiguousFieldName,
+     InvalidFieldIdentifier,
+     AmbiguousGeospatialTypeError,
+@@ -118,21 +117,20 @@ __all__ = [
+     "DtypeMappingError",
+     "BackendCapabilityError",
+     "SchemaValidationError",
+     "DescriptorError",
+     "InvalidDescriptorSyntax",
+     "InvalidDescriptorStructure",
+     "UnsupportedDescriptorVersion",
+     "MissingDescriptorBase",
+     "DescriptorReferenceNotFound",
+     "DescriptorReferenceInvalid",
+-    "DescriptorReferenceSchemeDenied",
+     "InvalidDescriptorRelationship",
+     "UnsupportedResourceDialect",
+     "TypeSpecError",
+     "InvalidTypeSpecSemantics",
+     "InvalidConstraintDeclaration",
+     "InvalidJSONSchemaConstraint",
+     "JSONSchemaReferenceDenied",
+     "AmbiguousFieldName",
+     "InvalidFieldIdentifier",
+     "AmbiguousGeospatialTypeError",
+diff --git a/src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py b/src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py
+index b5877c50..7093d4f0 100644
+--- a/src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py
++++ b/src/mountainash/relations/backends/relation_systems/ibis/extensions_mountainash/relsys_ib_ext_ma_util.py
+@@ -176,40 +176,66 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
+             prefix = f"{col}{separator}" if separator else ""
+             result = result.mutate(
+                 **{f"{prefix}{field}": struct_col[field] for field in field_names}
+             )
+             result = result.drop(col)
+         return result
+ 
+     def _native_scan_for(
+         self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
+     ) -> bool:
++        return self._native_scan_paths(resource, dialect, location=location) is not None
++
++    def _native_scan_paths(
++        self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
++    ) -> list[str] | None:
++        """The one native-scan decision (predicate and reader), yielding the
++        effective paths. Routing classifies the descriptor-resolved location; under
++        an active policy only DuckDB reads natively, and a directory whose path
++        has glob characters falls back (its confinement is then refused there)."""
++        import os
++
+         import ibis
+ 
+         from mountainash.core.io import is_remote
++        from mountainash.core.location import resolve_resource_location, resource_policy
+         from mountainash.relations.backends.relation_systems import resource_files as rf
+ 
+         if resource.data is not None or resource.path is None:
+-            return False
++            return None
+         fmt = self._detect_format_name(resource)
+         raw_path = resource.path
+         paths = raw_path if isinstance(raw_path, list) else [raw_path]
+-        all_local = all(not is_remote(p) for p in paths)
++        all_local = all(not is_remote(resolve_resource_location(resource, p)) for p in paths)
+         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
+         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
+         con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
+         native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
+-        return bool(
++        if not (
+             all_local and no_glob and no_archive and native
+             and hasattr(con, native)
+             and (fmt != "csv" or rf.dialect_is_default(dialect))
+-        )
++        ):
++            return None
++        policy = resource_policy(resource)
++        if policy is not None:
++            key = location.dialect if location is not None and location.dialect else f"ibis-{con.name}"
++            if key != "ibis-duckdb":
++                return None
++        effective = rf.confined_local_paths(resource, tree=policy is not None)
++        if effective is None:
++            return None
++        if policy is not None and any(
++            os.path.isdir(p) and any(c in p for c in "[*?") for p in effective
++        ):
++            return None
++        return effective
+ 
+     def read_resource(self, resource: Any, *, location: ExecutionLocation | None = None) -> ir.Table:
+         """Load a DataResource into an Ibis table. Native engine reads for local
+         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
+         for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
+         with the other backends (spec §A.6)."""
+         from mountainash.core.lowering_reuse import OCCURRENCE
+ 
+         self._resource_lowering = OCCURRENCE
+         dialect = resource.to_dialect()
+@@ -220,29 +246,33 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
+             reader = MountainashPolarsExtensionRelationSystem()
+             lf = reader._read_inline(resource)
+             self._resource_lowering = reader._resource_lowering
+             arrow = lf.collect().to_arrow()
+             if location is None:
+                 ensure_sqlite_nat_adapter()
+                 return ibis.memtable(arrow)
+             return self._import_resource(arrow, location)
+ 
+         fmt = self._detect_format_name(resource)
+-        raw_path = resource.path
+-        assert raw_path is not None, f"DataResource '{resource.name}' has no path"
+-        paths = raw_path if isinstance(raw_path, list) else [raw_path]
++        assert resource.path is not None, f"DataResource '{resource.name}' has no path"
++
++        import os
+ 
++        from mountainash.core.location import resource_policy
+         from mountainash.relations.backends.relation_systems import resource_files as rf
+ 
+         if fmt == "csv":
+             rf.ensure_dialect_supported(dialect)
+-        if self._native_scan_for(resource, dialect, location=location):
++        paths = self._native_scan_paths(resource, dialect, location=location)
++        if paths is not None:
++            if resource_policy(resource) is not None:  # files are literal; directories unchanged
++                paths = [p if os.path.isdir(p) else rf.escape_duckdb_glob(p) for p in paths]
+             native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
+             con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
+             return getattr(con, native)(paths if len(paths) > 1 else paths[0])
+ 
+         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
+         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
+         arrow = rf.parse_resource_to_arrow(resource, dialect=dialect)
+         if location is None:
+             ensure_sqlite_nat_adapter()
+             return ibis.memtable(arrow)
+diff --git a/src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py b/src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py
+index b403d88a..20c2fb8d 100644
+--- a/src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py
++++ b/src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py
+@@ -267,31 +267,35 @@ class MountainashNarwhalsExtensionRelationSystem(
+         return relation.sort(by, descending=descending).head(k)
+ 
+     def unnest(self, relation: Any, /, *, columns: list[str], separator: str) -> Any:
+         raise BackendCapabilityError(
+             "Narwhals does not support frame-level unnest.",
+             backend=self.BACKEND_NAME,
+             function_key=RKEY_MOUNTAINASH_REL.UNNEST,
+         )
+ 
+     def _native_scan_for(self, resource: Any, dialect: Any, *, location: Any = None) -> bool:
+-        """The one native-scan decision (predicate and reader): the Polars-backed
+-        scan applies only at a polars/lazy Narwhals location, or with none."""
++        return self._native_scan_paths(resource, dialect, location=location) is not None
++
++    def _native_scan_paths(self, resource: Any, dialect: Any, *, location: Any = None) -> list[str] | None:
++        """The one native-scan decision (predicate and reader), yielding the
++        effective paths: the Polars-backed scan applies only at a polars/lazy
++        Narwhals location, or with none."""
+         if location is not None and location.dialect not in (None, "narwhals-polars", "narwhals-lazy"):
+-            return False
++            return None
+         from mountainash.relations.backends.relation_systems import resource_files as rf
+         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+             MountainashPolarsExtensionRelationSystem,
+         )
+ 
+         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
+-        return bool(rf.polars_native_scan_supported(resource, fmt, dialect))
++        return rf.polars_native_scan_paths(resource, fmt, dialect)
+ 
+     def read_resource(self, resource: Any, *, location: Any = None) -> Any:
+         """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
+         local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
+         glob, archive, remote."""
+         from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
+ 
+         self._resource_lowering = OCCURRENCE
+         import narwhals as nw
+         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+@@ -303,29 +307,34 @@ class MountainashNarwhalsExtensionRelationSystem(
+             reader = MountainashPolarsExtensionRelationSystem()
+             lf = reader._read_inline(resource)
+             self._resource_lowering = reader._resource_lowering
+             if location is not None:
+                 return self._import_resource(lf.collect().to_arrow(), location)
+             return nw.from_native(lf)  # stays lazy
+ 
+         from mountainash.relations.backends.relation_systems import resource_files as rf
+ 
+         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
+-        raw_path = resource.path
+-        paths = raw_path if isinstance(raw_path, list) else [raw_path]
+-        if self._native_scan_for(resource, dialect, location=location):
++        paths = self._native_scan_paths(resource, dialect, location=location)
++        if paths is not None:
++            from mountainash.core.location import resource_policy
++
+             self._resource_lowering = DEFERRED_ONLY
+             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
+                 resource, fmt, dialect
+             )
++            literal = {"glob": False} if resource_policy(resource) is not None else {}
+             scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
+-            frames = [scan(p, backend="polars", **(kwargs if fmt == "csv" else {})) for p in paths]
++            frames = [
++                scan(p, backend="polars", **literal, **(kwargs if fmt == "csv" else {}))
++                for p in paths
++            ]
+             scanned = frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
+             if location is not None and location.form is ExecutionForm.EAGER:
+                 scanned = scanned.collect()
+             return scanned
+ 
+         # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
+         import polars as pl
+         table = rf.parse_resource_to_arrow(resource, dialect=dialect)
+         if location is not None:
+             return self._import_resource(table, location)
+diff --git a/src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py b/src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py
+index 4ce5b240..d2a649c6 100644
+--- a/src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py
++++ b/src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py
+@@ -152,43 +152,48 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
+ 
+     def read_resource(self, resource: Any, *, location: Any = None) -> pl.LazyFrame:
+         """Load a DataResource into a Polars LazyFrame."""
+         from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
+ 
+         self._resource_lowering = OCCURRENCE
+         dialect = resource.to_dialect()
+         if resource.data is not None:
+             return self._read_inline(resource)
+         fmt = self._detect_format(resource)
+-        raw_path = resource.path
+-        assert raw_path is not None, f"DataResource '{resource.name}' has no path"
+-        paths: list[str] = raw_path if isinstance(raw_path, list) else [raw_path]
++        assert resource.path is not None, f"DataResource '{resource.name}' has no path"
+ 
++        from mountainash.core.location import resource_policy
+         from mountainash.relations.backends.relation_systems import resource_files as rf
+ 
+         # Keep schema-phase eligibility identical to this reader's actual lazy
+         # route; all other formats and path forms use the eager files fallback.
+-        if self._native_scan_for(resource, dialect):
++        # The decision also yields the effective (confined) paths: computed once.
++        paths = rf.polars_native_scan_paths(resource, fmt, dialect)
++        if paths is not None:
+             self._resource_lowering = DEFERRED_ONLY
+-            return self._native_local_scan(fmt, paths, resource, dialect)
++            return self._native_local_scan(
++                fmt, paths, resource, dialect, literal=resource_policy(resource) is not None
++            )
+         return pl.from_arrow(
+             rf.parse_resource_to_arrow(resource, dialect=dialect)
+         ).lazy()
+ 
+     def _native_local_scan(
+-        self, fmt: str, paths: list[str], resource: Any, dialect: Any
++        self, fmt: str, paths: list[str], resource: Any, dialect: Any, *, literal: bool = False
+     ) -> pl.LazyFrame:
+         kwargs = self._reader_kwargs(resource, fmt, dialect)
++        if literal:  # confined paths are literal: never glob-expand them
++            kwargs = {**kwargs, "glob": False}
+         if fmt == "csv":
+             frames = [pl.scan_csv(p, **kwargs) for p in paths]
+         else:
+-            frames = [pl.scan_parquet(p) for p in paths]
++            frames = [pl.scan_parquet(p, **({"glob": False} if literal else {})) for p in paths]
+         return frames[0] if len(frames) == 1 else pl.concat(frames, how="vertical")
+ 
+ 
+     @staticmethod
+     def _detect_format(resource: Any) -> str:
+         if resource.format:
+             return resource.format.lower()
+         if resource.mediatype:
+             mt = resource.mediatype.lower()
+             if "csv" in mt:
+diff --git a/src/mountainash/relations/backends/relation_systems/resource_files.py b/src/mountainash/relations/backends/relation_systems/resource_files.py
+index 4774b75d..ece99490 100644
+--- a/src/mountainash/relations/backends/relation_systems/resource_files.py
++++ b/src/mountainash/relations/backends/relation_systems/resource_files.py
+@@ -1,20 +1,21 @@
+ """Shared DataResource -> pyarrow.Table reader via mountainash-files (item 32).
+ 
+ Consumed by every backend's ``read_resource`` FALLBACK branch. Native local
+ scans and inline reads do NOT come here. Lazy import so a base install without
+ the ``files`` extra never imports mountainash-files at module load; a missing
+ dependency (direct or transitive, at import or during parse) surfaces as
+ ``MissingFilesDependency``.
+ """
+ from __future__ import annotations
+ 
++import os
+ from typing import TYPE_CHECKING, Any
+ 
+ from mountainash.relations.dag.errors import (
+     MissingFilesDependency,
+     UnsupportedResourceFormat,
+ )
+ 
+ if TYPE_CHECKING:
+     import pyarrow as pa
+ 
+@@ -163,47 +164,91 @@ def dialect_native_safe(dialect: Any) -> bool:
+     if dialect is None:
+         return True
+     for name in type(dialect).model_fields:
+         if name == "extras" or name in _NATIVE_SAFE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
+             continue
+         if getattr(dialect, name) is not None:
+             return False
+     return True
+ 
+ 
+-def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
+-    """Whether Polars/Narwhals can read this resource through their lazy scan.
++def escape_duckdb_glob(path: str) -> str:
++    """Make a file path literal for DuckDB's glob-expanding readers: ``[ * ?`` -> ``[[] [*] [?]``."""
++    return path.replace("[", "[[]").replace("*", "[*]").replace("?", "[?]")
+ 
+-    This is shared by the reader and schema-phase visitor so schema inspection
+-    never mistakes the eager Arrow fallback for native metadata planning.
++
++def confined_local_paths(resource: Any, *, tree: bool) -> list[str] | None:
++    """Effective local paths for a resource, confined by its loader policy.
++
++    Each authored path is joined to the descriptor base (also under
++    ``allow_unconfined``). Returns ``None`` when any resolved location is not
++    local (the files fallback owns it). Under an active policy local paths are
++    confined (``tree`` also walks a directory) and an unrecognised scheme raises
++    ``LocationNotAllowed``.
++    """
++    from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
++
++    from mountainash.core.location import resolve_resource_location, resource_policy
++
++    policy = resource_policy(resource)
++    raw_path = resource.path
++    raws = raw_path if isinstance(raw_path, list) else [raw_path]
++    out: list[str] = []
++    for raw in raws:
++        resolved = resolve_resource_location(resource, str(raw))
++        scheme = identify_scheme(resolved)
++        if policy is not None and scheme is None:
++            raise LocationNotAllowed(str(raw), "unknown scheme")
++        if scheme not in ("", "file", None):
++            return None
++        out.append(resolved if policy is None else confine_local(resolved, policy, tree=tree))
++    return out
++
++
++def polars_native_scan_paths(resource: Any, fmt: str, dialect: Any) -> list[str] | None:
++    """Effective paths for a Polars/Narwhals lazy scan, or ``None`` for the files fallback.
++
++    The one native decision: routing classifies the descriptor-resolved location,
++    and under an active policy authored globs and non-local locations fall back.
+     """
+     if resource.data is not None or fmt not in {"csv", "parquet"} or resource.path is None:
+-        return False
++        return None
+ 
+-    paths = resource.path if isinstance(resource.path, list) else [resource.path]
+-    if not paths:
+-        return False
+     from mountainash.core.io import is_remote
++    from mountainash.core.location import resolve_resource_location, resource_policy
+ 
+-    for path in paths:
++    authored = resource.path if isinstance(resource.path, list) else [resource.path]
++    if not authored:
++        return None
++    for path in authored:
+         text = str(path)
+         if (
+-            is_remote(path)
++            is_remote(resolve_resource_location(resource, text))
+             or any(char in text for char in _GLOB_CHARS)
+             or text.lower().endswith(_COMPRESSION_SUFFIXES)
+         ):
+-            return False
++            return None
+ 
+     if fmt == "csv":
+         ensure_dialect_supported(dialect)
+-        return dialect_native_safe(dialect)
+-    return True
++        if not dialect_native_safe(dialect):
++            return None
++    return confined_local_paths(resource, tree=resource_policy(resource) is not None)
++
++
++def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
++    """Whether Polars/Narwhals can read this resource through their lazy scan.
++
++    This is shared by the reader and schema-phase visitor so schema inspection
++    never mistakes the eager Arrow fallback for native metadata planning.
++    """
++    return polars_native_scan_paths(resource, fmt, dialect) is not None
+ 
+ 
+ def _normalise_format(resource: Any, path_for_suffix: str) -> str | None:
+     """Frictionless format/mediatype/suffix -> mountainash-files format key, or
+     None to let parse() infer. Precedence: format -> mediatype -> path suffix."""
+     if resource.format:
+         return resource.format.lower()
+     mt = (resource.mediatype or "").lower()
+     if "csv" in mt:
+         return "csv"
+@@ -247,35 +292,53 @@ def _archive_and_stem(name: str, gzip_cls, zip_cls):
+ 
+ 
+ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
+     """One FileSourceSpec per path entry (spec §A.3). Handles glob + gzip/zip.
+     Single-path resources yield a one-element list.
+ 
+     NOT supported (and out of scope): globbing *inside* an archive
+     (e.g. ``a.zip/*.csv``) -- glob resolves filesystem paths, archive members
+     are selected by ``ZipArchive.file_pattern``; the two do not compose here."""
+     _parse, FileSourceSpec, _CsvSpec, GzipCompression, ZipArchive = _require_files()
++    from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
++
++    from mountainash.core.location import resolve_resource_location, resource_policy
++
++    policy = resource_policy(resource)
+     raw = resource.path
+     paths = raw if isinstance(raw, list) else [raw]
+     specs: list[Any] = []
+     for entry in paths:
+         base, pattern = _split_glob(entry)
+         # Compression suffix lives on the filename-bearing part.
+         name_for_suffix = pattern if pattern is not None else base
+         archive, stem = _archive_and_stem(name_for_suffix, GzipCompression, ZipArchive)
+         fmt = _normalise_format(resource, stem)
+         format_arg: Any = fmt
+         if fmt == "csv":
+             format_arg = _csv_spec_from_dialect(dialect)
++        base = resolve_resource_location(resource, base)
++        if policy is not None and pattern is None:
++            scheme = identify_scheme(base)
++            if scheme is None:
++                raise LocationNotAllowed(entry, "unknown scheme")
++            if scheme in ("", "file"):
++                base = confine_local(base, policy)
++                if os.path.isdir(base):
++                    raise LocationNotAllowed(
++                        entry,
++                        "directory resource not supported for this backend under a "
++                        "location policy; use a glob",
++                    )
+         specs.append(
+             FileSourceSpec(path=base, glob=pattern, format=format_arg,
+-                           archive=archive)
++                           archive=archive, policy=policy)
+         )
+     return specs
+ 
+ 
+ def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
+     """Normalise a ``ParseResult.data`` payload to a ``pa.Table``.
+ 
+     ``mountainash_files`` parsers return format-dependent payloads: CSV/Parquet
+     yield a ``pa.Table`` directly, but JSON/NDJSON yield raw Python records
+     (``list``/``dict``) -- ``ParseResult.data`` is typed ``Any``. Record
+diff --git a/src/mountainash/typespec/__init__.py b/src/mountainash/typespec/__init__.py
+index 13bb92c4..56cb5281 100644
+--- a/src/mountainash/typespec/__init__.py
++++ b/src/mountainash/typespec/__init__.py
+@@ -61,22 +61,21 @@ from mountainash.typespec.datapackage import (
+     DataPackage,
+ )
+ from mountainash.typespec.descriptor_context import (
+     DescriptorKind,
+     DescriptorResolver,
+     DescriptorContext,
+     build_descriptor_context,
+     normalize_base_uri,
+     normalize_document_uri,
+     descriptor_cache_key,
+-    LocalDescriptorResolver,
+-    StorageDescriptorResolver,
++    DefaultDescriptorResolver,
+ )
+ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+ from mountainash.typespec.temporal import (
+     PartialDateKind,
+     TemporalKind,
+     parse_default_datetime,
+     parse_temporal_any,
+     parse_xsd_duration,
+     parse_xsd_partial_date,
+ )
+@@ -154,21 +153,20 @@ __all__ = [
+     "DataPackage",
+     "DescriptorWriteMode",
+     # Descriptor context and resolution
+     "DescriptorKind",
+     "DescriptorResolver",
+     "DescriptorContext",
+     "build_descriptor_context",
+     "normalize_base_uri",
+     "normalize_document_uri",
+     "descriptor_cache_key",
+-    "LocalDescriptorResolver",
+-    "StorageDescriptorResolver",
++    "DefaultDescriptorResolver",
+ 
+     # Errors
+     "TypeSpecError",
+     "AmbiguousGeospatialTypeError",
+     "InvalidGeospatialFormatError",
+     "InvalidKeyShapeError",
+     "IncompatibleFieldPropertiesError",
+     "InvalidFieldMatchDeclaration",
+ ]
+diff --git a/src/mountainash/typespec/datapackage.py b/src/mountainash/typespec/datapackage.py
+index c894085a..f0ccc6ec 100644
+--- a/src/mountainash/typespec/datapackage.py
++++ b/src/mountainash/typespec/datapackage.py
+@@ -4,21 +4,21 @@ from collections.abc import Mapping, Sequence
+ from copy import deepcopy
+ from dataclasses import dataclass, replace
+ import json
+ from typing import Any, Optional, TYPE_CHECKING, cast
+ 
+ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+ from mountainash.typespec.descriptor_context import (
+     DescriptorContext,
+     DescriptorKind,
+     DescriptorResolver,
+-    LocalDescriptorResolver,
++    DefaultDescriptorResolver,
+ )
+ from mountainash.typespec.spec import ForeignKey, TableSchema
+ from mountainash.typespec.errors import (
+     DescriptorError,
+     DescriptorReferenceInvalid,
+     InvalidDescriptorRelationship,
+     InvalidDescriptorStructure,
+     InvalidDescriptorSyntax,
+     TypeSpecError,
+ )
+@@ -37,27 +37,29 @@ from mountainash.typespec.frictionless_invariants import (
+     require_package_mapping,
+     validate_foreign_key_targets,
+     validate_resource_source_shape,
+ )
+ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+ 
+ 
+ if TYPE_CHECKING:
+     from pathlib import Path
+ 
++    from mountainash_transport.location import LocationPolicy
++
+ """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
+ 
+ 
+ def _default_descriptor_context() -> DescriptorContext:
+     return DescriptorContext(
+         base_uri=None,
+-        resolver=LocalDescriptorResolver(),
++        resolver=DefaultDescriptorResolver(),
+         package_sources=(),
+     )
+ 
+ 
+ def _parse_descriptor_json_input(
+     json_data: str | bytes | bytearray,
+     *,
+     descriptor_kind: str,
+ ) -> object:
+     """Parse Pydantic's text-or-bytes input without widening the parser API."""
+@@ -487,20 +489,23 @@ class DataResource(BaseModel):
+                 resource_name=resource_name,
+                 reference=None,
+                 aliases=_RESOURCE_ALIASES,
+                 required_forms=_RESOURCE_REQUIRED_FORMS,
+             ) from exc
+         self._invariant_location = location
+         self._package_resource_names = frozenset()
+ 
+     @classmethod
+     def model_validate(cls, obj: Any, **kwargs: Any) -> "DataResource":
++        retained_context = (
++            obj._descriptor_context if isinstance(obj, cls) else None
++        )
+         raw = (
+             _resource_public_values(obj)
+             if isinstance(obj, cls)
+             else dict(obj)
+             if isinstance(obj, Mapping)
+             else None
+         )
+         resource_name: str | None = None
+         if isinstance(raw, Mapping):
+             candidate_name = raw.get("name")
+@@ -523,21 +528,25 @@ class DataResource(BaseModel):
+             raise pydantic_structure_error(
+                 exc,
+                 descriptor_kind="resource",
+                 base_path="$",
+                 resource_name=resource_name,
+                 reference=None,
+                 aliases=_RESOURCE_ALIASES,
+                 required_forms=_RESOURCE_REQUIRED_FORMS,
+             ) from exc
+         result._invariant_location = InvariantLocation("$", resource_name)
+-        result._descriptor_context = _default_descriptor_context()
++        result._descriptor_context = (
++            retained_context
++            if retained_context is not None
++            else _default_descriptor_context()
++        )
+         result._package_resource_names = frozenset()
+         return result
+ 
+     @classmethod
+     def model_validate_json(
+         cls,
+         json_data: str | bytes | bytearray,
+         **kwargs: Any,
+     ) -> "DataResource":
+         raw = _parse_descriptor_json_input(json_data, descriptor_kind="resource")
+@@ -586,21 +595,23 @@ class DataResource(BaseModel):
+         if deep:
+             raise ValueError("Mountainash model_copy does not support deep=True")
+         values = _resource_public_values(self)
+         if update:
+             values.update(_normalize_resource_update_names(update))
+         values = _owned_resource_values(
+             values,
+             retain_data_identity=True,
+             copy_typed_declarations=True,
+         )
+-        return type(self).model_validate(values)
++        result = type(self).model_validate(values)
++        result._descriptor_context = self._descriptor_context
++        return result
+ 
+     def __eq__(self, other: object) -> bool:
+         if isinstance(other, DataResource):
+             return self.model_dump() == other.model_dump()
+         return super().__eq__(other)
+     @property
+     def effective_sources(self) -> list[dict[str, Any]]:
+         """Return independently owned resource or package source metadata."""
+         source_values = (
+             self.sources
+@@ -1091,20 +1102,29 @@ def _finalize_package_resources(
+             resource_names=resource_names,
+         )
+     for resource in owned_tuple:
+         # Referenced schemas remain lazy; inline and authored declarations
+         # validate their relationship targets after package context binding.
+         if not isinstance(resource.table_schema, str):
+             resource._validated_schema_declaration()
+     return owned_tuple
+ 
+ 
++def _rebind_package_resources(
++    package: DataPackage, context: DescriptorContext
++) -> None:
++    """Re-bind resources the pydantic validator rebuilt via ``__init__``."""
++    resource_names = _validate_unique_resource_names(tuple(package.resources))
++    for resource in package.resources:
++        _bind_resource(resource, context=context, resource_names=resource_names)
++
++
+ def _package_public_values(package: DataPackage) -> dict[str, object]:
+     values: dict[str, object] = {}
+     for field_name, field in type(package).model_fields.items():
+         alias = field.alias or field_name
+         value = getattr(package, field_name)
+         if field_name == "resources":
+             values[alias] = tuple(value)
+         elif value is not None:
+             values[alias] = deepcopy(value)
+     return values
+@@ -1245,47 +1265,53 @@ class DataPackage(BaseModel):
+         if not isinstance(obj, (Mapping, cls)):
+             raise InvalidDescriptorStructure(
+                 "package input must be a mapping or DataPackage instance",
+                 descriptor_kind="package",
+                 descriptor_path="$",
+                 rejected_value=obj,
+                 required_form="mapping or DataPackage instance",
+             )
+         prepared, context = _prepare_package_input(
+             obj,
+-            context=_default_descriptor_context(),
++            context=(
++                obj._descriptor_context
++                if isinstance(obj, cls)
++                else _default_descriptor_context()
++            ),
+         )
+         try:
+             result = super().model_validate(prepared, **kwargs)
+         except ValidationError as exc:
+             raise _package_validation_error(exc) from exc
+         result._descriptor_context = context
++        _rebind_package_resources(result, context)
+         return result
+ 
+     @classmethod
+     def model_validate_json(
+         cls,
+         json_data: str | bytes | bytearray,
+         **kwargs: Any,
+     ) -> "DataPackage":
+         raw = require_package_mapping(
+             _parse_descriptor_json_input(json_data, descriptor_kind="package")
+         )
+         prepared, context = _prepare_package_input(
+             raw,
+             context=_default_descriptor_context(),
+         )
+         try:
+             result = super().model_validate(prepared, **kwargs)
+         except ValidationError as exc:
+             raise _package_validation_error(exc) from exc
+         result._descriptor_context = context
++        _rebind_package_resources(result, context)
+         return result
+ 
+     @classmethod
+     def _from_owned_descriptor(
+         cls,
+         owned: Mapping[str, object],
+         *,
+         context: DescriptorContext,
+     ) -> "DataPackage":
+         return cls._from_owned_values(owned, context=context)
+@@ -1323,47 +1349,54 @@ class DataPackage(BaseModel):
+         )
+         return type(self)._from_owned_values(values, context=context)
+ 
+     @classmethod
+     def from_descriptor(
+         cls,
+         raw: Mapping[str, Any],
+         *,
+         base_uri: str | Path | None = None,
+         resolver: DescriptorResolver | None = None,
++        policy: "LocationPolicy | None" = None,
+     ) -> DataPackage:
+         from mountainash.typespec.frictionless_codec import decode_package_descriptor
+ 
+-        return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
++        return decode_package_descriptor(
++            raw, base_uri=base_uri, resolver=resolver, policy=policy
++        )
+ 
+     @classmethod
+     def from_json(
+         cls,
+         text: str,
+         *,
+         base_uri: str | Path | None = None,
+         resolver: DescriptorResolver | None = None,
++        policy: "LocationPolicy | None" = None,
+     ) -> DataPackage:
+         from mountainash.typespec.frictionless_codec import decode_package_json
+ 
+-        return decode_package_json(text, base_uri=base_uri, resolver=resolver)
++        return decode_package_json(
++            text, base_uri=base_uri, resolver=resolver, policy=policy
++        )
+ 
+     @classmethod
+     def from_path(
+         cls,
+         path: str | Path,
+         *,
+         resolver: DescriptorResolver | None = None,
++        policy: "LocationPolicy | None" = None,
+     ) -> DataPackage:
+         from mountainash.typespec.frictionless_codec import decode_package_path
+ 
+-        return decode_package_path(path, resolver=resolver)
++        return decode_package_path(path, resolver=resolver, policy=policy)
+ 
+     def to_descriptor(self) -> dict[str, Any]:
+         from mountainash.typespec.frictionless_codec import encode_package_descriptor
+ 
+         return encode_package_descriptor(self, mode=DescriptorWriteMode.PRESERVE)
+ 
+     def to_canonical_descriptor(self) -> dict[str, Any]:
+         from mountainash.typespec.frictionless_codec import encode_package_descriptor
+ 
+         return encode_package_descriptor(self, mode=DescriptorWriteMode.CANONICAL)
+diff --git a/src/mountainash/typespec/descriptor_context.py b/src/mountainash/typespec/descriptor_context.py
+index 095db34e..aa3abd52 100644
+--- a/src/mountainash/typespec/descriptor_context.py
++++ b/src/mountainash/typespec/descriptor_context.py
+@@ -1,68 +1,80 @@
+ """Descriptor URI context and controlled reference resolvers."""
+ from __future__ import annotations
+ 
+ import json
+ from collections.abc import Iterable, Mapping
+ from copy import deepcopy
+ from dataclasses import dataclass
+ from enum import Enum
+ from pathlib import Path
+-from typing import AbstractSet, Any, Protocol
+-from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
++from typing import TYPE_CHECKING, Any, Protocol
++from urllib.parse import urljoin, urlsplit, urlunsplit
+ 
+ try:
+     from enum import StrEnum
+ except ImportError:  # pragma: no cover - Python 3.10 compatibility
+     class StrEnum(str, Enum):
+         pass
+ 
+ from mountainash.core.io import facade_read_bytes
++from mountainash_transport.location import (
++    LocationNotAllowed,
++    confine_local,
++    identify_scheme,
++    local_path,
++    require_known_scheme,
++)
+ from mountainash.typespec.errors import (
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorStructure,
+     MissingDescriptorBase,
+ )
+ 
+ try:
+     from mountainash_transport._core.exceptions import (
+         PathNotFoundError as _TransportPathNotFoundError,
+     )
+ except ImportError:  # pragma: no cover - optional storage dependency
+     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError,)
+ else:
+     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError, _TransportPathNotFoundError)
+ 
+ 
++if TYPE_CHECKING:
++    from mountainash_transport.location import LocationPolicy
++
++
+ class DescriptorKind(StrEnum):
+     SCHEMA = "schema"
+     DIALECT = "dialect"
+ 
+ 
+ class DescriptorResolver(Protocol):
+     def resolve(
+         self,
+         reference: str,
+         *,
+         base_uri: str | None,
+         expected_kind: DescriptorKind,
++        policy: "LocationPolicy | None" = None,
+     ) -> Mapping[str, Any]:
+         raise NotImplementedError
+ 
+ 
+ @dataclass(frozen=True)
+ class DescriptorContext:
+     base_uri: str | None
+     resolver: DescriptorResolver
+     package_sources: tuple[Mapping[str, Any], ...]
++    policy: "LocationPolicy | None" = None
+ 
+ 
+ def _base_error(value: object, message: str) -> InvalidDescriptorStructure:
+     return InvalidDescriptorStructure(
+         message,
+         descriptor_path="$base_uri",
+         rejected_value=value,
+         required_form="absolute hierarchical URI or absolute local path",
+     )
+ 
+@@ -165,38 +177,30 @@ def _normalize_remote_netloc(parts: Any) -> str:
+ def _canonical_remote_uri(value: str, *, trailing_slash: bool = False) -> str:
+     parts = urlsplit(value)
+     scheme = parts.scheme.lower()
+     if not parts.netloc:
+         raise ValueError("absolute URI is not hierarchical")
+     netloc = _normalize_remote_netloc(parts)
+     path = _normalize_remote_path(parts.path, trailing_slash=trailing_slash)
+     return urlunsplit((scheme, netloc, path, parts.query, parts.fragment))
+ 
+ 
+-def _local_path_from_uri(value: str, *, reference: str) -> Path:
+-    parts = urlsplit(value)
+-    if parts.query or parts.fragment:
+-        raise _invalid_reference(reference, normalized_reference=value)
+-    if parts.netloc not in ("", "localhost"):
+-        raise _invalid_reference(
+-            reference,
+-            normalized_reference=value,
+-            message="file URI must refer to the local host",
+-        )
+-    path = Path(unquote(parts.path))
+-    if not path.is_absolute():
++def _file_uri_path(value: str, *, reference: str) -> Path:
++    """Decode a ``file:`` URI via transport ``local_path`` (descriptor errors preserved)."""
++    try:
++        return Path(local_path(value)).resolve()
++    except LocationNotAllowed as exc:
+         raise _invalid_reference(
+             reference,
+             normalized_reference=value,
+-            message="file URI must contain an absolute path",
+-        )
+-    return path.resolve()
++            message=f"invalid file URI: {exc}",
++        ) from exc
+ 
+ 
+ def normalize_base_uri(value: str | Path | None) -> str | None:
+     """Return a canonical absolute directory URI."""
+     if value is None:
+         return None
+     if isinstance(value, Path):
+         if not value.is_absolute():
+             raise _base_error(value, "descriptor base URI must be absolute")
+         return value.resolve().as_uri() + "/"
+@@ -209,21 +213,21 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
+         path = Path(value)
+         if not path.is_absolute():
+             raise _base_error(value, "descriptor base URI must be absolute")
+         return path.resolve().as_uri() + "/"
+ 
+     scheme = parts.scheme.lower()
+     if scheme == "file":
+         if parts.query or parts.fragment:
+             raise _base_error(value, "local descriptor base URI must not contain a query or fragment")
+         try:
+-            return _local_path_from_uri(value, reference=value).as_uri() + "/"
++            return _file_uri_path(value, reference=value).as_uri() + "/"
+         except DescriptorReferenceInvalid as exc:
+             raise _base_error(value, str(exc)) from exc
+ 
+     if not parts.netloc:
+         raise _base_error(value, "descriptor base URI must be hierarchical")
+     try:
+         return _canonical_remote_uri(value, trailing_slash=True)
+     except ValueError as exc:
+         raise _base_error(value, str(exc)) from exc
+ 
+@@ -245,33 +249,33 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
+             raise MissingDescriptorBase(
+                 "relative descriptor reference requires a base URI",
+                 reference=reference,
+                 required_form="absolute URI or relative reference with base URI",
+             )
+         normalized_base = normalize_base_uri(base_uri)
+         assert normalized_base is not None
+         joined = urljoin(normalized_base, reference)
+         joined_parts = urlsplit(joined)
+         if joined_parts.scheme.lower() == "file":
+-            return _local_path_from_uri(joined, reference=reference).as_uri()
++            return _file_uri_path(joined, reference=reference).as_uri()
+         try:
+             return _canonical_remote_uri(joined)
+         except ValueError as exc:
+             raise DescriptorReferenceInvalid(
+                 "descriptor reference is not a hierarchical URI",
+                 reference=reference,
+                 normalized_reference=joined,
+             ) from exc
+ 
+     scheme = parts.scheme.lower()
+     if scheme == "file":
+-        return _local_path_from_uri(reference, reference=reference).as_uri()
++        return _file_uri_path(reference, reference=reference).as_uri()
+     try:
+         return _canonical_remote_uri(reference)
+     except ValueError as exc:
+         # Keep absolute non-hierarchical references representable so the
+         # resolver can apply its scheme policy (which denies them by default).
+         if parts.scheme and not parts.netloc:
+             return urlunsplit((scheme, parts.netloc, parts.path, parts.query, parts.fragment))
+         raise DescriptorReferenceInvalid(
+             "descriptor reference is not a hierarchical URI",
+             reference=reference,
+@@ -313,114 +317,101 @@ def _parse_descriptor_bytes(
+     if not isinstance(descriptor, Mapping):
+         raise DescriptorReferenceInvalid(
+             "resolved descriptor must have a mapping root",
+             reference=reference,
+             normalized_reference=normalized_reference,
+             expected_kind=_expected_kind_value(expected_kind),
+         )
+     return descriptor
+ 
+ 
+-class LocalDescriptorResolver:
+-    """Resolve JSON descriptors from local paths and ``file://`` URIs only."""
+-
+-    def resolve(
+-        self,
+-        reference: str,
+-        *,
+-        base_uri: str | None,
+-        expected_kind: DescriptorKind,
+-    ) -> Mapping[str, Any]:
+-        normalized = normalize_document_uri(reference, base_uri=base_uri)
+-        scheme = urlsplit(normalized).scheme.lower()
+-        if scheme != "file":
+-            raise DescriptorReferenceSchemeDenied(
+-                "local descriptor resolver denies non-local URI schemes",
+-                reference=reference,
+-                normalized_reference=normalized,
+-                expected_kind=_expected_kind_value(expected_kind),
+-                rejected_value=scheme,
+-            )
+-        path = _local_path_from_uri(normalized, reference=reference)
+-        try:
+-            payload = path.read_bytes()
+-        except FileNotFoundError as exc:
+-            raise DescriptorReferenceNotFound(
+-                "descriptor reference does not exist",
+-                reference=reference,
+-                normalized_reference=normalized,
+-                expected_kind=_expected_kind_value(expected_kind),
+-            ) from exc
+-        return _parse_descriptor_bytes(
+-            payload,
+-            reference=reference,
+-            normalized_reference=normalized,
+-            expected_kind=expected_kind,
+-        )
++class DefaultDescriptorResolver:
++    """Resolve JSON descriptors under the context ``LocationPolicy``.
+ 
+-
+-class StorageDescriptorResolver:
+-    """Resolve descriptors through the storage facade for approved schemes."""
+-
+-    def __init__(self, *, allowed_schemes: AbstractSet[str]) -> None:
+-        self._allowed_schemes = frozenset(s.lower() for s in allowed_schemes)
++    Local results are confined to the policy root; remote results go through the
++    storage facade, which enforces the remote allow-list before any request. With
++    no policy (programmatic, no base) local reads are allowed and remote is denied.
++    """
+ 
+     def resolve(
+         self,
+         reference: str,
+         *,
+         base_uri: str | None,
+         expected_kind: DescriptorKind,
++        policy: "LocationPolicy | None" = None,
+     ) -> Mapping[str, Any]:
+         normalized = normalize_document_uri(reference, base_uri=base_uri)
+-        scheme = urlsplit(normalized).scheme.lower()
+-        if scheme not in self._allowed_schemes:
+-            raise DescriptorReferenceSchemeDenied(
+-                "storage descriptor resolver denies URI scheme",
+-                reference=reference,
+-                normalized_reference=normalized,
+-                expected_kind=_expected_kind_value(expected_kind),
+-                rejected_value=scheme,
+-            )
+         try:
+-            payload = facade_read_bytes(normalized)
++            require_known_scheme(normalized, policy)
++            if identify_scheme(normalized) in ("", "file"):
++                path = confine_local(
++                    str(_file_uri_path(normalized, reference=reference)), policy
++                )
++                payload = Path(path).read_bytes()
++            else:
++                if policy is None:
++                    raise LocationNotAllowed(reference, "remote not allowed")
++                payload = facade_read_bytes(normalized, policy)
+         except _STORAGE_NOT_FOUND_ERRORS as exc:
+             raise DescriptorReferenceNotFound(
+                 "descriptor reference does not exist",
+                 reference=reference,
+                 normalized_reference=normalized,
+                 expected_kind=_expected_kind_value(expected_kind),
+             ) from exc
+         return _parse_descriptor_bytes(
+             payload,
+             reference=reference,
+             normalized_reference=normalized,
+             expected_kind=expected_kind,
+         )
+ 
+ 
+ def build_descriptor_context(
+     *,
+     base_uri: str | Path | None = None,
+     resolver: DescriptorResolver | None = None,
+     package_sources: Iterable[Mapping[str, Any]] = (),
++    policy: "LocationPolicy | None" = None,
+ ) -> DescriptorContext:
+     """Build a context with canonical base and owned package-source storage."""
+     frozen_sources = tuple(deepcopy(dict(source)) for source in package_sources)
+     return DescriptorContext(
+         base_uri=normalize_base_uri(base_uri),
+-        resolver=resolver if resolver is not None else LocalDescriptorResolver(),
++        resolver=resolver if resolver is not None else DefaultDescriptorResolver(),
+         package_sources=frozen_sources,
++        policy=policy,
+     )
+ 
+ 
++def loader_policy(
++    base_uri: str | Path | None,
++    policy: "LocationPolicy | None",
++) -> "LocationPolicy":
++    """Return the loader's policy with its root declared (explicit root wins).
++
++    A local base roots at that base; no base or a remote base roots at the
++    load-time working directory. A remote base grants no permission.
++    """
++    import os
++
++    from mountainash_transport.location import LocationPolicy
++
++    normalized = normalize_base_uri(base_uri)  # existing descriptor errors fire first
++    declared = os.getcwd()
++    if normalized is not None and urlsplit(normalized).scheme == "file":
++        declared = local_path(normalized)
++    return (policy or LocationPolicy()).with_declared_root(declared)
++
++
+ __all__ = [
+     "DescriptorKind",
+     "DescriptorResolver",
+     "DescriptorContext",
+     "build_descriptor_context",
++    "loader_policy",
+     "normalize_base_uri",
+     "normalize_document_uri",
+     "descriptor_cache_key",
+-    "LocalDescriptorResolver",
+-    "StorageDescriptorResolver",
++    "DefaultDescriptorResolver",
+ ]
+diff --git a/src/mountainash/typespec/errors.py b/src/mountainash/typespec/errors.py
+index 95c7af82..b43e04ce 100644
+--- a/src/mountainash/typespec/errors.py
++++ b/src/mountainash/typespec/errors.py
+@@ -52,24 +52,20 @@ class MissingDescriptorBase(DescriptorError, ValueError):
+ 
+ 
+ class DescriptorReferenceNotFound(DescriptorError, FileNotFoundError):
+     """The normalized descriptor reference does not exist."""
+ 
+ 
+ class DescriptorReferenceInvalid(DescriptorError, ValueError):
+     """The resolved descriptor is malformed or has the wrong kind."""
+ 
+ 
+-class DescriptorReferenceSchemeDenied(DescriptorError, PermissionError):
+-    """The resolver policy denies the reference scheme."""
+-
+-
+ class InvalidDescriptorRelationship(DescriptorError, ValueError):
+     """A descriptor relationship targets an unknown resource or field."""
+ 
+ 
+ class UnsupportedResourceDialect(DescriptorError, ValueError):
+     """A dialect combines incompatible format-family properties."""
+ 
+ 
+ class TypeSpecError(MountainashError, ValueError):
+     """Base for field-value/type-shape structural errors (sibling to DescriptorError)."""
+@@ -212,21 +208,20 @@ class InvalidDtypeDeclaration(TypeSpecError):
+ 
+ 
+ __all__ = [
+     "DescriptorError",
+     "InvalidDescriptorSyntax",
+     "InvalidDescriptorStructure",
+     "UnsupportedDescriptorVersion",
+     "MissingDescriptorBase",
+     "DescriptorReferenceNotFound",
+     "DescriptorReferenceInvalid",
+-    "DescriptorReferenceSchemeDenied",
+     "InvalidDescriptorRelationship",
+     "UnsupportedResourceDialect",
+     "TypeSpecError",
+     "InvalidTypeSpecSemantics",
+     "InvalidConstraintDeclaration",
+     "InvalidDtypeDeclaration",
+     "InvalidJSONSchemaConstraint",
+     "JSONSchemaReferenceDenied",
+     "AmbiguousFieldName",
+     "InvalidFieldIdentifier",
+diff --git a/src/mountainash/typespec/frictionless_codec.py b/src/mountainash/typespec/frictionless_codec.py
+index b4cf2d6f..fc10d318 100644
+--- a/src/mountainash/typespec/frictionless_codec.py
++++ b/src/mountainash/typespec/frictionless_codec.py
+@@ -9,23 +9,25 @@ from collections.abc import Mapping
+ from copy import deepcopy
+ from enum import StrEnum
+ from pathlib import Path
+ import re
+ from typing import TYPE_CHECKING, Any
+ 
+ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+ 
+ if TYPE_CHECKING:
+     from mountainash.typespec.datapackage import DataPackage, DataResource
++    from mountainash_transport.location import LocationPolicy
+ from mountainash.typespec.descriptor_context import (
+     DescriptorContext,
+     build_descriptor_context,
++    loader_policy,
+     DescriptorResolver,
+ )
+ from mountainash.typespec.spec import TableSchema
+ from mountainash.typespec.errors import (
+     DescriptorReferenceNotFound,
+     InvalidDescriptorStructure,
+     InvalidDescriptorSyntax,
+     UnsupportedResourceDialect,
+ )
+ from mountainash.typespec.frictionless_invariants import (
+@@ -415,50 +417,57 @@ def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContex
+     from mountainash.typespec.datapackage import DataPackage
+ 
+     return DataPackage._from_owned_descriptor(owned, context=context)
+ 
+ 
+ def decode_package_descriptor(
+     raw: Mapping[str, Any],
+     *,
+     base_uri: str | Path | None = None,
+     resolver: DescriptorResolver | None = None,
++    policy: LocationPolicy | None = None,
+ ) -> DataPackage:
+     mapping = require_package_mapping(raw)
+     context = build_descriptor_context(
+         base_uri=base_uri,
+         resolver=resolver,
+         package_sources=(),
++        policy=loader_policy(base_uri, policy),
+     )
+     return _decode_owned_package(deepcopy(mapping), context=context)
+ 
+ 
+ def decode_package_json(
+     text: str,
+     *,
+     base_uri: str | Path | None = None,
+     resolver: DescriptorResolver | None = None,
++    policy: LocationPolicy | None = None,
+ ) -> DataPackage:
+     raw = parse_descriptor_json(text)
+-    return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
++    return decode_package_descriptor(
++        raw, base_uri=base_uri, resolver=resolver, policy=policy
++    )
+ 
+ 
+ def decode_package_path(
+     path: str | Path,
+     *,
+     resolver: DescriptorResolver | None = None,
++    policy: LocationPolicy | None = None,
+ ) -> DataPackage:
+     absolute_path, text = read_local_package_text(path)
+     return decode_package_json(
+         text,
+         base_uri=absolute_path.parent,
+         resolver=resolver,
++        policy=policy,
+     )
+ 
+ 
+ class DescriptorWriteMode(StrEnum):
+     PRESERVE = "preserve"
+     CANONICAL = "canonical"
+ 
+ 
+ _PACKAGE_PROFILE = "https://datapackage.org/profiles/2.0/datapackage.json"
+ _RESOURCE_PROFILE = "https://datapackage.org/profiles/2.0/dataresource.json"
+diff --git a/src/mountainash/typespec/frictionless_resolution.py b/src/mountainash/typespec/frictionless_resolution.py
+index 22007b6c..d736c15f 100644
+--- a/src/mountainash/typespec/frictionless_resolution.py
++++ b/src/mountainash/typespec/frictionless_resolution.py
+@@ -1,21 +1,23 @@
+ """Lazy resolution and validation of referenced Frictionless descriptors."""
+ from __future__ import annotations
+ 
++import inspect
+ from collections.abc import Mapping
+ 
++from mountainash_transport.location import LocationNotAllowed
++
+ from mountainash.typespec.descriptor_context import DescriptorContext, DescriptorKind
+ from mountainash.typespec.errors import (
+     DescriptorError,
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorStructure,
+     MissingDescriptorBase,
+ )
+ from mountainash.typespec.frictionless_codec import (
+     _structure_error,
+     _validate_dialect,
+     _validate_schema,
+ )
+ from mountainash.typespec.frictionless_invariants import (
+     InvariantLocation,
+@@ -68,34 +70,50 @@ def validate_resolved_kind(
+             descriptor_kind=expected_kind.value,
+             resource_name=location.resource_name,
+         )
+     _validate_dialect(
+         raw,
+         path=location.descriptor_path,
+         resource_name=location.resource_name,
+     )
+ 
+ 
++def _accepts_policy(resolver: object) -> bool:
++    try:
++        params = inspect.signature(resolver.resolve).parameters  # type: ignore[attr-defined]
++    except (TypeError, ValueError):
++        return False
++    return "policy" in params or any(
++        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
++    )
++
++
++def _policy_kwargs(context: DescriptorContext) -> dict[str, object]:
++    """Pass the context policy only to resolvers that accept it."""
++    return {"policy": context.policy} if _accepts_policy(context.resolver) else {}
++
++
+ def resolve_descriptor_mapping(
+     value: Mapping[str, object] | str,
+     *,
+     context: DescriptorContext,
+     expected_kind: DescriptorKind,
+     location: InvariantLocation,
+ ) -> Mapping[str, object]:
+     """Resolve and validate one raw or referenced descriptor lazily."""
+     if isinstance(value, str):
+         try:
+             raw = context.resolver.resolve(
+                 value,
+                 base_uri=context.base_uri,
+                 expected_kind=expected_kind,
++                **_policy_kwargs(context),
+             )
+         except MissingDescriptorBase as exc:
+             raise MissingDescriptorBase(
+                 str(exc),
+                 descriptor_kind=expected_kind.value,
+                 descriptor_path=location.descriptor_path,
+                 resource_name=location.resource_name,
+                 reference=exc.reference,
+                 rejected_value=value,
+                 required_form="absolute URI or relative reference with base URI",
+@@ -105,32 +123,22 @@ def resolve_descriptor_mapping(
+                 str(exc),
+                 descriptor_kind=expected_kind.value,
+                 descriptor_path=location.descriptor_path,
+                 resource_name=location.resource_name,
+                 reference=exc.reference,
+                 normalized_reference=exc.normalized_reference,
+                 expected_kind=exc.expected_kind,
+                 rejected_value=value,
+                 required_form="existing descriptor document",
+             ) from exc
+-        except DescriptorReferenceSchemeDenied as exc:
+-            raise DescriptorReferenceSchemeDenied(
+-                str(exc),
+-                descriptor_kind=expected_kind.value,
+-                descriptor_path=location.descriptor_path,
+-                resource_name=location.resource_name,
+-                reference=exc.reference,
+-                normalized_reference=exc.normalized_reference,
+-                expected_kind=exc.expected_kind,
+-                rejected_value=value,
+-                required_form="approved descriptor reference scheme",
+-            ) from exc
++        except LocationNotAllowed:
++            raise
+         except DescriptorError:
+             raise
+         except Exception as exc:
+             raise DescriptorReferenceInvalid(
+                 "descriptor reference could not be resolved",
+                 descriptor_kind=expected_kind.value,
+                 descriptor_path=location.descriptor_path,
+                 resource_name=location.resource_name,
+                 reference=value,
+                 expected_kind=expected_kind.value,
+diff --git a/tests/core/test_io.py b/tests/core/test_io.py
+index 3ed81e2e..91533725 100644
+--- a/tests/core/test_io.py
++++ b/tests/core/test_io.py
+@@ -12,24 +12,20 @@ from mountainash.core.io import is_remote
+         ("/tmp/data.csv", False),
+         ("relative/path.parquet", False),
+         ("./local.json", False),
+         ("s3://bucket/key.csv", True),
+         ("r2://bucket/key.csv", True),
+         ("minio://bucket/key.parquet", True),
+         ("https://example.com/data.csv", True),
+         ("http://example.com/data.json", True),
+         ("b2://bucket/key.csv", True),
+         ("s3express://bucket/key.csv", True),
+-        # Regression: these schemes were misclassified as local under the old
+-        # prefix-list fallback (which omitted them), so remote SSH/SFTP/FTP
+-        # resources were routed to a local Path read that always failed.
+-        # Locked in here.
+         ("sftp://host/key.csv", True),
+         ("ssh://host/key.csv", True),
+         ("ftp://host/key.csv", True),
+     ],
+ )
+ def test_is_remote(path: str, expected: bool) -> None:
+     assert is_remote(path) is expected
+ 
+ 
+ def test_facade_read_bytes_dispatches_via_facade(monkeypatch):
+@@ -39,21 +35,21 @@ def test_facade_read_bytes_dispatches_via_facade(monkeypatch):
+ 
+     from_path_calls: list[str] = []
+     read_calls: list[str] = []
+ 
+     class FakeFacade:
+         def read(self, path: str) -> bytes:
+             read_calls.append(path)
+             return b"fake-data"
+ 
+         @staticmethod
+-        def from_path(path):
++        def from_path(path, policy=None):
+             from_path_calls.append(path)
+             return FakeFacade()
+ 
+     # Build a fake module hierarchy so the lazy import inside facade_read_bytes
+     # resolves the transport facade without importing the real package.
+     fake_top = types.ModuleType("mountainash_transport")
+     fake_storage = types.ModuleType("mountainash_transport.storage")
+     fake_facade_pkg = types.ModuleType("mountainash_transport.storage.facade")
+     fake_facade_mod = types.ModuleType("mountainash_transport.storage.facade.facade")
+     fake_facade_mod.StorageFacade = FakeFacade  # type: ignore[attr-defined]
+diff --git a/tests/core/test_resource_ref_policy.py b/tests/core/test_resource_ref_policy.py
+new file mode 100644
+index 00000000..efd4d7df
+--- /dev/null
++++ b/tests/core/test_resource_ref_policy.py
+@@ -0,0 +1,55 @@
++# tests/core/test_resource_ref_policy.py
++import json, threading
++from functools import partial
++from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
++import pytest
++import mountainash as ma
++from mountainash.core.resource_ref import ResourceRef
++from mountainash_transport.location import LocationNotAllowed
++
++def _pkg(root, path):
++    p = root / "datapackage.json"
++    p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": path, "format": "bin"}]}))
++    return ma.DataPackage.from_path(p)
++
++@pytest.fixture
++def outside(tmp_path):
++    d = tmp_path / "outside"; d.mkdir(); (d / "s.bin").write_bytes(b"secret"); return d
++
++@pytest.fixture
++def server(outside):
++    hits = {"n": 0}
++    class H(SimpleHTTPRequestHandler):
++        def do_GET(self):
++            hits["n"] += 1; super().do_GET()
++        def log_message(self, *a): pass
++    s = ThreadingHTTPServer(("127.0.0.1", 0), partial(H, directory=str(outside)))
++    threading.Thread(target=s.serve_forever, daemon=True).start()
++    yield s.server_address[1], hits
++    s.shutdown()
++
++def test_absolute_outside_rejected(tmp_path, outside):
++    root = tmp_path / "root"; root.mkdir()
++    with pytest.raises(LocationNotAllowed):
++        ResourceRef(_pkg(root, str(outside / "s.bin")).resources[0]).read_bytes()
++
++def test_in_root_relative_reads(tmp_path):
++    root = tmp_path / "root"; root.mkdir(); (root / "a.bin").write_bytes(b"ok")
++    assert ResourceRef(_pkg(root, "a.bin").resources[0]).read_bytes() == b"ok"
++
++def test_remote_without_allow_rejected_before_request(tmp_path, server):
++    port, hits = server
++    root = tmp_path / "root"; root.mkdir()
++    with pytest.raises(LocationNotAllowed):
++        ResourceRef(_pkg(root, f"http://127.0.0.1:{port}/s.bin").resources[0]).read_bytes()
++    assert hits["n"] == 0
++
++def test_programmatic_absolute_is_today(outside):
++    pkg = ma.DataPackage(name="p", resources=[{"name": "r", "path": str(outside / "s.bin"), "format": "bin"}])
++    assert ResourceRef(pkg.resources[0]).read_bytes() == b"secret"
++
++
++def test_unknown_scheme_rejected_under_policy(tmp_path):
++    root = tmp_path / "root"; root.mkdir()
++    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
++        ResourceRef(_pkg(root, "hf://host/data.bin").resources[0]).read_bytes()
+diff --git a/tests/relations/dag/cross_backend/test_location_policy_reads.py b/tests/relations/dag/cross_backend/test_location_policy_reads.py
+new file mode 100644
+index 00000000..f4086af5
+--- /dev/null
++++ b/tests/relations/dag/cross_backend/test_location_policy_reads.py
+@@ -0,0 +1,239 @@
++"""Location confinement at the resource-reader seams, across all four targets."""
++from __future__ import annotations
++
++import json
++import os
++import threading
++from functools import partial
++from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
++
++import ibis
++import polars as pl
++import pytest
++from mountainash_transport.location import LocationNotAllowed, LocationPolicy
++
++from mountainash.relations.core.execution.preparation import ExecutionPhase
++from mountainash.relations.core.relation_api.relation import Relation
++from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
++from mountainash.typespec.datapackage import DataPackage, DataResource
++
++TARGETS = ["polars", "narwhals", "ibis-duckdb", "ibis-polars"]
++
++
++def _target(name):
++    if name == "ibis-duckdb":
++        return ibis.duckdb.connect()
++    if name == "ibis-polars":
++        return ibis.polars.connect()
++    return name
++
++
++@pytest.fixture(params=TARGETS)
++def target_name(request):
++    return request.param
++
++
++def _values(native) -> list:
++    if hasattr(native, "to_pyarrow") and not hasattr(native, "collect"):
++        return sorted(pl.from_arrow(native.to_pyarrow())["v"].to_list())
++    if hasattr(native, "collect"):
++        native = native.collect()
++    if hasattr(native, "to_native"):
++        native = native.to_native()
++    if isinstance(native, pl.DataFrame):
++        return sorted(native["v"].to_list())
++    return sorted(pl.from_arrow(native.to_arrow())["v"].to_list())
++
++
++class _Handler(SimpleHTTPRequestHandler):
++    hits: list = []
++
++    def do_GET(self):
++        type(self).hits.append(self.path)
++        super().do_GET()
++
++    def log_message(self, *a):
++        pass
++
++
++@pytest.fixture
++def world(tmp_path):
++    outside = tmp_path / "outside"
++    outside.mkdir()
++    (outside / "secret.csv").write_text("v\n666\n")
++    top = tmp_path / "top"
++    root = top / "pkg[12]"
++    (top / "pkg1").mkdir(parents=True)
++    (top / "pkg2").mkdir()
++    (root / "data").mkdir(parents=True)
++    (root / "data" / "a.csv").write_text("v\n99\n")
++    os.symlink(outside / "secret.csv", root / "data" / "link.csv")
++    (root / "badtree").mkdir()
++    (root / "badtree" / "ok.csv").write_text("v\n1\n")
++    os.symlink(outside / "secret.csv", root / "badtree" / "leak.csv")
++    elsewhere = tmp_path / "elsewhere"
++    elsewhere.mkdir()
++    hits: list = []
++    handler = type("H", (_Handler,), {"hits": hits})
++    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(handler, directory=str(outside)))
++    thread = threading.Thread(target=server.serve_forever, daemon=True)
++    thread.start()
++    try:
++        yield {
++            "tmp": tmp_path, "outside": outside, "root": root, "elsewhere": elsewhere,
++            "port": server.server_port, "hits": hits,
++        }
++    finally:
++        server.shutdown()
++        server.server_close()
++        thread.join()
++
++
++def _descriptor(path, fmt="csv"):
++    return {"name": "pkg", "resources": [{
++        "name": "r", "path": path, "format": fmt,
++        "schema": {"fields": [{"name": "v", "type": "integer"}]},
++    }]}
++
++
++def _load_path(directory, descriptor, policy=None):
++    (directory).mkdir(parents=True, exist_ok=True)
++    (directory / "datapackage.json").write_text(json.dumps(descriptor))
++    return DataPackage.from_path(directory / "datapackage.json", policy=policy)
++
++
++def _collect(pkg, name):
++    return _values(pkg.to_relation_dag().collect("r", target=_target(name)))
++
++
++POLICIES = {
++    None: None,
++    "allow-127": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
++    "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset()}),
++    "unconfined": lambda: LocationPolicy(allow_unconfined=True),
++}
++
++CASES = [
++    ("in_root_glob_named_root", "data/a.csv", None, [99]),
++    ("absolute_outside", "{outside}/secret.csv", None, "reject"),
++    ("symlink_escape", "data/link.csv", None, "reject"),
++    ("dir_with_escaping_entry", "badtree", None, "reject"),
++    ("remote_no_allow", "http://127.0.0.1:{port}/secret.csv", None, "reject"),
++    ("remote_allowed", "http://127.0.0.1:{port}/secret.csv", "allow-127", [666]),
++    ("allow_list_only_keeps_root", "{outside}/secret.csv", "allow-any-http", "reject"),
++    ("unknown_scheme", "hf://x/y.csv", None, "reject"),
++    ("opt_out", "{outside}/secret.csv", "unconfined", [666]),
++    ("remote_base_relative_resource", "<base_uri=http://127.0.0.1:{port}/> secret.csv", None, "reject"),
++    ("remote_base_absolute_local", "<base_uri=http://127.0.0.1:{port}/> {outside}/secret.csv", None, "reject"),
++]
++
++
++@pytest.mark.parametrize("case", CASES, ids=[c[0] for c in CASES])
++def test_read_confinement(case, target_name, world, monkeypatch):
++    _id, spec, pol_key, expected = case
++    factory = POLICIES[pol_key]
++    policy = factory() if factory else None
++    base = None
++    if spec.startswith("<base_uri="):
++        base, spec = spec[len("<base_uri="):].split("> ", 1)
++        base = base.format(**world)
++    path = spec.format(outside=world["outside"], port=world["port"])
++    if base is not None:
++        monkeypatch.chdir(world["elsewhere"])
++        pkg = DataPackage.from_descriptor(_descriptor(path), base_uri=base, policy=policy)
++    else:
++        pkg = _load_path(world["root"], _descriptor(path), policy)
++    if expected == "reject":
++        with pytest.raises(LocationNotAllowed):
++            _collect(pkg, target_name)
++        assert world["hits"] == []
++    else:
++        assert _collect(pkg, target_name) == expected
++
++
++def test_plain_root_directory_reads_natively(target_name, tmp_path):
++    root = tmp_path / "plainroot"
++    (root / "tree" / "sub").mkdir(parents=True)
++    (root / "tree" / "x.csv").write_text("v\n7\n")
++    (root / "tree" / "sub" / "y.csv").write_text("v\n8\n")
++    pkg = _load_path(root, _descriptor("tree"))
++    if target_name == "ibis-polars":
++        with pytest.raises(LocationNotAllowed):
++            _collect(pkg, target_name)
++    else:
++        assert _collect(pkg, target_name) == [7, 8]
++
++
++def test_glob_named_root_directory_on_ibis_duckdb_rejected(world):
++    (world["root"] / "tree").mkdir()
++    (world["root"] / "tree" / "x.csv").write_text("v\n7\n")
++    pkg = _load_path(world["root"], _descriptor("tree"))
++    with pytest.raises(LocationNotAllowed):
++        _collect(pkg, "ibis-duckdb")
++
++
++@pytest.mark.parametrize("opt_out", [False, True], ids=["policy", "opt-out"])
++def test_literal_percent_filename(target_name, tmp_path, opt_out):
++    root = tmp_path / "pct"
++    root.mkdir()
++    (root / "report%20a.csv").write_text("v\n1\n")
++    (root / "report a.csv").write_text("v\n2\n")
++    policy = LocationPolicy(allow_unconfined=True) if opt_out else None
++    pkg = _load_path(root, _descriptor("report%20a.csv"), policy)
++    assert _collect(pkg, target_name) == [1]
++
++
++def test_path_assigned_after_load_is_confined(target_name, world):
++    pkg = _load_path(world["root"], _descriptor("data/a.csv"))
++    assert _collect(pkg, target_name) == [99]
++    pkg.resources[0].path = str(world["outside"] / "secret.csv")
++    with pytest.raises(LocationNotAllowed):
++        _collect(pkg, target_name)
++
++
++def test_opt_out_reads_relative_to_descriptor_not_cwd(target_name, tmp_path, monkeypatch):
++    d = tmp_path / "d"
++    d.mkdir()
++    (d / "a.csv").write_text("v\n5\n")
++    cwd = tmp_path / "cwd"
++    cwd.mkdir()
++    (cwd / "a.csv").write_text("v\n6\n")
++    pkg = _load_path(d, _descriptor("a.csv"), LocationPolicy(allow_unconfined=True))
++    monkeypatch.chdir(cwd)
++    assert _collect(pkg, target_name) == [5]
++
++
++def test_opt_out_remote_base_relative_resource_takes_fallback(target_name, world, monkeypatch):
++    monkeypatch.chdir(world["elsewhere"])
++    (world["elsewhere"] / "secret.csv").write_text("v\n1\n")
++    pkg = DataPackage.from_descriptor(
++        _descriptor("secret.csv"),
++        base_uri=f"http://127.0.0.1:{world['port']}/",
++        policy=LocationPolicy(allow_unconfined=True),
++    )
++    assert _collect(pkg, target_name) == [666]
++
++
++def _schema_relation(resource):
++    return Relation(ResourceReadRelNode(resource=resource))
++
++
++def test_schema_phase_rejects_outside_and_reads_inside(target_name, world, monkeypatch):
++    # SCHEMA execution takes a backend name; an Ibis flavour is the default backend.
++    if target_name.startswith("ibis-"):
++        monkeypatch.setattr(ibis.options, "default_backend", getattr(ibis, target_name[5:]).connect())
++    target = "ibis" if target_name.startswith("ibis-") else target_name
++    inside = _load_path(world["root"], _descriptor("data/a.csv"))
++    outside = _load_path(world["root"] / "o", _descriptor(str(world["outside"] / "secret.csv")))
++    _native, visitor = _schema_relation(inside.resources[0])._compile_and_execute_with_visitor(
++        target=target, phase=ExecutionPhase.SCHEMA)
++    visitor._execution_session.close(release_owned=True)
++    with pytest.raises(LocationNotAllowed):
++        _schema_relation(outside.resources[0])._compile_and_execute_with_visitor(
++            target=target, phase=ExecutionPhase.SCHEMA)
++
++
++def test_programmatic_absolute_path_is_today(target_name, world):
++    res = DataResource(name="r", path=str(world["outside"] / "secret.csv"), format="csv")
++    pkg = DataPackage(name="pkg", resources=[res])
++    assert _collect(pkg, target_name) == [666]
+diff --git a/tests/relations/dag/test_e2e_real_descriptor.py b/tests/relations/dag/test_e2e_real_descriptor.py
+index 4e67f941..f55e01d5 100644
+--- a/tests/relations/dag/test_e2e_real_descriptor.py
++++ b/tests/relations/dag/test_e2e_real_descriptor.py
+@@ -1,20 +1,21 @@
+ """End-to-end tests: real Frictionless descriptor → DataPackage → RelationDAG → DataPackage."""
+ from __future__ import annotations
+ 
+ import json
+ from pathlib import Path
+ 
+ import polars as pl
+ import pytest
+ 
+ from mountainash.typespec.datapackage import DataPackage
++from mountainash_transport.location import LocationPolicy
+ 
+ FIXTURES = Path(__file__).parent.parent.parent / "typespec" / "fixtures"
+ 
+ 
+ def _to_eager(result: object) -> pl.DataFrame:
+     if isinstance(result, pl.LazyFrame):
+         return result.collect()
+     if isinstance(result, pl.DataFrame):
+         return result
+     raise TypeError(f"Expected pl.LazyFrame or pl.DataFrame, got {type(result)}")
+@@ -74,21 +75,21 @@ def test_descriptor_round_trip_through_dag(tmp_path: Path) -> None:
+     assert {r.name for r in pkg2.resources} == {r.name for r in pkg.resources}
+ 
+     # After dropping schemas from stub, pkg.resources have no table_schema —
+     # the round-trip should also produce no table_schema (symmetric)
+     schemas_out = {r.name: r.table_schema for r in pkg2.resources if r.table_schema}
+     assert schemas_out == {}
+ 
+ def test_descriptor_dag_preserves_lazy_reads_and_source_inheritance(tmp_path: Path) -> None:
+     raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
+ 
+-    package = DataPackage.from_descriptor(raw)
++    package = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
+     resource = package.resources[0]
+     resource.path = str(tmp_path / "deferred.csv")
+     assert all(r.sources is None for r in package.resources)
+     dag = package.to_relation_dag()
+     exported = dag.to_package()
+ 
+     # Building and packaging the DAG do not read the resource.
+     assert all(r.sources is None for r in exported.resources)
+     assert all("sources" not in r.to_descriptor() for r in exported.resources)
+ 
+@@ -160,31 +161,31 @@ def test_descriptor_round_trip_preserves_schema(tmp_path: Path) -> None:
+     assert schemas_before == schemas_after
+ 
+ 
+ def test_descriptor_collect_one_resource(tmp_path: Path) -> None:
+     """End-to-end: descriptor → DAG → collect a single resource into a DataFrame."""
+     raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
+ 
+     target_name = raw["resources"][0]["name"]
+     raw = _stub_resources(raw, tmp_path, drop_schema=True)
+ 
+-    pkg = DataPackage.from_descriptor(raw)
++    pkg = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
+     pkg = _bind_stub_paths(pkg, tmp_path)
+     dag = pkg.to_relation_dag()
+     result = dag.collect(target_name)
+     df = _to_eager(result)
+     assert df.shape[0] >= 1
+ 
+ 
+ def test_descriptor_collect_all_resources(tmp_path: Path) -> None:
+     """Collect every tabular resource from the GDP descriptor without error."""
+     raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
+     raw = _stub_resources(raw, tmp_path, drop_schema=True)
+ 
+-    pkg = DataPackage.from_descriptor(raw)
++    pkg = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
+     pkg = _bind_stub_paths(pkg, tmp_path)
+     dag = pkg.to_relation_dag()
+ 
+     for name in dag.relations:
+         result = dag.collect(name)
+         df = _to_eager(result)
+         assert df.shape[0] >= 1, f"Expected at least one row for resource {name!r}"
+diff --git a/tests/typespec/test_datapackage_resource.py b/tests/typespec/test_datapackage_resource.py
+index 2850abaf..7a564860 100644
+--- a/tests/typespec/test_datapackage_resource.py
++++ b/tests/typespec/test_datapackage_resource.py
+@@ -16,21 +16,21 @@ from mountainash.exceptions import (
+ )
+ from mountainash.typespec.datapackage import (
+     DataPackage,
+     DataResource,
+     TableDialect,
+     _copy_resource_for_package,
+ )
+ from mountainash.typespec.descriptor_context import (
+     DescriptorContext,
+     DescriptorKind,
+-    LocalDescriptorResolver,
++    DefaultDescriptorResolver,
+ )
+ from mountainash.typespec.universal_types import UniversalType
+ from mountainash.typespec.frictionless_invariants import InvariantLocation
+ from mountainash.typespec.spec import FieldDefinition, TableSchema
+ 
+ VALID_SCHEMA = {"fields": [{"name": "id", "type": "integer"}]}
+ EXTERNAL_FK_SCHEMA = {
+     "fields": [{"name": "customer_id"}],
+     "foreignKeys": [
+         {
+@@ -210,32 +210,32 @@ def test_resource_has_v2_schema_url_and_homepage() -> None:
+     )
+     assert resource.schema_url.endswith("resource-profile")
+     assert resource.homepage.endswith("/orders")
+ 
+ 
+ def test_context_does_not_change_equality() -> None:
+     left = DataResource(name="orders", path="orders.csv")
+     right = DataResource(name="orders", path="orders.csv")
+     right._descriptor_context = DescriptorContext(
+         base_uri="file:///tmp/",
+-        resolver=LocalDescriptorResolver(),
++        resolver=DefaultDescriptorResolver(),
+         package_sources=(),
+     )
+     right._package_resource_names = frozenset({"orders"})
+     assert left == right
+ 
+ 
+ def test_effective_sources_returns_a_fresh_list() -> None:
+     resource = DataResource(name="orders", path="orders.csv")
+     resource._descriptor_context = DescriptorContext(
+         base_uri=None,
+-        resolver=LocalDescriptorResolver(),
++        resolver=DefaultDescriptorResolver(),
+         package_sources=({"title": "catalog"},),
+     )
+     first = resource.effective_sources
+     first[0]["title"] = "changed"
+     assert resource.effective_sources == [{"title": "catalog"}]
+ 
+ def test_context_snapshots_nested_package_sources() -> None:
+     source = {"title": "catalog", "meta": {"tags": ["a"]}}
+     package = DataPackage(
+         sources=[source], resources=[DataResource(name="r", path="r.csv")]
+diff --git a/tests/typespec/test_descriptor_context.py b/tests/typespec/test_descriptor_context.py
+index df8f6a68..366980b2 100644
+--- a/tests/typespec/test_descriptor_context.py
++++ b/tests/typespec/test_descriptor_context.py
+@@ -1,35 +1,35 @@
+ import importlib
+ import json
+ from pathlib import Path
+ from typing import Any, Mapping
+ 
+ import pytest
+ 
+ from mountainash.exceptions import (
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorStructure,
+     MissingDescriptorBase,
+     UnsupportedDescriptorVersion,
+ )
+ from mountainash.typespec.descriptor_context import (
+     DescriptorKind,
+-    LocalDescriptorResolver,
+-    StorageDescriptorResolver,
++    DefaultDescriptorResolver,
+     build_descriptor_context,
+     descriptor_cache_key,
+     normalize_base_uri,
+     normalize_document_uri,
+ )
+ 
++from mountainash_transport.location import LocationNotAllowed, LocationPolicy
++
+ from mountainash.typespec.frictionless_invariants import InvariantLocation
+ from mountainash.typespec.frictionless_resolution import (
+     resolve_descriptor_mapping,
+     validate_resolved_kind,
+ )
+ 
+ 
+ def test_normalize_absolute_directory_path(tmp_path: Path) -> None:
+     assert normalize_base_uri(tmp_path) == tmp_path.resolve().as_uri() + "/"
+ 
+@@ -80,21 +80,21 @@ def test_malformed_base_uri_is_typed_with_cause() -> None:
+ 
+ def test_malformed_document_uri_is_typed_with_cause() -> None:
+     with pytest.raises(DescriptorReferenceInvalid) as caught:
+         normalize_document_uri("https://[bad", base_uri=None)
+     assert isinstance(caught.value.__cause__, ValueError)
+ 
+ 
+ def test_local_resolver_normalizes_path_and_file_uri(tmp_path: Path) -> None:
+     path = tmp_path / "schema.json"
+     path.write_text(json.dumps({"fields": []}), encoding="utf-8")
+-    resolver = LocalDescriptorResolver()
++    resolver = DefaultDescriptorResolver()
+     from_path = resolver.resolve(
+         str(path), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     )
+     from_uri = resolver.resolve(
+         path.as_uri(), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     )
+     assert from_path == from_uri == {"fields": []}
+ 
+ 
+ def test_validate_resolved_kind_uses_source_location() -> None:
+@@ -146,132 +146,135 @@ def test_resolve_referenced_document_reports_v1_marker_at_root(
+             context=context,
+             expected_kind=DescriptorKind.SCHEMA,
+             location=InvariantLocation("$.resources[0].schema", "orders"),
+         )
+     assert caught.value.descriptor_path == "$.$schema"
+     assert caught.value.reference == "schema.json"
+ 
+ 
+ def test_relative_reference_requires_base() -> None:
+     with pytest.raises(MissingDescriptorBase):
+-        LocalDescriptorResolver().resolve(
++        DefaultDescriptorResolver().resolve(
+             "schema.json", base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+ 
+ 
+ @pytest.mark.parametrize(
+     "reference",
+     [
+         "http://example.com/schema.json",
+         "https://example.com/schema.json",
+         "s3://bucket/schema.json",
+         "gs://bucket/schema.json",
+         "ftp://example.com/schema.json",
+         "memory://bucket/schema.json",
+         "custom+scheme://example.com/schema.json",
+     ],
+ )
+ def test_default_resolver_denies_remote_scheme(reference: str) -> None:
+-    with pytest.raises(DescriptorReferenceSchemeDenied):
+-        LocalDescriptorResolver().resolve(
++    with pytest.raises(LocationNotAllowed):
++        DefaultDescriptorResolver().resolve(
+             reference, base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+ 
+ 
+ def test_local_resolver_missing_file_preserves_cause(tmp_path: Path) -> None:
+     reference = tmp_path / "missing.json"
+     with pytest.raises(DescriptorReferenceNotFound) as caught:
+-        LocalDescriptorResolver().resolve(
++        DefaultDescriptorResolver().resolve(
+             str(reference), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+     assert isinstance(caught.value.__cause__, FileNotFoundError)
+ 
+ 
+ def test_local_resolver_malformed_json_preserves_cause(tmp_path: Path) -> None:
+     reference = tmp_path / "malformed.json"
+     reference.write_text("{not json", encoding="utf-8")
+     with pytest.raises(DescriptorReferenceInvalid) as caught:
+-        LocalDescriptorResolver().resolve(
++        DefaultDescriptorResolver().resolve(
+             str(reference), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+     assert isinstance(caught.value.__cause__, json.JSONDecodeError)
+ 
+ 
+ @pytest.mark.parametrize("suffix", ["?version=1", "#schema"])
+ def test_local_resolver_rejects_query_or_fragment(suffix: str, tmp_path: Path) -> None:
+     reference = f"{(tmp_path / 'schema.json').as_uri()}{suffix}"
+     with pytest.raises(DescriptorReferenceInvalid):
+-        LocalDescriptorResolver().resolve(
++        DefaultDescriptorResolver().resolve(
+             reference, base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+ 
+ 
+ def test_local_resolver_rejects_non_mapping_root(tmp_path: Path) -> None:
+     reference = tmp_path / "list.json"
+     reference.write_text("[]", encoding="utf-8")
+     with pytest.raises(DescriptorReferenceInvalid) as caught:
+-        LocalDescriptorResolver().resolve(
++        DefaultDescriptorResolver().resolve(
+             str(reference), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+         )
+     assert caught.value.__cause__ is None
+ 
+ 
+ def test_storage_resolver_reads_allowed_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
+     calls: list[str] = []
+ 
+-    def read_bytes(reference: str) -> bytes:
++    def read_bytes(reference: str, policy: object = None) -> bytes:
+         calls.append(reference)
+         return b'{"fields": []}'
+ 
+     module = importlib.import_module("mountainash.typespec.descriptor_context")
+     monkeypatch.setattr(module, "facade_read_bytes", read_bytes)
+-    result = StorageDescriptorResolver(allowed_schemes={"HTTPS"}).resolve(
++    result = DefaultDescriptorResolver().resolve(
+         "https://EXAMPLE.com:443/a/../schema.json?profile=v2",
+         base_uri=None,
+         expected_kind=DescriptorKind.SCHEMA,
++        policy=LocationPolicy(allowed_remote={"https": frozenset()}),
+     )
+     assert result == {"fields": []}
+     assert calls == ["https://example.com/schema.json?profile=v2"]
+ 
+ def test_storage_resolver_denies_unlisted_scheme() -> None:
+-    with pytest.raises(DescriptorReferenceSchemeDenied):
+-        StorageDescriptorResolver(allowed_schemes={"https"}).resolve(
++    with pytest.raises(LocationNotAllowed):
++        DefaultDescriptorResolver().resolve(
+             "s3://bucket/schema.json",
+             base_uri=None,
+             expected_kind=DescriptorKind.SCHEMA,
++            policy=LocationPolicy(allowed_remote={"https": frozenset()}),
+         )
+ 
+ 
+ def test_equivalent_local_forms_share_cache_key(tmp_path: Path) -> None:
+     path = tmp_path / "schema.json"
+     assert descriptor_cache_key(
+         str(path), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     ) == descriptor_cache_key(
+         path.as_uri(), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     )
+ 
+ 
+ def test_storage_resolver_translates_transport_missing_object(
+     monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+     transport_errors = pytest.importorskip("mountainash_transport._core.exceptions")
+ 
+-    def read_bytes(reference: str) -> bytes:
++    def read_bytes(reference: str, policy: object = None) -> bytes:
+         raise transport_errors.PathNotFoundError(reference)
+ 
+     module = importlib.import_module("mountainash.typespec.descriptor_context")
+     monkeypatch.setattr(module, "facade_read_bytes", read_bytes)
+     with pytest.raises(DescriptorReferenceNotFound) as caught:
+-        StorageDescriptorResolver(allowed_schemes={"https"}).resolve(
++        DefaultDescriptorResolver().resolve(
+             "https://example.com/missing.json",
+             base_uri=None,
+             expected_kind=DescriptorKind.SCHEMA,
++            policy=LocationPolicy(allowed_remote={"https": frozenset()}),
+         )
+     assert isinstance(caught.value.__cause__, transport_errors.PathNotFoundError)
+ 
+ 
+ def test_expected_kind_is_part_of_cache_key(tmp_path: Path) -> None:
+     path = tmp_path / "descriptor.json"
+     schema_key = descriptor_cache_key(
+         str(path), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     )
+     dialect_key = descriptor_cache_key(
+@@ -279,21 +282,21 @@ def test_expected_kind_is_part_of_cache_key(tmp_path: Path) -> None:
+     )
+     assert schema_key != dialect_key
+ 
+ 
+ def test_caching_resolver_delegates_equivalent_references_once(tmp_path: Path) -> None:
+     path = tmp_path / "schema.json"
+     path.write_text('{"fields": []}', encoding="utf-8")
+ 
+     class CachingResolver:
+         def __init__(self) -> None:
+-            self.inner = LocalDescriptorResolver()
++            self.inner = DefaultDescriptorResolver()
+             self.cache: dict[tuple[str, DescriptorKind], Mapping[str, Any]] = {}
+             self.reads = 0
+ 
+         def resolve(
+             self,
+             reference: str,
+             *,
+             base_uri: str | None,
+             expected_kind: DescriptorKind,
+         ) -> Mapping[str, Any]:
+@@ -311,18 +314,18 @@ def test_caching_resolver_delegates_equivalent_references_once(tmp_path: Path) -
+     assert resolver.resolve(
+         str(path), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     ) == resolver.resolve(
+         path.as_uri(), base_uri=None, expected_kind=DescriptorKind.SCHEMA
+     )
+     assert resolver.reads == 1
+ 
+ 
+ def test_build_descriptor_context_defaults_and_freezes_sources() -> None:
+     sources = [{"name": "catalog", "meta": {"tags": ["a"]}}]
+-    resolver = LocalDescriptorResolver()
++    resolver = DefaultDescriptorResolver()
+     context = build_descriptor_context(
+         base_uri=None, resolver=resolver, package_sources=sources
+     )
+     sources.append({"name": "later"})
+     sources[0]["meta"]["tags"].append("changed")
+     assert context.resolver is resolver
+     assert context.package_sources == ({"name": "catalog", "meta": {"tags": ["a"]}},)
+diff --git a/tests/typespec/test_descriptor_errors.py b/tests/typespec/test_descriptor_errors.py
+index 5147f6ed..9cbbd35f 100644
+--- a/tests/typespec/test_descriptor_errors.py
++++ b/tests/typespec/test_descriptor_errors.py
+@@ -1,34 +1,32 @@
+ from mountainash import MountainashError
+ from mountainash.exceptions import (
+     DescriptorError,
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorRelationship,
+     InvalidDescriptorStructure,
+     InvalidDescriptorSyntax,
+     MissingDescriptorBase,
+     UnsupportedDescriptorVersion,
+     UnsupportedResourceDialect,
+ )
+ 
+ 
+ def test_descriptor_errors_are_public_and_typed() -> None:
+     assert issubclass(DescriptorError, MountainashError)
+     assert issubclass(InvalidDescriptorSyntax, ValueError)
+     assert issubclass(InvalidDescriptorStructure, ValueError)
+     assert issubclass(UnsupportedDescriptorVersion, ValueError)
+     assert issubclass(MissingDescriptorBase, ValueError)
+     assert issubclass(DescriptorReferenceNotFound, FileNotFoundError)
+     assert issubclass(DescriptorReferenceInvalid, ValueError)
+-    assert issubclass(DescriptorReferenceSchemeDenied, PermissionError)
+     assert issubclass(InvalidDescriptorRelationship, ValueError)
+     assert issubclass(UnsupportedResourceDialect, ValueError)
+ 
+ 
+ def test_descriptor_error_exposes_stable_context() -> None:
+     error = DescriptorReferenceInvalid(
+         "resolved schema is invalid",
+         descriptor_kind="resource",
+         descriptor_path="$.resources[0].schema",
+         resource_name="orders",
+diff --git a/tests/typespec/test_descriptor_reference_policy.py b/tests/typespec/test_descriptor_reference_policy.py
+new file mode 100644
+index 00000000..98fa25d8
+--- /dev/null
++++ b/tests/typespec/test_descriptor_reference_policy.py
+@@ -0,0 +1,78 @@
++# tests/typespec/test_descriptor_reference_policy.py
++import json, threading
++from functools import partial
++from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
++import pytest
++import mountainash as ma
++from mountainash_transport.location import LocationNotAllowed, LocationPolicy
++
++SCHEMA = {"fields": [{"name": "v", "type": "integer"}]}
++
++@pytest.fixture
++def layout(tmp_path):
++    root = tmp_path / "root"; out = tmp_path / "out"; root.mkdir(); out.mkdir()
++    (root / "schema.json").write_text(json.dumps(SCHEMA)); (out / "schema.json").write_text(json.dumps(SCHEMA))
++    hits = {"n": 0}
++    class H(SimpleHTTPRequestHandler):
++        def do_GET(self):
++            hits["n"] += 1; super().do_GET()
++        def log_message(self, *a): pass
++    s = ThreadingHTTPServer(("127.0.0.1", 0), partial(H, directory=str(out)))
++    threading.Thread(target=s.serve_forever, daemon=True).start()
++    yield root, out, s.server_address[1], hits
++    s.shutdown()
++
++def _pkg(root, schema_ref, **kw):
++    p = root / "datapackage.json"
++    p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": "a.csv", "schema": schema_ref}]}))
++    return ma.DataPackage.from_path(p, **kw)
++
++def test_in_root_reference_resolves(layout):
++    root, *_ = layout
++    assert _pkg(root, "schema.json").resources[0].to_table_schema()
++
++def test_absolute_outside_reference_rejected(layout):
++    root, out, *_ = layout
++    with pytest.raises(LocationNotAllowed):
++        _pkg(root, str(out / "schema.json")).resources[0].to_table_schema()
++
++def test_remote_reference_needs_allow_list(layout):
++    root, _, port, hits = layout
++    url = f"http://127.0.0.1:{port}/schema.json"
++    with pytest.raises(LocationNotAllowed):
++        _pkg(root, url).resources[0].to_table_schema()
++    assert hits["n"] == 0
++    pol = LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})})
++    assert _pkg(root, url, policy=pol).resources[0].to_table_schema()
++
++def test_remote_base_relative_reference_needs_allow_list(layout, monkeypatch):
++    root, _, port, hits = layout
++    monkeypatch.chdir(root)
++    raw = {"name": "p", "resources": [{"name": "r", "path": "a.csv", "schema": "schema.json"}]}
++    pkg = ma.DataPackage.from_descriptor(raw, base_uri=f"http://127.0.0.1:{port}/")
++    with pytest.raises(LocationNotAllowed):
++        pkg.resources[0].to_table_schema()
++    assert hits["n"] == 0
++
++def test_dotdot_reference_escaping_root_rejected(layout):
++    root, *_ = layout
++    with pytest.raises(LocationNotAllowed):          # spec: a valid reference that escapes the root
++        _pkg(root, "../out/schema.json").resources[0].to_table_schema()
++
++def test_dialect_reference_obeys_policy(layout):
++    root, out, port, hits = layout
++    (root / "dialect.json").write_text(json.dumps({"delimiter": ";"})); (out / "dialect.json").write_text(json.dumps({"delimiter": ";"}))
++    def pkg(ref):
++        p = root / "datapackage.json"
++        p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": "a.csv", "dialect": ref}]}))
++        return ma.DataPackage.from_path(p)
++    assert pkg("dialect.json").resources[0].to_dialect()
++    with pytest.raises(LocationNotAllowed): pkg(str(out / "dialect.json")).resources[0].to_dialect()
++    with pytest.raises(LocationNotAllowed): pkg(f"http://127.0.0.1:{port}/dialect.json").resources[0].to_dialect()
++    assert hits["n"] == 0
++
++
++def test_unknown_scheme_reference_rejected(layout):
++    root, *_ = layout
++    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
++        _pkg(root, "hf://host/schema.json").resources[0].to_table_schema()
+diff --git a/tests/typespec/test_f113_12_construction_parity.py b/tests/typespec/test_f113_12_construction_parity.py
+index 7bf39ab3..c57c30dc 100644
+--- a/tests/typespec/test_f113_12_construction_parity.py
++++ b/tests/typespec/test_f113_12_construction_parity.py
+@@ -1,25 +1,25 @@
+ from __future__ import annotations
+ 
+ import json
+ from collections.abc import Callable
+ from copy import deepcopy
+ from pathlib import Path
+ from typing import Any
+ 
+ import polars as pl
+ import pytest
++from mountainash_transport.location import LocationNotAllowed
+ 
+ from mountainash.exceptions import (
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+-    DescriptorReferenceSchemeDenied,
+     InvalidDescriptorRelationship,
+     InvalidDescriptorStructure,
+     InvalidDescriptorSyntax,
+     MissingDescriptorBase,
+     UnsupportedDescriptorVersion,
+ )
+ from mountainash.typespec.datapackage import DataPackage, DataResource
+ from mountainash.typespec.spec import FieldDefinition, ForeignKey, ForeignKeyReference, TableSchema
+ from mountainash.typespec.universal_types import UniversalType
+ 
+@@ -398,34 +398,22 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
+     denied = DataPackage(
+         resources=[
+             DataResource(
+                 name="child",
+                 path="child.csv",
+                 type="table",
+                 table_schema=denied_reference,
+             )
+         ]
+     )
+-    with pytest.raises(DescriptorReferenceSchemeDenied) as denied_caught:
++    with pytest.raises(LocationNotAllowed):
+         denied.resources[0].to_table_schema()
+-    _assert_error_fields(
+-        denied_caught,
+-        error_type=DescriptorReferenceSchemeDenied,
+-        descriptor_kind="schema",
+-        descriptor_path="$.resources[0].schema",
+-        resource_name="child",
+-        reference=denied_reference,
+-        normalized_reference=denied_reference,
+-        expected_kind="schema",
+-        rejected_value=denied_reference,
+-        required_form="approved descriptor reference scheme",
+-    )
+ 
+ 
+ 
+ def test_context_ownership_and_preserve_serialization_are_entrypoint_invariants(tmp_path: Path) -> None:
+     for construct in PACKAGE_ENTRYPOINTS:
+         input_raw = deepcopy(VALID_CHILD_PARENT_PACKAGE)
+         package = construct(input_raw)
+         expected_sources = deepcopy(input_raw["sources"])
+         input_raw["sources"][0]["meta"]["owners"].append("mutated")
+         assert package.resources[0].effective_sources == expected_sources
+diff --git a/tests/typespec/test_location_policy_context.py b/tests/typespec/test_location_policy_context.py
+new file mode 100644
+index 00000000..18a0606a
+--- /dev/null
++++ b/tests/typespec/test_location_policy_context.py
+@@ -0,0 +1,113 @@
++import json, os
++import pytest
++import mountainash as ma
++from mountainash.core.location import resolve_resource_location, resource_policy
++from mountainash_transport.location import LocationPolicy
++
++
++def _pkg(root, path):
++    p = root / "datapackage.json"
++    p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": path}]}))
++    return p
++
++
++def test_from_path_roots_at_descriptor_dir(tmp_path):
++    pkg = ma.DataPackage.from_path(_pkg(tmp_path, "a.csv"))
++    assert os.path.realpath(resource_policy(pkg.resources[0]).root) == os.path.realpath(tmp_path)
++
++
++def test_allow_list_only_policy_keeps_descriptor_root(tmp_path):
++    pkg = ma.DataPackage.from_path(_pkg(tmp_path, "a.csv"), policy=LocationPolicy(allowed_remote={"https": frozenset()}))
++    pol = resource_policy(pkg.resources[0])
++    assert os.path.realpath(pol.root) == os.path.realpath(tmp_path) and pol.allowed_remote
++
++
++def test_from_json_without_base_roots_at_load_time_cwd(tmp_path, monkeypatch):
++    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
++    monkeypatch.chdir(a)
++    pkg = ma.DataPackage.from_json(json.dumps({"name": "p", "resources": [{"name": "r", "path": "x.csv"}]}))
++    monkeypatch.chdir(b)  # a later chdir must not move the root or base
++    assert os.path.realpath(resource_policy(pkg.resources[0]).root) == os.path.realpath(a)
++    assert resolve_resource_location(pkg.resources[0], "x.csv") == os.path.join(os.path.realpath(a), "x.csv")
++
++
++@pytest.mark.parametrize("base", ["https://host.example/pkg/", "s3://bucket/pkg/"])
++def test_remote_base_grants_no_permission_and_roots_at_cwd(tmp_path, monkeypatch, base):
++    monkeypatch.chdir(tmp_path)
++    pkg = ma.DataPackage.from_json(json.dumps({"name": "p", "resources": [{"name": "r", "path": "d/a.csv"}]}),
++                                   base_uri=base)
++    pol = resource_policy(pkg.resources[0])
++    assert pol.allowed_remote == {} and os.path.realpath(pol.root) == os.path.realpath(tmp_path)
++    assert resolve_resource_location(pkg.resources[0], "d/a.csv") == base + "d/a.csv"
++
++
++def test_bare_path_joined_literally(tmp_path):
++    pkg = ma.DataPackage.from_path(_pkg(tmp_path, "report%20a.csv"))
++    assert resolve_resource_location(pkg.resources[0], "report%20a.csv").endswith("report%20a.csv")
++
++
++def test_programmatic_package_has_no_policy():
++    pkg = ma.DataPackage(name="p", resources=[{"name": "r", "path": "/abs/a.csv"}])
++    assert resource_policy(pkg.resources[0]) is None
++    assert resolve_resource_location(pkg.resources[0], "rel.csv") == "rel.csv"
++
++
++def test_opt_out_is_inactive(tmp_path):
++    pkg = ma.DataPackage.from_path(_pkg(tmp_path, "a.csv"), policy=LocationPolicy(allow_unconfined=True))
++    assert resource_policy(pkg.resources[0]) is None
++
++
++@pytest.mark.parametrize("op", ["model_copy", "resource_validate", "package_validate"])
++def test_policy_survives_copy_and_revalidation(tmp_path, op):
++    pkg = ma.DataPackage.from_path(_pkg(tmp_path, "a.csv"))
++    original = resource_policy(pkg.resources[0])
++    r = pkg.resources[0]
++    if op == "model_copy": r = r.model_copy(update={"name": "r2"})
++    if op == "resource_validate": r = type(r).model_validate(r)
++    if op == "package_validate": r = type(pkg).model_validate(pkg).resources[0]
++    assert resource_policy(r) == original and resource_policy(r).root is not None
++
++
++def test_opt_out_still_resolves_relative_to_descriptor(tmp_path, monkeypatch):
++    d = tmp_path / "desc"; d.mkdir(); monkeypatch.chdir(tmp_path)
++    pkg = ma.DataPackage.from_path(_pkg(d, "a.csv"), policy=LocationPolicy(allow_unconfined=True))
++    assert resolve_resource_location(pkg.resources[0], "a.csv") == os.path.join(os.path.realpath(d), "a.csv")
++
++
++def test_opt_out_without_base_resolves_against_cwd_root(tmp_path, monkeypatch):
++    monkeypatch.chdir(tmp_path)
++    pkg = ma.DataPackage.from_json(json.dumps({"name": "p", "resources": [{"name": "r", "path": "x.csv"}]}),
++                                   policy=LocationPolicy(allow_unconfined=True))
++    assert resolve_resource_location(pkg.resources[0], "x.csv") == os.path.join(os.path.realpath(tmp_path), "x.csv")
++
++
++def test_descriptor_round_trip_unchanged(tmp_path):
++    p = _pkg(tmp_path, "report%20a.csv")
++    assert ma.DataPackage.from_path(p).to_descriptor()["resources"][0]["path"] == "report%20a.csv"
++
++
++def test_datacontract_loader_roots_at_source_parent(tmp_path, monkeypatch):
++    from mountainash.typespec.datapackage import DataPackage
++    seen = []
++    orig = DataPackage.from_descriptor.__func__
++
++    def spy(cls, raw, **kw):
++        pkg = orig(cls, raw, **kw)
++        seen.append(pkg.resources[0])
++        return pkg
++
++    monkeypatch.setattr(DataPackage, "from_descriptor", classmethod(spy))
++    schema = tmp_path / "s.json"
++    schema.write_text(json.dumps({"fields": [{"name": "a", "type": "integer"}]}))
++    ma.datacontract(schema)
++    assert os.path.realpath(resource_policy(seen[0]).root) == os.path.realpath(tmp_path)
++
++
++@pytest.mark.parametrize("base", ["https://[bad", "file://evilhost/tmp/"])
++@pytest.mark.parametrize("loader", ["from_descriptor", "from_json"])
++def test_malformed_base_keeps_descriptor_error(base, loader):
++    from mountainash.typespec.errors import InvalidDescriptorStructure
++    doc = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
++    arg = doc if loader == "from_descriptor" else json.dumps(doc)
++    with pytest.raises(InvalidDescriptorStructure):
++        getattr(ma.DataPackage, loader)(arg, base_uri=base)

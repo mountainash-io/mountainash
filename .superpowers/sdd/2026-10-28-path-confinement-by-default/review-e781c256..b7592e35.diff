@@ -1,0 +1,73 @@
+# Review package: e781c256..HEAD
+
+## Commits
+b7592e35 fix(381): second-round confinement residuals (R1-R3)
+
+## Files changed
+ src/mountainash/typespec/descriptor_context.py |  2 +-
+ tests/typespec/test_location_policy_context.py | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/src/mountainash/typespec/descriptor_context.py b/src/mountainash/typespec/descriptor_context.py
+index df37b099..7e72c844 100644
+--- a/src/mountainash/typespec/descriptor_context.py
++++ b/src/mountainash/typespec/descriptor_context.py
+@@ -401,21 +401,21 @@ def loader_policy(
+     declared = os.getcwd()
+     if normalized is not None and urlsplit(normalized).scheme == "file":
+         declared = local_path(normalized)
+     effective = policy or LocationPolicy()
+     root = effective.root
+     if (
+         root is not None
+         and not os.path.isabs(root)
+         and identify_scheme(os.fspath(root)) == ""
+     ):
+-        effective = replace(effective, root=os.path.abspath(root))  # anchor once at load time
++        effective = replace(effective, root=os.path.join(os.getcwd(), root))  # anchor once; no `..` collapse
+     return effective.with_declared_root(declared)
+ 
+ 
+ __all__ = [
+     "DescriptorKind",
+     "DescriptorResolver",
+     "DescriptorContext",
+     "build_descriptor_context",
+     "loader_policy",
+     "normalize_base_uri",
+diff --git a/tests/typespec/test_location_policy_context.py b/tests/typespec/test_location_policy_context.py
+index 76e6a240..e4f6d8e9 100644
+--- a/tests/typespec/test_location_policy_context.py
++++ b/tests/typespec/test_location_policy_context.py
+@@ -116,10 +116,30 @@ def test_malformed_base_keeps_descriptor_error(base, loader):
+ def test_relative_explicit_root_without_base_anchored_once(tmp_path, monkeypatch):
+     from mountainash.core.resource_ref import ResourceRef
+ 
+     (tmp_path / "data" / "data").mkdir(parents=True)
+     (tmp_path / "data" / "a.csv").write_bytes(b"right")
+     (tmp_path / "data" / "data" / "a.csv").write_bytes(b"wrong")
+     monkeypatch.chdir(tmp_path)
+     descriptor = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
+     pkg = ma.DataPackage.from_json(json.dumps(descriptor), policy=LocationPolicy(root="data"))
+     assert ResourceRef(pkg.resources[0]).read_bytes() == b"right"
++
++
++def test_relative_root_with_symlink_dotdot_not_collapsed(tmp_path, monkeypatch):
++    from mountainash.core.resource_ref import ResourceRef
++
++    safe = tmp_path / "safe"; (safe / "sub").mkdir(parents=True)
++    cwd = tmp_path / "cwd"; cwd.mkdir()
++    (cwd / "link").symlink_to(safe / "sub")
++    (safe / "a.csv").write_bytes(b"ok")
++    (cwd / "x.csv").write_bytes(b"no")
++    monkeypatch.chdir(cwd)
++
++    def load(base, path):
++        d = {"name": "p", "resources": [{"name": "r", "path": path}]}
++        pkg = ma.DataPackage.from_json(json.dumps(d), base_uri=base, policy=LocationPolicy(root="link/.."))
++        return ResourceRef(pkg.resources[0]).read_bytes()
++
++    assert load(safe.as_uri() + "/", "a.csv") == b"ok"
++    with pytest.raises(Exception):
++        load(cwd.as_uri() + "/", "x.csv")

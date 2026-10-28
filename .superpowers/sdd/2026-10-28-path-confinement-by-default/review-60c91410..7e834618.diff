@@ -1,0 +1,37 @@
+# Review package: 60c91410..HEAD
+
+## Commits
+7e834618 test(resources): allow-any-http uses empty host set (381)
+
+## Files changed
+ tests/relations/dag/cross_backend/test_location_policy_reads.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+## Diff
+diff --git a/tests/relations/dag/cross_backend/test_location_policy_reads.py b/tests/relations/dag/cross_backend/test_location_policy_reads.py
+index 4eef135e..f4086af5 100644
+--- a/tests/relations/dag/cross_backend/test_location_policy_reads.py
++++ b/tests/relations/dag/cross_backend/test_location_policy_reads.py
+@@ -102,21 +102,21 @@ def _load_path(directory, descriptor, policy=None):
+     return DataPackage.from_path(directory / "datapackage.json", policy=policy)
+ 
+ 
+ def _collect(pkg, name):
+     return _values(pkg.to_relation_dag().collect("r", target=_target(name)))
+ 
+ 
+ POLICIES = {
+     None: None,
+     "allow-127": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
+-    "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
++    "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset()}),
+     "unconfined": lambda: LocationPolicy(allow_unconfined=True),
+ }
+ 
+ CASES = [
+     ("in_root_glob_named_root", "data/a.csv", None, [99]),
+     ("absolute_outside", "{outside}/secret.csv", None, "reject"),
+     ("symlink_escape", "data/link.csv", None, "reject"),
+     ("dir_with_escaping_entry", "badtree", None, "reject"),
+     ("remote_no_allow", "http://127.0.0.1:{port}/secret.csv", None, "reject"),
+     ("remote_allowed", "http://127.0.0.1:{port}/secret.csv", "allow-127", [666]),

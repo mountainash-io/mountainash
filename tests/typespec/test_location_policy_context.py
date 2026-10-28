@@ -143,3 +143,47 @@ def test_relative_root_with_symlink_dotdot_not_collapsed(tmp_path, monkeypatch):
     assert load(safe.as_uri() + "/", "a.csv") == b"ok"
     with pytest.raises(Exception):
         load(cwd.as_uri() + "/", "x.csv")
+
+
+_BAD_SECRET = "https://user:secret@exam\uff0fple.com/x"
+
+
+def _bad_resource():
+    d = {"name": "p", "resources": [{"name": "r", "path": _BAD_SECRET, "format": "csv"}]}
+    return ma.DataPackage.from_json(json.dumps(d)).resources[0]
+
+
+def _assert_sanitized(e):
+    from mountainash_transport.location import LocationNotAllowed
+    assert isinstance(e.value, LocationNotAllowed)
+    assert "secret" not in str(e.value)
+    assert e.value.__cause__ is None and e.value.__context__ is None
+
+
+def test_loaded_malformed_credential_path_read_bytes_sanitized():
+    from mountainash.core.resource_ref import ResourceRef
+    from mountainash_transport.location import LocationNotAllowed
+    with pytest.raises(LocationNotAllowed) as e:
+        ResourceRef(_bad_resource()).read_bytes()
+    _assert_sanitized(e)
+
+
+@pytest.mark.parametrize("target", ["polars", "ibis"])
+def test_loaded_malformed_credential_path_collect_sanitized(target):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash_transport.location import LocationNotAllowed
+    rel = Relation(ResourceReadRelNode(resource=_bad_resource()))
+    with pytest.raises(LocationNotAllowed) as e:
+        rel.collect(target=target)
+    _assert_sanitized(e)
+
+
+def test_programmatic_malformed_path_keeps_value_error():
+    from mountainash.core.resource_ref import ResourceRef
+    from mountainash.typespec.datapackage import DataResource
+    from mountainash_transport.location import LocationNotAllowed
+    res = DataResource(name="r", path=_BAD_SECRET, format="csv")
+    with pytest.raises(ValueError) as e:
+        ResourceRef(res).read_bytes()
+    assert not isinstance(e.value, LocationNotAllowed)

@@ -1,0 +1,188 @@
+# Review package: f1e42a23..HEAD
+
+## Commits
+a87bb6ec test,docs: migrate unconfined fixtures; document LocationPolicy (381)
+
+## Files changed
+ CHANGELOG.md                                   | 15 ++++++++
+ docs/reference/datapackage.md                  | 47 ++++++++++++++++++++++++++
+ docs/reference/resource-read-support-matrix.md | 26 ++++++++++++--
+ 3 files changed, 86 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index a7a1fa37..f1d4ea37 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,12 +1,27 @@
+ # Changelog
+ 
++## Unreleased — 2026-10-28 (path and URL confinement by default, backlog 381)
++
++### Breaking
++- Descriptor loaders (`DataPackage.from_path`/`from_json`/`from_descriptor`, `datacontract`) confine locations by default. Relative resource paths resolve beside the descriptor (or against `base_uri` / the working directory), matching Frictionless. Absolute or remote resource paths and references need `policy=LocationPolicy(...)` (an `allowed_remote` allow-list, a different `root`, or `allow_unconfined=True` to opt out). Packages and resources built in code stay unconfined.
++- `mountainash-transport` is now a required dependency; the `storage` extra is removed. The `ibis` extra now includes `mountainash-files` (policy-confined Ibis reads that are not on the native allow-list use the files fallback).
++- `StorageDescriptorResolver(allowed_schemes=...)` and `DescriptorReferenceSchemeDenied` are removed. Use `LocationPolicy(allowed_remote=...)`; violations raise `LocationNotAllowed`. The local and storage resolvers are merged into `DefaultDescriptorResolver`.
++- Under a policy, an Ibis directory read is native only on DuckDB for paths without `[`, `*`, `?`; other Ibis directory reads raise `LocationNotAllowed` (use a glob). The existing Ibis `SCHEMA` directory limitation is unchanged.
++
++### Added
++- `DescriptorContext.policy` and `policy=` on every descriptor loader. Policy and root survive `DataResource.model_copy` and `model_validate` of bound resources and packages.
++- `ResourceRef.read_bytes`, schema and dialect references, native Polars/Narwhals/Ibis reads and the files fallback all obey the policy; native reads open the confined effective path literally (no glob expansion).
++
++### Fixed
++- A relative resource path in a loaded descriptor no longer resolves against the process working directory.
++
+ ## Unreleased — 2026-10-28 (location-centred transfer, backlog 248 C1 / 9 WI1+WI4)
+ 
+ ### Breaking
+ - `backend=` on `collect`, `collect_with_drift` and `RelationDAG.collect`/`collect_with_drift`/`execute` is replaced by `target=`; `from_arrow(table, connection=...)` becomes `from_arrow(table, target=...)`. `RelationDAG.validate`/`validate_quick` keep `backend=`.
+ 
+ ### Added
+ - `target=` accepts a family (`"polars"`, `"narwhals"`, `"ibis"`), a dialect identifier (`"narwhals-pandas"`, `"narwhals-lazy"`, `"ibis-duckdb"`, ...) or an Ibis connection; a collect can now land on a specific connection.
+ - `RKEY_MOUNTAINASH_REL.IMPORT_INTO` capability declarations: SQLite and lazy-only Narwhals import limits enrich `UnsupportedRelationTransportError.limitation`; MySQL/SingleStoreDB/Exasol owned-copy adoption is declared blocked.
+ - Ibis-Polars owned ingress imports Arrow in-process.
+ 
+diff --git a/docs/reference/datapackage.md b/docs/reference/datapackage.md
+index 0f8580bf..8fbfe1ab 100644
+--- a/docs/reference/datapackage.md
++++ b/docs/reference/datapackage.md
+@@ -51,20 +51,67 @@ explicit path input and the replacement for path-overloaded `from_descriptor()`
+ ```python
+ from mountainash import DataPackage
+ 
+ package = DataPackage.from_path("datapackage.json")
+ resource = package.resources[0]
+ ```
+ 
+ The package must contain at least one resource. Resource names are unique, and each
+ resource declares exactly one of `path` or `data`.
+ 
++## Location policy
++
++Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
++every resource, schema and dialect location by default. They accept `policy=`, a
++`mountainash_transport.location.LocationPolicy`.
++
++| Loader call | Root when `policy` has none |
++|---|---|
++| `from_path(path)` | the descriptor directory |
++| `from_json` / `from_descriptor` with a local `base_uri` | that directory |
++| the same with a remote `base_uri`, or no `base_uri` | the working directory at load time |
++| `datacontract(source)` | the source file's parent directory |
++| `DataPackage(...)` / `DataResource(...)` built in code | none (unconfined) |
++
++- Relative resource paths resolve beside the descriptor (or against `base_uri` / the
++  working directory), matching Frictionless. A remote `base_uri` joins relative paths but
++  grants no permission to fetch from its host.
++- Absolute local paths, symlinks leaving the root, and `file://` URIs outside the root raise
++  `LocationNotAllowed` at read time, including paths assigned after load. `..` and hidden
++  segments are still rejected at decode time with the existing error.
++- Remote resources and references (`http(s)`, `s3`, ...) need
++  `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
++  allows any host for that scheme. Unknown schemes are rejected.
++- `LocationPolicy(root=...)` replaces the declared root; `allowed_remote` alone keeps it.
++  `LocationPolicy(allow_unconfined=True)` is the single opt-out.
++- `model_copy`, `DataResource.model_validate(bound)` and `DataPackage.model_validate(bound)`
++  keep the context and its policy. `to_package()` exports build a new package in code and
++  are rootless.
++- Reads are confined on Polars, Narwhals and Ibis alike; the descriptor round-trip is
++  unchanged because the policy is a private, non-serialized context field.
++
++```python
++from mountainash import DataPackage
++from mountainash_transport.location import LocationPolicy
++
++package = DataPackage.from_path("pkg/datapackage.json")  # confined to pkg/
++open_pkg = DataPackage.from_path(
++    "pkg/datapackage.json", policy=LocationPolicy(allow_unconfined=True)
++)
++```
++
++Not covered: a writer who can change the filesystem inside the root between check and open,
++DNS rebinding, custom `DescriptorResolver` code, and endpoints named by profiles you
++supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed` unless
++the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
++see the [resource-read support matrix](resource-read-support-matrix.md).
++
+ ## Outputs and ownership
+ 
+ The default writer is preserve mode:
+ 
+ ```python
+ preserved = package.to_descriptor()
+ ```
+ 
+ `to_descriptor()` returns a fresh, independently owned output graph. It keeps authored
+ schema and dialect mappings or reference strings, extension values, profile identities,
+diff --git a/docs/reference/resource-read-support-matrix.md b/docs/reference/resource-read-support-matrix.md
+index c0d323f1..9e3c880c 100644
+--- a/docs/reference/resource-read-support-matrix.md
++++ b/docs/reference/resource-read-support-matrix.md
+@@ -18,20 +18,41 @@ they are not registry-distributed requirements.
+ | local CSV/Parquet, default dialect | native `scan_*` | native `scan_*` | native `con.read_*` | works (native) |
+ | local CSV, native-safe non-default dialect (delimiter/header/quote/null) | native (kwargs) | native (kwargs) | files fallback | `MissingFilesDependency` (Ibis) |
+ | local CSV, `escape_char` dialect (mappable, not native-representable) | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | any CSV, UNmappable dialect field | `UnsupportedResourceFormat` | `UnsupportedResourceFormat` | `UnsupportedResourceFormat` | same (fail-closed is pure) |
+ | local JSON | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | plain multi-path (concrete local CSV/Parquet) | native `scan_*` concat | native `scan_*` concat | native `con.read_*` | works (native) |
+ | glob *pattern* | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | gzip / zip archive | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ | remote (any format) | files fallback | files fallback | files fallback | `MissingFilesDependency` |
+ 
++## Location policy
++
++Under an active `LocationPolicy` (descriptor loaders set one by default; see
++[datapackage](datapackage.md#location-policy)) transport decides the location and the
++engine reads natively only on a probed allow-list. Everything else goes through the
++files fallback (transport → Arrow → `ibis.memtable` on Ibis). With no policy, or with
++`LocationPolicy(allow_unconfined=True)`, the table above applies unchanged.
++
++| Resource kind | Polars / Narwhals (`narwhals-polars`, `narwhals-lazy`) | Ibis on DuckDB | Other Ibis backends |
++|---|---|---|---|
++| local file | native `scan_*`, effective path, `glob=False` | native `read_*`, `[` `*` `?` escaped | files fallback → memtable |
++| local directory (tree-checked) | native, `glob=False`; Polars expands it | native only if path has none of `[` `*` `?`; otherwise `LocationNotAllowed` | `LocationNotAllowed` (use a glob) |
++| glob pattern, archive, JSON | files fallback | files fallback | files fallback |
++| remote | `allowed_remote` required; files fallback | same | same |
++| unknown scheme | `LocationNotAllowed` | `LocationNotAllowed` | `LocationNotAllowed` |
++
++Ibis directory reads under a policy are narrower than today (owner-approved 2026-10-27):
++the memtable route cannot read a bare directory. The existing Ibis `SCHEMA` directory
++limitation is unchanged and adds no new route. Native Windows drive and UNC handling is
++specified but not CI-verified. Native engine reads beyond this allow-list are backlog 387.
++
+ ## Dialect fidelity
+ 
+ `TableDialect` maps onto `CsvSpec` (mountainash-files ≥26.7.1):
+ `delimiter`, `header`, `quote_char`, `escape_char`, `null_sequence`. These are
+ the **CsvSpec-mappable** (seam-supported) fields. Within them there is a stricter
+ **native-representable** subset — `delimiter`, `header`, `quote_char`,
+ `null_sequence` — that a native `pl.scan_csv` can express via kwargs. A
+ native-safe non-default dialect (e.g. `delimiter=";"`) is honoured natively with
+ kwargs on Polars/Narwhals (stays lazy) and via the `CsvSpec` fallback on Ibis —
+ identical values across backends.
+@@ -54,22 +75,23 @@ ignored.
+ 
+ ## Laziness
+ 
+ Only inline and native local CSV/Parquet scans are genuinely lazy. Every
+ fallback-routed read materializes the whole file into an in-memory `pa.Table`
+ first; the resulting `.lazy()` / `memtable` wrapper is lazy-typed over
+ already-read bytes, not a lazy scan.
+ 
+ ## Dependency wiring
+ 
+-`mountainash-files` is the opt-in `files` extra; descriptor storage helpers use
+-the `storage` extra. Development test environments select sibling checkouts.
++`mountainash-files` is the opt-in `files` extra (also included in the `ibis` extra);
++`mountainash-transport` is a required dependency and the `storage` extra is removed.
++Development test environments select sibling checkouts.
+ Installed-artifact verification instead selects exact files, transport,
+ settings and auth-client wheels, without the retired secrets distribution.
+ 
+ For the settings 0.1 migration rehearsal, files `>=26.8.0,<27` and transport
+ `>=26.7.0,<27` are provisional ranges. Those version numbers alone do not
+ identify the migrated candidates: use the hash-qualified artifact handoff in
+ the M4b execution receipt. Before publication, dependency floors must advance
+ to the migrated published releases. Downstream merge/publication remains on
+ hold until settings 0.1.0 is published.
+ 

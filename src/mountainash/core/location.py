@@ -25,9 +25,12 @@ def resolve_resource_location(resource: Any, path: str) -> str:
     """
     from urllib.parse import urlsplit, urlunsplit
 
-    from mountainash_transport.location import identify_scheme, local_path
+    from mountainash_transport.location import identify_scheme, local_path, require_known_scheme
 
     ctx = getattr(resource, "_descriptor_context", None)
+    active = resource_policy(resource)
+    if active is not None:
+        require_known_scheme(path, active)  # sanitized error before any raw classification
     base = getattr(ctx, "base_uri", None)
     if base is None:
         pol = getattr(ctx, "policy", None)

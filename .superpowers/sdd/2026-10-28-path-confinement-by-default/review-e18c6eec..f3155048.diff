@@ -1,0 +1,76 @@
+# Review package: e18c6eec..HEAD
+
+## Commits
+f3155048 fix(datapackage): validate loader base before deriving policy root (381)
+
+## Files changed
+ src/mountainash/typespec/descriptor_context.py | 13 ++++---------
+ tests/typespec/test_location_policy_context.py | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 9 deletions(-)
+
+## Diff
+diff --git a/src/mountainash/typespec/descriptor_context.py b/src/mountainash/typespec/descriptor_context.py
+index 68df0cc3..78cc5818 100644
+--- a/src/mountainash/typespec/descriptor_context.py
++++ b/src/mountainash/typespec/descriptor_context.py
+@@ -424,31 +424,26 @@ def loader_policy(
+     base_uri: str | Path | None,
+     policy: "LocationPolicy | None",
+ ) -> "LocationPolicy":
+     """Return the loader's policy with its root declared (explicit root wins).
+ 
+     A local base roots at that base; no base or a remote base roots at the
+     load-time working directory. A remote base grants no permission.
+     """
+     import os
+ 
+-    from mountainash_transport.location import (
+-        LocationPolicy,
+-        identify_scheme,
+-        local_path,
+-    )
++    from mountainash_transport.location import LocationPolicy
+ 
++    normalized = normalize_base_uri(base_uri)  # existing descriptor errors fire first
+     declared = os.getcwd()
+-    if base_uri is not None:
+-        text = str(base_uri)
+-        if identify_scheme(text) in ("", "file"):
+-            declared = local_path(text)
++    if normalized is not None and urlsplit(normalized).scheme == "file":
++        declared = str(_local_path_from_uri(normalized, reference=normalized))
+     return (policy or LocationPolicy()).with_declared_root(declared)
+ 
+ 
+ __all__ = [
+     "DescriptorKind",
+     "DescriptorResolver",
+     "DescriptorContext",
+     "build_descriptor_context",
+     "loader_policy",
+     "normalize_base_uri",
+diff --git a/tests/typespec/test_location_policy_context.py b/tests/typespec/test_location_policy_context.py
+index f9ed209f..18a0606a 100644
+--- a/tests/typespec/test_location_policy_context.py
++++ b/tests/typespec/test_location_policy_context.py
+@@ -94,10 +94,20 @@ def test_datacontract_loader_roots_at_source_parent(tmp_path, monkeypatch):
+     def spy(cls, raw, **kw):
+         pkg = orig(cls, raw, **kw)
+         seen.append(pkg.resources[0])
+         return pkg
+ 
+     monkeypatch.setattr(DataPackage, "from_descriptor", classmethod(spy))
+     schema = tmp_path / "s.json"
+     schema.write_text(json.dumps({"fields": [{"name": "a", "type": "integer"}]}))
+     ma.datacontract(schema)
+     assert os.path.realpath(resource_policy(seen[0]).root) == os.path.realpath(tmp_path)
++
++
++@pytest.mark.parametrize("base", ["https://[bad", "file://evilhost/tmp/"])
++@pytest.mark.parametrize("loader", ["from_descriptor", "from_json"])
++def test_malformed_base_keeps_descriptor_error(base, loader):
++    from mountainash.typespec.errors import InvalidDescriptorStructure
++    doc = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
++    arg = doc if loader == "from_descriptor" else json.dumps(doc)
++    with pytest.raises(InvalidDescriptorStructure):
++        getattr(ma.DataPackage, loader)(arg, base_uri=base)

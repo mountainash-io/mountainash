@@ -1,0 +1,131 @@
+# Review package: 0f0ae848..HEAD
+
+## Commits
+f1e42a23 fix(typespec): reject unknown schemes under an active policy (381)
+
+## Files changed
+ src/mountainash/core/resource_ref.py               | 3 +++
+ src/mountainash/typespec/descriptor_context.py     | 2 ++
+ tests/core/test_resource_ref_policy.py             | 6 ++++++
+ tests/typespec/test_descriptor_reference_policy.py | 6 ++++++
+ 4 files changed, 17 insertions(+)
+
+## Diff
+diff --git a/src/mountainash/core/resource_ref.py b/src/mountainash/core/resource_ref.py
+index 7e1321fc..8612eefb 100644
+--- a/src/mountainash/core/resource_ref.py
++++ b/src/mountainash/core/resource_ref.py
+@@ -44,20 +44,23 @@ class ResourceRef:
+         if isinstance(path, list):
+             path = path[0]
+         from mountainash.core.io import facade_read_bytes, is_remote
+         from mountainash.core.location import (
+             resolve_resource_location,
+             resource_policy,
+         )
+ 
+         location = resolve_resource_location(self.resource, path)
+         policy = resource_policy(self.resource)
++        from mountainash_transport.location import require_known_scheme
++
++        require_known_scheme(location, policy)
+         if is_remote(location):
+             return facade_read_bytes(location, policy)
+         from mountainash_transport.location import confine_local
+ 
+         return Path(confine_local(location, policy)).read_bytes()
+ 
+     def relation(self) -> Relation:
+         from mountainash.relations.dag.packaging import resource_to_relation
+ 
+         return resource_to_relation(self)
+diff --git a/src/mountainash/typespec/descriptor_context.py b/src/mountainash/typespec/descriptor_context.py
+index 06f26734..aa3abd52 100644
+--- a/src/mountainash/typespec/descriptor_context.py
++++ b/src/mountainash/typespec/descriptor_context.py
+@@ -15,20 +15,21 @@ try:
+ except ImportError:  # pragma: no cover - Python 3.10 compatibility
+     class StrEnum(str, Enum):
+         pass
+ 
+ from mountainash.core.io import facade_read_bytes
+ from mountainash_transport.location import (
+     LocationNotAllowed,
+     confine_local,
+     identify_scheme,
+     local_path,
++    require_known_scheme,
+ )
+ from mountainash.typespec.errors import (
+     DescriptorReferenceInvalid,
+     DescriptorReferenceNotFound,
+     InvalidDescriptorStructure,
+     MissingDescriptorBase,
+ )
+ 
+ try:
+     from mountainash_transport._core.exceptions import (
+@@ -334,20 +335,21 @@ class DefaultDescriptorResolver:
+     def resolve(
+         self,
+         reference: str,
+         *,
+         base_uri: str | None,
+         expected_kind: DescriptorKind,
+         policy: "LocationPolicy | None" = None,
+     ) -> Mapping[str, Any]:
+         normalized = normalize_document_uri(reference, base_uri=base_uri)
+         try:
++            require_known_scheme(normalized, policy)
+             if identify_scheme(normalized) in ("", "file"):
+                 path = confine_local(
+                     str(_file_uri_path(normalized, reference=reference)), policy
+                 )
+                 payload = Path(path).read_bytes()
+             else:
+                 if policy is None:
+                     raise LocationNotAllowed(reference, "remote not allowed")
+                 payload = facade_read_bytes(normalized, policy)
+         except _STORAGE_NOT_FOUND_ERRORS as exc:
+diff --git a/tests/core/test_resource_ref_policy.py b/tests/core/test_resource_ref_policy.py
+index 5ead044b..efd4d7df 100644
+--- a/tests/core/test_resource_ref_policy.py
++++ b/tests/core/test_resource_ref_policy.py
+@@ -40,10 +40,16 @@ def test_in_root_relative_reads(tmp_path):
+ def test_remote_without_allow_rejected_before_request(tmp_path, server):
+     port, hits = server
+     root = tmp_path / "root"; root.mkdir()
+     with pytest.raises(LocationNotAllowed):
+         ResourceRef(_pkg(root, f"http://127.0.0.1:{port}/s.bin").resources[0]).read_bytes()
+     assert hits["n"] == 0
+ 
+ def test_programmatic_absolute_is_today(outside):
+     pkg = ma.DataPackage(name="p", resources=[{"name": "r", "path": str(outside / "s.bin"), "format": "bin"}])
+     assert ResourceRef(pkg.resources[0]).read_bytes() == b"secret"
++
++
++def test_unknown_scheme_rejected_under_policy(tmp_path):
++    root = tmp_path / "root"; root.mkdir()
++    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
++        ResourceRef(_pkg(root, "hf://host/data.bin").resources[0]).read_bytes()
+diff --git a/tests/typespec/test_descriptor_reference_policy.py b/tests/typespec/test_descriptor_reference_policy.py
+index ab1a0f0c..98fa25d8 100644
+--- a/tests/typespec/test_descriptor_reference_policy.py
++++ b/tests/typespec/test_descriptor_reference_policy.py
+@@ -63,10 +63,16 @@ def test_dialect_reference_obeys_policy(layout):
+     root, out, port, hits = layout
+     (root / "dialect.json").write_text(json.dumps({"delimiter": ";"})); (out / "dialect.json").write_text(json.dumps({"delimiter": ";"}))
+     def pkg(ref):
+         p = root / "datapackage.json"
+         p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": "a.csv", "dialect": ref}]}))
+         return ma.DataPackage.from_path(p)
+     assert pkg("dialect.json").resources[0].to_dialect()
+     with pytest.raises(LocationNotAllowed): pkg(str(out / "dialect.json")).resources[0].to_dialect()
+     with pytest.raises(LocationNotAllowed): pkg(f"http://127.0.0.1:{port}/dialect.json").resources[0].to_dialect()
+     assert hits["n"] == 0
++
++
++def test_unknown_scheme_reference_rejected(layout):
++    root, *_ = layout
++    with pytest.raises(LocationNotAllowed, match="unknown scheme"):
++        _pkg(root, "hf://host/schema.json").resources[0].to_table_schema()
