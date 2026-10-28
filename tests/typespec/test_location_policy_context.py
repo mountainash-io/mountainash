@@ -123,3 +123,23 @@ def test_relative_explicit_root_without_base_anchored_once(tmp_path, monkeypatch
     descriptor = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
     pkg = ma.DataPackage.from_json(json.dumps(descriptor), policy=LocationPolicy(root="data"))
     assert ResourceRef(pkg.resources[0]).read_bytes() == b"right"
+
+
+def test_relative_root_with_symlink_dotdot_not_collapsed(tmp_path, monkeypatch):
+    from mountainash.core.resource_ref import ResourceRef
+
+    safe = tmp_path / "safe"; (safe / "sub").mkdir(parents=True)
+    cwd = tmp_path / "cwd"; cwd.mkdir()
+    (cwd / "link").symlink_to(safe / "sub")
+    (safe / "a.csv").write_bytes(b"ok")
+    (cwd / "x.csv").write_bytes(b"no")
+    monkeypatch.chdir(cwd)
+
+    def load(base, path):
+        d = {"name": "p", "resources": [{"name": "r", "path": path}]}
+        pkg = ma.DataPackage.from_json(json.dumps(d), base_uri=base, policy=LocationPolicy(root="link/.."))
+        return ResourceRef(pkg.resources[0]).read_bytes()
+
+    assert load(safe.as_uri() + "/", "a.csv") == b"ok"
+    with pytest.raises(Exception):
+        load(cwd.as_uri() + "/", "x.csv")

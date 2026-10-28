@@ -408,7 +408,7 @@ def loader_policy(
         and not os.path.isabs(root)
         and identify_scheme(os.fspath(root)) == ""
     ):
-        effective = replace(effective, root=os.path.abspath(root))  # anchor once at load time
+        effective = replace(effective, root=os.path.join(os.getcwd(), root))  # anchor once; no `..` collapse
     return effective.with_declared_root(declared)
 
 
