@@ -1,5 +1,6 @@
 # tests/pipelines/runtime/test_nested.py
 import threading
+import pytest
 from mountainash.pipelines.core.pipeline import Pipeline
 from mountainash.pipelines.core.values import *
 from mountainash.pipelines.runtime.checkpoint import FileCheckpoint
@@ -100,3 +101,36 @@ def test_inner_failure_fails_outer_and_skips_outer_descendants():
     p = Pipeline("e").add(PipelineUnit(inner, "bad", name="N")).add(PythonUnit(lambda n, ctx: n, name="after", depends_on=("N",)))
     r = Runner(p).run()
     assert r.statuses["N"] is Status.FAILED and r.statuses["after"] is Status.SKIPPED
+
+
+@pytest.mark.parametrize("depth", [1, 2])
+def test_nested_regeneration_invalidates_enclosing_runner_descendants(tmp_path, depth):
+    import polars as pl
+    calls, x_seen, y_seen, y_fail = [], [], [], [1]
+    def fetch_s(up, params, state):
+        calls.append(state); rev = len(calls)
+        return SourceResult(Value.of(pl.DataFrame({"rev": [rev]}), Identity.of("t"), Coverage.source({A}, {A}, set())), A)
+    def to_records(frame, ctx):
+        x_seen.append(frame["rev"][0]); return [{"rev": frame["rev"][0]}]
+    def fail_once(recs, ctx):
+        y_seen.append(recs[0]["rev"])
+        if y_fail: y_fail.pop(); raise RuntimeError("Y down")
+        return recs
+    deepest = Pipeline("deepest").add(CallableSource(fetch_s, name="S"))
+    if depth == 1:
+        outer_unit = PipelineUnit(deepest, "S", name="N")
+    else:
+        mid = Pipeline("mid").add(PipelineUnit(deepest, "S", name="M"))
+        outer_unit = PipelineUnit(mid, "M", name="N")
+    outer = (Pipeline("outer").add(outer_unit).add(PythonUnit(to_records, name="X", depends_on=("N",)))
+             .add(PythonUnit(fail_once, name="Y", depends_on=("X",))))
+    r1 = Runner(outer, checkpoint=FileCheckpoint(tmp_path)).run()
+    assert r1.statuses["Y"] is Status.FAILED and x_seen == [1] and y_seen == [1]
+    r2 = Runner(outer, checkpoint=FileCheckpoint(tmp_path)).run()
+    assert len(calls) == 2                                                # S regenerated (frame not retained)
+    assert x_seen == [1, 2] and y_seen == [1, 2]                          # X and Y re-ran against revision 2, not REUSED stale data
+    assert r2.statuses["X"] is Status.COMPLETE and r2.statuses["Y"] is Status.COMPLETE
+    assert r2.values["Y"].payload == [{"rev": 2}]
+    cp = FileCheckpoint(tmp_path).scoped("N")
+    if depth == 2: cp = cp.scoped("M")
+    assert cp.progress("S").cursor == A and cp.pending("S") is None

@@ -146,6 +146,7 @@ class NestedLifecycle(UnitLifecycle):
         if decision.tag == "REUSE":
             return Outcome(ident.identity, Status.REUSED, decision.record.value)
         inner, plan = ident.prepared
+        inner.enclosing = (runner, unit.name)
         inner_result = inner.execute(plan, upstream_values=upstream)
         st = inner_result.statuses[unit.target]
         if st in (Status.FAILED, Status.SKIPPED):

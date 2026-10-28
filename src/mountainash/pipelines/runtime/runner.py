@@ -41,6 +41,7 @@ class RunResult:
 class Runner:
     def __init__(self, pipeline, *, checkpoint: Checkpoint | None = None, workers: int = 1, retry: RetryConfig | None = None) -> None:
         self.pipeline = pipeline; self.cp = checkpoint or MemoryCheckpoint(); self.workers = workers; self.retry = retry
+        self.enclosing: tuple[Runner, str] | None = None        # (outer runner, PipelineUnit name); set by NestedLifecycle while the inner run executes
 
     # ---- phase 1
     def plan(self, *, params=None, target=None, resume=True, force=False, injected_identities: Mapping[str, Identity] | None = None) -> Plan:
@@ -133,8 +134,12 @@ class Runner:
     # ---- collaborators
     def invalidate_descendants(self, name: str) -> None:
         """Retire records and pending attempts of exactly the transitive descendants of ``name`` (F9/F10): in this graph,
-        and inside every nested PipelineUnit that consumes ``name`` or one of its descendants as an external input."""
+        and inside every nested PipelineUnit that consumes ``name`` or one of its descendants as an external input. A regeneration
+        inside a nested pipeline also changes that PipelineUnit's output, so the enclosing runners retire their descendants too."""
         self._invalidate_in(self.cp, self.pipeline, {name})
+        if self.enclosing is not None:
+            outer, unit_name = self.enclosing
+            outer.invalidate_descendants(unit_name)
 
     def _invalidate_in(self, cp, pipeline, changed: set[str]) -> None:
         from mountainash.pipelines.units.nested import PipelineUnit
