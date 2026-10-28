@@ -18,7 +18,7 @@ def con(request, tmp_path):
     if not url: pytest.skip("blocked: MA_PG_URL unset — PostgreSQL sink cells not qualified in this environment")
     c = ibis.connect(url); yield c                                   # URL-aware entry point (F29)
     for t in c.list_tables():
-        if t.startswith(("t", "src", "_ma_")): c.drop_table(t, force=True)
+        if t.startswith(("t", "src", "_ma_", "select")): c.drop_table(t, force=True)
 
 def _ctx(): return RunContext({}, None, {}, "p", "k", "r")
 def _rows(*t): return [{"id": i, "p": p, "v": v} for i, p, v in t]
@@ -324,14 +324,17 @@ def test_replace_partition_matches_null_partitions(con, composite):
 @pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
 def test_reserved_and_spaced_identifiers_are_quoted(con):
     name = "select"
+    con.drop_table(name, force=True)
     cols = {"group by": [1, 2], "order": ["a", "b"], "my val": [1, 2]}
     con.create_table(name, pl.DataFrame(cols).to_arrow())
-    up = IbisTableSink(con, name, name="u", depends_on=("s",), mode=WriteMode.UPSERT, keys=("group by",))
-    up.run({"s": Value.of(pl.DataFrame({"my val": [9], "group by": [1], "order": ["a"]}), Identity.of("i"))}, _ctx())
-    rp = IbisTableSink(con, name, name="r", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("order",))
-    rp.run({"s": Value.of(pl.DataFrame({"my val": [7], "group by": [3], "order": ["b"]}), Identity.of("i"), Coverage.source({"b"}, {"b"}, set()))}, _ctx())
-    assert sorted((r["group by"], r["my val"]) for r in con.table(name).to_pyarrow().to_pylist()) == [(1, 9), (3, 7)]
-    con.drop_table(name, force=True)
+    try:
+        up = IbisTableSink(con, name, name="u", depends_on=("s",), mode=WriteMode.UPSERT, keys=("group by",))
+        up.run({"s": Value.of(pl.DataFrame({"my val": [9], "group by": [1], "order": ["a"]}), Identity.of("i"))}, _ctx())
+        rp = IbisTableSink(con, name, name="r", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("order",))
+        rp.run({"s": Value.of(pl.DataFrame({"my val": [7], "group by": [3], "order": ["b"]}), Identity.of("i"), Coverage.source({"b"}, {"b"}, set()))}, _ctx())
+        assert sorted((r["group by"], r["my val"]) for r in con.table(name).to_pyarrow().to_pylist()) == [(1, 9), (3, 7)]
+    finally:
+        con.drop_table(name, force=True)
 
 @pytest.mark.parametrize("shape", ["foreign", "records"])
 @pytest.mark.cell("unit:IbisTableSink")
