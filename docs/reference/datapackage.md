@@ -58,6 +58,53 @@ resource = package.resources[0]
 The package must contain at least one resource. Resource names are unique, and each
 resource declares exactly one of `path` or `data`.
 
+## Location policy
+
+Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
+every resource, schema and dialect location by default. They accept `policy=`, a
+`mountainash_transport.location.LocationPolicy`.
+
+| Loader call | Root when `policy` has none |
+|---|---|
+| `from_path(path)` | the descriptor directory |
+| `from_json` / `from_descriptor` with a local `base_uri` | that directory |
+| the same with a remote `base_uri`, or no `base_uri` | the working directory at load time |
+| `datacontract(source)` | the source file's parent directory |
+| `DataPackage(...)` / `DataResource(...)` built in code | none (unconfined) |
+
+- Relative resource paths resolve beside the descriptor (or against `base_uri` / the
+  working directory), matching Frictionless. A remote `base_uri` joins relative paths but
+  grants no permission to fetch from its host.
+- Absolute local paths, symlinks leaving the root, and `file://` URIs outside the root raise
+  `LocationNotAllowed` at read time, including paths assigned after load. `..` and hidden
+  segments are still rejected at decode time with the existing error.
+- Remote resources and references (`http(s)`, `s3`, ...) need
+  `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
+  allows any host for that scheme. Unknown schemes are rejected.
+- `LocationPolicy(root=...)` replaces the declared root; `allowed_remote` alone keeps it.
+  `LocationPolicy(allow_unconfined=True)` is the single opt-out.
+- `model_copy`, `DataResource.model_validate(bound)` and `DataPackage.model_validate(bound)`
+  keep the context and its policy. `to_package()` exports build a new package in code and
+  are rootless.
+- Reads are confined on Polars, Narwhals and Ibis alike; the descriptor round-trip is
+  unchanged because the policy is a private, non-serialized context field.
+
+```python
+from mountainash import DataPackage
+from mountainash_transport.location import LocationPolicy
+
+package = DataPackage.from_path("pkg/datapackage.json")  # confined to pkg/
+open_pkg = DataPackage.from_path(
+    "pkg/datapackage.json", policy=LocationPolicy(allow_unconfined=True)
+)
+```
+
+Not covered: a writer who can change the filesystem inside the root between check and open,
+DNS rebinding, custom `DescriptorResolver` code, and endpoints named by profiles you
+supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed` unless
+the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
+see the [resource-read support matrix](resource-read-support-matrix.md).
+
 ## Outputs and ownership
 
 The default writer is preserve mode:

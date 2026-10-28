@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — 2026-10-28 (path and URL confinement by default, backlog 381)
+
+### Breaking
+- Descriptor loaders (`DataPackage.from_path`/`from_json`/`from_descriptor`, `datacontract`) confine locations by default. Relative resource paths resolve beside the descriptor (or against `base_uri` / the working directory), matching Frictionless. Absolute or remote resource paths and references need `policy=LocationPolicy(...)` (an `allowed_remote` allow-list, a different `root`, or `allow_unconfined=True` to opt out). Packages and resources built in code stay unconfined.
+- `mountainash-transport` is now a required dependency; the `storage` extra is removed. The `ibis` extra now includes `mountainash-files` (policy-confined Ibis reads that are not on the native allow-list use the files fallback).
+- `StorageDescriptorResolver(allowed_schemes=...)` and `DescriptorReferenceSchemeDenied` are removed. Use `LocationPolicy(allowed_remote=...)`; violations raise `LocationNotAllowed`. The local and storage resolvers are merged into `DefaultDescriptorResolver`.
+- Under a policy, an Ibis directory read is native only on DuckDB for paths without `[`, `*`, `?`; other Ibis directory reads raise `LocationNotAllowed` (use a glob). The existing Ibis `SCHEMA` directory limitation is unchanged.
+
+### Added
+- `DescriptorContext.policy` and `policy=` on every descriptor loader. Policy and root survive `DataResource.model_copy` and `model_validate` of bound resources and packages.
+- `ResourceRef.read_bytes`, schema and dialect references, native Polars/Narwhals/Ibis reads and the files fallback all obey the policy; native reads open the confined effective path literally (no glob expansion).
+
+### Fixed
+- A relative resource path in a loaded descriptor no longer resolves against the process working directory.
+
 ## Unreleased — 2026-10-28 (pipelines as macro-orchestration)
 
 ### Breaking

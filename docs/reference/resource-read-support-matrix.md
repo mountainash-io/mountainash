@@ -25,6 +25,27 @@ they are not registry-distributed requirements.
 | gzip / zip archive | files fallback | files fallback | files fallback | `MissingFilesDependency` |
 | remote (any format) | files fallback | files fallback | files fallback | `MissingFilesDependency` |
 
+## Location policy
+
+Under an active `LocationPolicy` (descriptor loaders set one by default; see
+[datapackage](datapackage.md#location-policy)) transport decides the location and the
+engine reads natively only on a probed allow-list. Everything else goes through the
+files fallback (transport → Arrow → `ibis.memtable` on Ibis). With no policy, or with
+`LocationPolicy(allow_unconfined=True)`, the table above applies unchanged.
+
+| Resource kind | Polars / Narwhals (`narwhals-polars`, `narwhals-lazy`) | Ibis on DuckDB | Other Ibis backends |
+|---|---|---|---|
+| local file | native `scan_*`, effective path, `glob=False` | native `read_*`, `[` `*` `?` escaped | files fallback → memtable |
+| local directory (tree-checked) | native, `glob=False`; Polars expands it | native only if path has none of `[` `*` `?`; otherwise `LocationNotAllowed` | `LocationNotAllowed` (use a glob) |
+| glob pattern, archive, JSON | files fallback | files fallback | files fallback |
+| remote | `allowed_remote` required; files fallback | same | same |
+| unknown scheme | `LocationNotAllowed` | `LocationNotAllowed` | `LocationNotAllowed` |
+
+Ibis directory reads under a policy are narrower than today (owner-approved 2026-10-27):
+the memtable route cannot read a bare directory. The existing Ibis `SCHEMA` directory
+limitation is unchanged and adds no new route. Native Windows drive and UNC handling is
+specified but not CI-verified. Native engine reads beyond this allow-list are backlog 387.
+
 ## Dialect fidelity
 
 `TableDialect` maps onto `CsvSpec` (mountainash-files ≥26.7.1):
@@ -61,8 +82,9 @@ already-read bytes, not a lazy scan.
 
 ## Dependency wiring
 
-`mountainash-files` is the opt-in `files` extra; descriptor storage helpers use
-the `storage` extra. Development test environments select sibling checkouts.
+`mountainash-files` is the opt-in `files` extra (also included in the `ibis` extra);
+`mountainash-transport` is a required dependency and the `storage` extra is removed.
+Development test environments select sibling checkouts.
 Installed-artifact verification instead selects exact files, transport,
 settings and auth-client wheels, without the retired secrets distribution.
 
