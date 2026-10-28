@@ -61,8 +61,9 @@ resource declares exactly one of `path` or `data`.
 ## Location policy
 
 Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
-every resource, schema and dialect location by default. They accept `policy=`, a
-`mountainash_transport.location.LocationPolicy`.
+every resource, schema and dialect location by default. `from_path`, `from_json` and
+`from_descriptor` accept `policy=`, a `mountainash_transport.location.LocationPolicy`;
+`datacontract(source)` takes no `policy` and always confines to the source's parent directory.
 
 | Loader call | Root when `policy` has none |
 |---|---|
@@ -75,8 +76,9 @@ every resource, schema and dialect location by default. They accept `policy=`, a
 - Relative resource paths resolve beside the descriptor (or against `base_uri` / the
   working directory), matching Frictionless. A remote `base_uri` joins relative paths but
   grants no permission to fetch from its host.
-- Absolute local paths, symlinks leaving the root, and `file://` URIs outside the root raise
-  `LocationNotAllowed` at read time, including paths assigned after load. `..` and hidden
+- Absolute local paths outside the root, symlinks leaving the root, and `file://` URIs outside
+  the root raise `LocationNotAllowed` at read time (absolute paths inside the root are accepted),
+  including paths assigned after load. `..` and hidden
   segments are still rejected at decode time with the existing error.
 - Remote resources and references (`http(s)`, `s3`, ...) need
   `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
