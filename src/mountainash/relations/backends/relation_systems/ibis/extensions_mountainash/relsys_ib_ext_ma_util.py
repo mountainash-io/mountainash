@@ -220,11 +220,11 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             reader = MountainashPolarsExtensionRelationSystem()
             lf = reader._read_inline(resource)
             self._resource_lowering = reader._resource_lowering
-            ensure_sqlite_nat_adapter()
             arrow = lf.collect().to_arrow()
             if location is None:
+                ensure_sqlite_nat_adapter()
                 return ibis.memtable(arrow)
-            return self.import_into(arrow, location=location).value
+            return self._import_resource(arrow, location)
 
         fmt = self._detect_format_name(resource)
         raw_path = resource.path
@@ -242,11 +242,11 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
-        ensure_sqlite_nat_adapter()
         arrow = rf.parse_resource_to_arrow(resource, dialect=dialect)
         if location is None:
+            ensure_sqlite_nat_adapter()
             return ibis.memtable(arrow)
-        return self.import_into(arrow, location=location).value
+        return self._import_resource(arrow, location)
 
     @staticmethod
     def _detect_format_name(resource: Any) -> str:

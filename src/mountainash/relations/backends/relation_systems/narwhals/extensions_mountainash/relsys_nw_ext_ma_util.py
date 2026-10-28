@@ -304,7 +304,7 @@ class MountainashNarwhalsExtensionRelationSystem(
             lf = reader._read_inline(resource)
             self._resource_lowering = reader._resource_lowering
             if location is not None:
-                return self.import_into(lf.collect().to_arrow(), location=location).value
+                return self._import_resource(lf.collect().to_arrow(), location)
             return nw.from_native(lf)  # stays lazy
 
         from mountainash.relations.backends.relation_systems import resource_files as rf
@@ -328,7 +328,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         import polars as pl
         table = rf.parse_resource_to_arrow(resource, dialect=dialect)
         if location is not None:
-            return self.import_into(table, location=location).value
+            return self._import_resource(table, location)
         return nw.from_native(pl.from_arrow(table).lazy())
 
     def empty_frame(self, spec: Any) -> Any:
@@ -378,8 +378,6 @@ class MountainashNarwhalsExtensionRelationSystem(
                 backend="narwhals",
                 function_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
             )
-        if self._is_pandas(left) and self._is_pandas(right):
-            right = self._align_pandas_keys(left, right, [on, *(by or [])])
         if strategy == "nearest" and self._is_pandas(left):
             return self._nearest_forward_wins(left, right, on=on, by=by)
         return left.join_asof(
@@ -393,19 +391,6 @@ class MountainashNarwhalsExtensionRelationSystem(
     def _is_pandas(frame: Any) -> bool:
         from narwhals import Implementation
         return getattr(frame, "implementation", None) is Implementation.PANDAS
-
-    @staticmethod
-    def _align_pandas_keys(left: Any, right: Any, keys: list[str]) -> Any:
-        """pandas merge_asof requires identical key dtypes; NumPy and Arrow
-        backing of the same logical type differ (an imported operand is
-        Arrow-backed). Narwhals' cast keeps the backing, so use pandas astype."""
-        import narwhals as nw
-
-        left_native, right_native = left.to_native(), right.to_native()
-        mismatched = {k: left_native[k].dtype for k in keys if right_native[k].dtype != left_native[k].dtype}
-        if not mismatched:
-            return right
-        return nw.from_native(right_native.astype(mismatched), eager_only=True)
 
     def _nearest_forward_wins(
         self, left: Any, right: Any, *, on: str, by: Optional[list[str]]

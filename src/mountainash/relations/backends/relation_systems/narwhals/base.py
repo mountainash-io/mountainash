@@ -93,15 +93,11 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
         impl = (location.dialect or "").removeprefix("narwhals-")
         if impl == "lazy":
             return Imported(nw.from_arrow(arrow, backend="polars").lazy())
-        if impl == "pandas":
-            # Arrow-backed pandas columns keep the Arrow types: an integer column
-            # with nulls stays integer, NaN stays distinct from null, decimals stay
-            # decimal (NumPy-backed pandas would change all three).
-            import pandas as pd
-
-            frame = nw.from_native(arrow.to_pandas(types_mapper=pd.ArrowDtype), eager_only=True)
-            return Imported(frame.lazy() if location.form is ExecutionForm.LAZY else frame)
-        if impl in ("polars", "pyarrow"):
+        if impl in ("pandas", "polars", "pyarrow"):
+            # Narwhals' own conversion: pandas gets NumPy-backed columns, so an
+            # imported operand mixes with the caller's pandas frames. That
+            # representation turns an integer column with nulls into float,
+            # NaN and null into NaN, and decimals into objects.
             frame = nw.from_arrow(arrow, backend=impl)
             return Imported(frame.lazy() if location.form is ExecutionForm.LAZY else frame)
         raise ValueError(f"unknown narwhals dialect: {location.dialect!r}")

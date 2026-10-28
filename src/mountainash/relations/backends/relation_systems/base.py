@@ -40,6 +40,24 @@ class BaseRelationSystem:
             for name, shape in extract_source_shapes(native).items()
         }
 
+    def _import_resource(self, arrow: Any, location: Any) -> Any:
+        """Import a parsed resource into ``location``, refusing like any transfer.
+
+        The parsed table stands where raw rows do: in-memory Polars. A destination
+        that cannot store it raises the shared typed import refusal.
+        """
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.core.errors import BackendConversionError
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.execution.transport import import_refusal
+        from mountainash.relations.core.materialization import ExecutionForm
+
+        try:
+            return self.import_into(arrow, location=location).value
+        except (BackendConversionError, ValueError) as exc:
+            source = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound")
+            raise import_refusal(source, location, exc) from exc
+
     @staticmethod
     def _cross_join_names(
         left_names: tuple[str, ...], right_names: tuple[str, ...], suffix: str,

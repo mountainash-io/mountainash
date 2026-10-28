@@ -280,18 +280,45 @@ _SOURCE_LIMITS = {
 # SQLite connection is an owned create_table copy, which also refuses an
 # all-null decimal column (backlog 336); the memtable path still stores it.
 _REFUSED = {("*", "ibis-sqlite", c) for c in ("float_nan", "decimal", "decimal_all_null", "list")}
-# Add only with an upstream id from registry/upstream-issues.yaml, one cell at a time.
-_DEST_LIMITS: dict[tuple[str, str, str], str] = {}
+# Destination representation limits. Imports into pandas use Narwhals' own
+# NumPy-backed conversion (owner decision 2026-10-28), so values from a
+# non-pandas source lose these distinctions; pandas sources move natively.
+_PANDAS_LIMITS = {
+    "int_null": "pandas NumPy import: integer column with nulls becomes float",
+    "float_nan": "pandas NumPy import: NaN and null both become NaN",
+    "decimal": "pandas NumPy import: decimals become Python objects",
+    "decimal_all_null": "pandas NumPy import: decimals become Python objects",
+}
+_PANDAS_SOURCES = {"pandas", "narwhals-pandas"}
 
 
 def _matrix_cells():
     for s in MATRIX_BACKENDS:
         for d in _DESTS:
             for c in _CASES:
-                reason = (_SOURCE_LIMITS.get((s, c)) or _DEST_LIMITS.get((s, d, c))
-                          or _DEST_LIMITS.get(("*", d, c)))
+                reason = _SOURCE_LIMITS.get((s, c))
+                if reason is None and d == "narwhals-pandas" and s not in _PANDAS_SOURCES:
+                    reason = _PANDAS_LIMITS.get(c)
                 marks = pytest.mark.xfail(strict=True, reason=reason) if reason else ()
                 yield pytest.param(s, d, c, id=f"{s}__{d}__{c}", marks=marks)
+
+
+def test_matrix_destinations_cover_known_dialects():
+    """Every known local/in-process dialect is a matrix destination; the rest
+    are named with the reason they are covered elsewhere."""
+    from mountainash.core.capabilities.identity import KNOWN_DIALECTS
+    from mountainash.core.constants import CONST_BACKEND
+
+    elsewhere = {
+        "narwhals-duckdb": "lazy-only: refusal tested by test_lazy_only_narwhals_destinations_refused",
+        "narwhals-dask": "lazy-only: refusal tested by test_lazy_only_narwhals_destinations_refused",
+        "ibis-postgres": "needs a server",
+        "ibis-mysql": "needs a server",
+        "ibis-singlestoredb": "needs a server",
+        "ibis-exasol": "needs a server",
+    }
+    known = set().union(*(KNOWN_DIALECTS[f] for f in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS, CONST_BACKEND.IBIS)))
+    assert known == set(_DESTS) | set(elsewhere)
 
 
 @pytest.mark.cross_backend
@@ -339,3 +366,62 @@ def test_to_pyarrow_nested_types_match_across_backends(src):
 
     assert logical(out.schema.field("tags").type) == "list<item: string>"
     assert logical(out.schema.field("s").type) == "struct<q: list<item: int64>>"
+
+
+# --- Imports into pandas mix with the caller's pandas frames (review 2026-10-28) ---
+
+def _ts_frame(**extra):
+    import pandas as pd
+
+    return pd.DataFrame({"k": [datetime(2024, 1, 1), None], **extra})
+
+
+def test_union_with_imported_operand_leaves_caller_frame_unchanged():
+    import narwhals as nw
+
+    original = _ts_frame(v=[0, 1])
+    other = pl.DataFrame({"k": [datetime(2024, 1, 1), None], "v": [2, 3]})
+    rel = ma.concat([ma.relation(nw.from_native(original, eager_only=True)), ma.relation(other)])
+    first = rel.to_pandas()
+    assert original["k"].isna().tolist() == [False, True]
+    assert first["k"].isna().sum() == 2
+    assert rel.to_pandas()["k"].isna().sum() == 2
+
+
+def test_timestamp_join_with_imported_operand():
+    import narwhals as nw
+
+    left = ma.relation(nw.from_native(_ts_frame(v=[0, 1]), eager_only=True))
+    right = pl.DataFrame({"k": [datetime(2024, 1, 1), None], "w": [0, 1]})
+    out = left.join(right, on="k", how="inner").to_pandas()
+    assert out[["v", "w"]].values.tolist() == [[0, 0]]
+
+
+def test_join_asof_mismatched_key_types_are_not_coerced():
+    import narwhals as nw
+    import pandas as pd
+
+    left = ma.relation(nw.from_native(pd.DataFrame({"k": [1, 2]}), eager_only=True))
+    right = nw.from_native(pd.DataFrame({"k": [1.9], "p": [99]}), eager_only=True)
+    with pytest.raises(Exception, match="incompatible merge keys|must be the same type"):
+        left.join_asof(right, on="k", strategy="backward").to_pandas()
+
+
+def test_to_pandas_keeps_polars_dates_as_datetime64():
+    out = ma.relation(pl.DataFrame({"d": [date(2024, 1, 1)]})).to_pandas()
+    assert str(out["d"].dtype).startswith("datetime64")
+    assert out["d"].dt.year.tolist() == [2024]
+
+
+def test_resource_import_refusal_is_typed_with_limitation():
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    resource = ma.DataResource(name="r", data=[{"l": [1, 2]}])
+    con = ibis.sqlite.connect()
+    location = ExecutionLocation(CONST_BACKEND.IBIS, "ibis-sqlite", ExecutionForm.DEFERRED, "bound", 0, con)
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        get_relation_system(CONST_BACKEND.IBIS)().read_resource(resource, location=location)
+    assert caught.value.limitation is not None

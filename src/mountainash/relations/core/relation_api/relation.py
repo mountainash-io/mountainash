@@ -1171,7 +1171,8 @@ class Relation(RelationBase):
                 return value
             if is_narwhals_dataframe(value) and native.value_identity.dialect == "narwhals-pandas":
                 return value.to_native()
-            return _family_export(native).to_pandas()
+            # Polars' own pandas conversion kept dates as datetime64.
+            return _family_export(native).to_pandas(date_as_object=False)
 
         return _finish_terminal(visitor, lambda: enrich_materialization(
             visitor.backend, _egress_thunk,
