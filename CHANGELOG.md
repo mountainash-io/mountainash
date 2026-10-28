@@ -30,6 +30,7 @@
 - Arrow exported from Ibis names list children `item` (DuckDB used `l`), so equal logical types render identically across backends.
 
 ### Fixed
+- Security gate: the `py.typed` marker now ships; dependency floors raised to patched versions (`pyarrow>=23.0.1`, `pydantic>=2.4`, `typing_extensions>=4.12.0`). The develop-side step-name/cache-key validation for pipeline filesystem storage (`InvalidStorageKeyError`) is superseded by this release's removal of that storage: `FileCheckpoint` never uses unit or scope names as path components (fixed-length sha256 stems; names stored inside the JSON), so names cannot traverse out of the checkpoint root.
 - Resource reads bind to the resolved location (including under `dag.ref`) instead of reverting to Polars; schema-only inspection of a native Narwhals scan reads no rows.
 - Arrow-backed (`pd.ArrowDtype`) pandas sources transferred to Ibis-SQLite no longer fail binding `pd.NA` (pandas schema metadata is dropped on export).
 - Ibis-SQLite nested types and owned decimal copies (backlog 336) raise a typed refusal instead of a raw Ibis error.
