@@ -613,7 +613,7 @@ dag = pkg.to_relation_dag()
 df  = dag.collect("orders")
 ```
 
-`DataResource` knows how to load its data via the storage facade — local paths bypass it, remote paths (S3, GCS, HTTPS) go through `mountainash-utils-files`'s `StorageFacade` (optional install).
+`DataResource` knows how to load its data via the storage facade — local paths are confined to the descriptor's `LocationPolicy` root, and remote paths (S3, GCS, HTTPS) go through `mountainash-transport`'s `StorageFacade` only when the policy's remote allow-list permits them.
 
 Round-trip:
 

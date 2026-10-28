@@ -239,30 +239,31 @@ without mutating package or resource storage.
 
 ## Resolver security
 
-The default resolver is local-only. It reads absolute local paths and `file://` URIs,
-and it resolves relative references only when a base URI is available. It denies every
-non-local URI scheme with `DescriptorReferenceSchemeDenied`. Missing bases, missing
-files, malformed JSON, and wrong document kinds use the typed errors exported from
+There is one default resolver, `DefaultDescriptorResolver`. It resolves a reference under
+the context `LocationPolicy` (the one passed to the loader): local references (absolute
+paths, `file://` URIs, and base-relative paths) must stay inside the policy root, and
+remote references (including references relative to a remote base) are read through the
+storage facade only when the policy's `allowed_remote` allow-list names their scheme and
+host. Violations raise `mountainash_transport.location.LocationNotAllowed`, before any
+network request. With no policy (a programmatic package with no base) local reads are
+allowed and every remote reference is denied with `LocationNotAllowed`. Missing bases,
+missing files, malformed JSON, and wrong document kinds use the typed errors exported from
 `mountainash.exceptions`.
-
-Remote resolution requires an injected resolver with an explicit scheme allow-list. To
-use the storage-backed resolver (`mountainash-transport` is a core dependency),
-construct an opt-in resolver and pass it to an input method:
 
 ```python
 from mountainash import DataPackage
-from mountainash.typespec.descriptor_context import StorageDescriptorResolver
+from mountainash_transport.location import LocationPolicy
 
-resolver = StorageDescriptorResolver(allowed_schemes={"s3"})
+policy = LocationPolicy(allowed_remote={"s3": frozenset({"bucket"})})
 package = DataPackage.from_json(
     text,
     base_uri="s3://bucket/descriptors/",
-    resolver=resolver,
+    policy=policy,
 )
 ```
 
-The storage resolver still denies schemes that are not in its allow-list. Do not use a
-remote resolver when local-only resolution is sufficient.
+A custom resolver may accept an optional `policy` keyword; it receives the context policy
+and may ignore it (custom resolvers are caller code).
 
 ## V2-only policy
 

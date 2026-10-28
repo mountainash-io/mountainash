@@ -1,14 +1,16 @@
 """Lazy resolution and validation of referenced Frictionless descriptors."""
 from __future__ import annotations
 
+import inspect
 from collections.abc import Mapping
+
+from mountainash_transport.location import LocationNotAllowed
 
 from mountainash.typespec.descriptor_context import DescriptorContext, DescriptorKind
 from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
-    DescriptorReferenceSchemeDenied,
     InvalidDescriptorStructure,
     MissingDescriptorBase,
 )
@@ -75,6 +77,21 @@ def validate_resolved_kind(
     )
 
 
+def _accepts_policy(resolver: object) -> bool:
+    try:
+        params = inspect.signature(resolver.resolve).parameters  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        return False
+    return "policy" in params or any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+    )
+
+
+def _policy_kwargs(context: DescriptorContext) -> dict[str, object]:
+    """Pass the context policy only to resolvers that accept it."""
+    return {"policy": context.policy} if _accepts_policy(context.resolver) else {}
+
+
 def resolve_descriptor_mapping(
     value: Mapping[str, object] | str,
     *,
@@ -89,6 +106,7 @@ def resolve_descriptor_mapping(
                 value,
                 base_uri=context.base_uri,
                 expected_kind=expected_kind,
+                **_policy_kwargs(context),
             )
         except MissingDescriptorBase as exc:
             raise MissingDescriptorBase(
@@ -112,18 +130,8 @@ def resolve_descriptor_mapping(
                 rejected_value=value,
                 required_form="existing descriptor document",
             ) from exc
-        except DescriptorReferenceSchemeDenied as exc:
-            raise DescriptorReferenceSchemeDenied(
-                str(exc),
-                descriptor_kind=expected_kind.value,
-                descriptor_path=location.descriptor_path,
-                resource_name=location.resource_name,
-                reference=exc.reference,
-                normalized_reference=exc.normalized_reference,
-                expected_kind=exc.expected_kind,
-                rejected_value=value,
-                required_form="approved descriptor reference scheme",
-            ) from exc
+        except LocationNotAllowed:
+            raise
         except DescriptorError:
             raise
         except Exception as exc:

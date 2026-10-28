@@ -7,8 +7,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, AbstractSet, Any, Protocol
-from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
+from typing import TYPE_CHECKING, Any, Protocol
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 try:
     from enum import StrEnum
@@ -17,10 +17,15 @@ except ImportError:  # pragma: no cover - Python 3.10 compatibility
         pass
 
 from mountainash.core.io import facade_read_bytes
+from mountainash_transport.location import (
+    LocationNotAllowed,
+    confine_local,
+    identify_scheme,
+    local_path,
+)
 from mountainash.typespec.errors import (
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
-    DescriptorReferenceSchemeDenied,
     InvalidDescriptorStructure,
     MissingDescriptorBase,
 )
@@ -51,6 +56,7 @@ class DescriptorResolver(Protocol):
         *,
         base_uri: str | None,
         expected_kind: DescriptorKind,
+        policy: "LocationPolicy | None" = None,
     ) -> Mapping[str, Any]:
         raise NotImplementedError
 
@@ -177,24 +183,16 @@ def _canonical_remote_uri(value: str, *, trailing_slash: bool = False) -> str:
     return urlunsplit((scheme, netloc, path, parts.query, parts.fragment))
 
 
-def _local_path_from_uri(value: str, *, reference: str) -> Path:
-    parts = urlsplit(value)
-    if parts.query or parts.fragment:
-        raise _invalid_reference(reference, normalized_reference=value)
-    if parts.netloc not in ("", "localhost"):
+def _file_uri_path(value: str, *, reference: str) -> Path:
+    """Decode a ``file:`` URI via transport ``local_path`` (descriptor errors preserved)."""
+    try:
+        return Path(local_path(value)).resolve()
+    except LocationNotAllowed as exc:
         raise _invalid_reference(
             reference,
             normalized_reference=value,
-            message="file URI must refer to the local host",
-        )
-    path = Path(unquote(parts.path))
-    if not path.is_absolute():
-        raise _invalid_reference(
-            reference,
-            normalized_reference=value,
-            message="file URI must contain an absolute path",
-        )
-    return path.resolve()
+            message=f"invalid file URI: {exc}",
+        ) from exc
 
 
 def normalize_base_uri(value: str | Path | None) -> str | None:
@@ -221,7 +219,7 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
         if parts.query or parts.fragment:
             raise _base_error(value, "local descriptor base URI must not contain a query or fragment")
         try:
-            return _local_path_from_uri(value, reference=value).as_uri() + "/"
+            return _file_uri_path(value, reference=value).as_uri() + "/"
         except DescriptorReferenceInvalid as exc:
             raise _base_error(value, str(exc)) from exc
 
@@ -257,7 +255,7 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         joined = urljoin(normalized_base, reference)
         joined_parts = urlsplit(joined)
         if joined_parts.scheme.lower() == "file":
-            return _local_path_from_uri(joined, reference=reference).as_uri()
+            return _file_uri_path(joined, reference=reference).as_uri()
         try:
             return _canonical_remote_uri(joined)
         except ValueError as exc:
@@ -269,7 +267,7 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
 
     scheme = parts.scheme.lower()
     if scheme == "file":
-        return _local_path_from_uri(reference, reference=reference).as_uri()
+        return _file_uri_path(reference, reference=reference).as_uri()
     try:
         return _canonical_remote_uri(reference)
     except ValueError as exc:
@@ -325,8 +323,13 @@ def _parse_descriptor_bytes(
     return descriptor
 
 
-class LocalDescriptorResolver:
-    """Resolve JSON descriptors from local paths and ``file://`` URIs only."""
+class DefaultDescriptorResolver:
+    """Resolve JSON descriptors under the context ``LocationPolicy``.
+
+    Local results are confined to the policy root; remote results go through the
+    storage facade, which enforces the remote allow-list before any request. With
+    no policy (programmatic, no base) local reads are allowed and remote is denied.
+    """
 
     def resolve(
         self,
@@ -334,60 +337,19 @@ class LocalDescriptorResolver:
         *,
         base_uri: str | None,
         expected_kind: DescriptorKind,
+        policy: "LocationPolicy | None" = None,
     ) -> Mapping[str, Any]:
         normalized = normalize_document_uri(reference, base_uri=base_uri)
-        scheme = urlsplit(normalized).scheme.lower()
-        if scheme != "file":
-            raise DescriptorReferenceSchemeDenied(
-                "local descriptor resolver denies non-local URI schemes",
-                reference=reference,
-                normalized_reference=normalized,
-                expected_kind=_expected_kind_value(expected_kind),
-                rejected_value=scheme,
-            )
-        path = _local_path_from_uri(normalized, reference=reference)
         try:
-            payload = path.read_bytes()
-        except FileNotFoundError as exc:
-            raise DescriptorReferenceNotFound(
-                "descriptor reference does not exist",
-                reference=reference,
-                normalized_reference=normalized,
-                expected_kind=_expected_kind_value(expected_kind),
-            ) from exc
-        return _parse_descriptor_bytes(
-            payload,
-            reference=reference,
-            normalized_reference=normalized,
-            expected_kind=expected_kind,
-        )
-
-
-class StorageDescriptorResolver:
-    """Resolve descriptors through the storage facade for approved schemes."""
-
-    def __init__(self, *, allowed_schemes: AbstractSet[str]) -> None:
-        self._allowed_schemes = frozenset(s.lower() for s in allowed_schemes)
-
-    def resolve(
-        self,
-        reference: str,
-        *,
-        base_uri: str | None,
-        expected_kind: DescriptorKind,
-    ) -> Mapping[str, Any]:
-        normalized = normalize_document_uri(reference, base_uri=base_uri)
-        scheme = urlsplit(normalized).scheme.lower()
-        if scheme not in self._allowed_schemes:
-            raise DescriptorReferenceSchemeDenied(
-                "storage descriptor resolver denies URI scheme",
-                reference=reference,
-                normalized_reference=normalized,
-                expected_kind=_expected_kind_value(expected_kind),
-                rejected_value=scheme,
-            )
-        try:
-            payload = facade_read_bytes(normalized)
+            if identify_scheme(normalized) in ("", "file"):
+                path = confine_local(
+                    str(_file_uri_path(normalized, reference=reference)), policy
+                )
+                payload = Path(path).read_bytes()
+            else:
+                if policy is None:
+                    raise LocationNotAllowed(reference, "remote not allowed")
+                payload = facade_read_bytes(normalized, policy)
         except _STORAGE_NOT_FOUND_ERRORS as exc:
             raise DescriptorReferenceNotFound(
                 "descriptor reference does not exist",
@@ -414,7 +376,7 @@ def build_descriptor_context(
     frozen_sources = tuple(deepcopy(dict(source)) for source in package_sources)
     return DescriptorContext(
         base_uri=normalize_base_uri(base_uri),
-        resolver=resolver if resolver is not None else LocalDescriptorResolver(),
+        resolver=resolver if resolver is not None else DefaultDescriptorResolver(),
         package_sources=frozen_sources,
         policy=policy,
     )
@@ -436,7 +398,7 @@ def loader_policy(
     normalized = normalize_base_uri(base_uri)  # existing descriptor errors fire first
     declared = os.getcwd()
     if normalized is not None and urlsplit(normalized).scheme == "file":
-        declared = str(_local_path_from_uri(normalized, reference=normalized))
+        declared = local_path(normalized)
     return (policy or LocationPolicy()).with_declared_root(declared)
 
 
@@ -449,6 +411,5 @@ __all__ = [
     "normalize_base_uri",
     "normalize_document_uri",
     "descriptor_cache_key",
-    "LocalDescriptorResolver",
-    "StorageDescriptorResolver",
+    "DefaultDescriptorResolver",
 ]

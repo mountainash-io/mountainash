@@ -19,10 +19,6 @@ from mountainash.core.io import is_remote
         ("http://example.com/data.json", True),
         ("b2://bucket/key.csv", True),
         ("s3express://bucket/key.csv", True),
-        # Regression: these schemes were misclassified as local under the old
-        # prefix-list fallback (which omitted them), so remote SSH/SFTP/FTP
-        # resources were routed to a local Path read that always failed.
-        # Locked in here.
         ("sftp://host/key.csv", True),
         ("ssh://host/key.csv", True),
         ("ftp://host/key.csv", True),
@@ -46,7 +42,7 @@ def test_facade_read_bytes_dispatches_via_facade(monkeypatch):
             return b"fake-data"
 
         @staticmethod
-        def from_path(path):
+        def from_path(path, policy=None):
             from_path_calls.append(path)
             return FakeFacade()
 

@@ -68,8 +68,7 @@ from mountainash.typespec.descriptor_context import (
     normalize_base_uri,
     normalize_document_uri,
     descriptor_cache_key,
-    LocalDescriptorResolver,
-    StorageDescriptorResolver,
+    DefaultDescriptorResolver,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 from mountainash.typespec.temporal import (
@@ -161,8 +160,7 @@ __all__ = [
     "normalize_base_uri",
     "normalize_document_uri",
     "descriptor_cache_key",
-    "LocalDescriptorResolver",
-    "StorageDescriptorResolver",
+    "DefaultDescriptorResolver",
 
     # Errors
     "TypeSpecError",

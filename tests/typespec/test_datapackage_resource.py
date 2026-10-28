@@ -23,7 +23,7 @@ from mountainash.typespec.datapackage import (
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
-    LocalDescriptorResolver,
+    DefaultDescriptorResolver,
 )
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.frictionless_invariants import InvariantLocation
@@ -217,7 +217,7 @@ def test_context_does_not_change_equality() -> None:
     right = DataResource(name="orders", path="orders.csv")
     right._descriptor_context = DescriptorContext(
         base_uri="file:///tmp/",
-        resolver=LocalDescriptorResolver(),
+        resolver=DefaultDescriptorResolver(),
         package_sources=(),
     )
     right._package_resource_names = frozenset({"orders"})
@@ -228,7 +228,7 @@ def test_effective_sources_returns_a_fresh_list() -> None:
     resource = DataResource(name="orders", path="orders.csv")
     resource._descriptor_context = DescriptorContext(
         base_uri=None,
-        resolver=LocalDescriptorResolver(),
+        resolver=DefaultDescriptorResolver(),
         package_sources=({"title": "catalog"},),
     )
     first = resource.effective_sources

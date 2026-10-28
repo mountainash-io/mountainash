@@ -8,11 +8,11 @@ from typing import Any
 
 import polars as pl
 import pytest
+from mountainash_transport.location import LocationNotAllowed
 
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
-    DescriptorReferenceSchemeDenied,
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -405,20 +405,8 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
             )
         ]
     )
-    with pytest.raises(DescriptorReferenceSchemeDenied) as denied_caught:
+    with pytest.raises(LocationNotAllowed):
         denied.resources[0].to_table_schema()
-    _assert_error_fields(
-        denied_caught,
-        error_type=DescriptorReferenceSchemeDenied,
-        descriptor_kind="schema",
-        descriptor_path="$.resources[0].schema",
-        resource_name="child",
-        reference=denied_reference,
-        normalized_reference=denied_reference,
-        expected_kind="schema",
-        rejected_value=denied_reference,
-        required_form="approved descriptor reference scheme",
-    )
 
 
 

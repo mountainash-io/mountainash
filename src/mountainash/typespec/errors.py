@@ -59,10 +59,6 @@ class DescriptorReferenceInvalid(DescriptorError, ValueError):
     """The resolved descriptor is malformed or has the wrong kind."""
 
 
-class DescriptorReferenceSchemeDenied(DescriptorError, PermissionError):
-    """The resolver policy denies the reference scheme."""
-
-
 class InvalidDescriptorRelationship(DescriptorError, ValueError):
     """A descriptor relationship targets an unknown resource or field."""
 
@@ -219,7 +215,6 @@ __all__ = [
     "MissingDescriptorBase",
     "DescriptorReferenceNotFound",
     "DescriptorReferenceInvalid",
-    "DescriptorReferenceSchemeDenied",
     "InvalidDescriptorRelationship",
     "UnsupportedResourceDialect",
     "TypeSpecError",

@@ -11,7 +11,7 @@ from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
     DescriptorResolver,
-    LocalDescriptorResolver,
+    DefaultDescriptorResolver,
 )
 from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 def _default_descriptor_context() -> DescriptorContext:
     return DescriptorContext(
         base_uri=None,
-        resolver=LocalDescriptorResolver(),
+        resolver=DefaultDescriptorResolver(),
         package_sources=(),
     )
 
