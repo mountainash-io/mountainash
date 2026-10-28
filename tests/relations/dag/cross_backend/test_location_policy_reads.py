@@ -109,7 +109,7 @@ def _collect(pkg, name):
 POLICIES = {
     None: None,
     "allow-127": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
-    "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
+    "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset()}),
     "unconfined": lambda: LocationPolicy(allow_unconfined=True),
 }
 
