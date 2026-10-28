@@ -92,14 +92,39 @@ class Runner:
         result.values = {k: v for k, v in values.items() if k in plan.identified}
         return result
 
-    # ---- phase 3 (completed in 6b/6c)
-    def commit(self, plan: Plan, result: RunResult) -> None:                 # 6a version: flat graphs; 6c replaces it with the pending_all walk
-        g = self.pipeline.graph
+    # ---- phase 3
+    def register_nested(self, result: RunResult, name: str, inner: "Runner", plan: Plan, inner_result: RunResult) -> None:
+        result.nested[name] = (inner, plan, inner_result)
+
+    def commit(self, plan: Plan, result: RunResult) -> None:
+        """Spec §7: enumerate every pending attempt in the checkpoint and its scoped views; commit those whose source is in
+        this run's selected subgraph (resolving nested paths through the run's nested results / prepared plans)."""
+        for path, _attempt in list(self.cp.pending_all()):                  # path is a tuple of raw names (F38/P13)
+            frame = self._resolve_pending(list(path), self.cp, self.pipeline, result, plan, outer_ok=True)
+            if frame is None: continue                                   # outside the selected subgraph → untouched
+            unit, scoped_cp, descendants_ok = frame
+            unit.lifecycle.commit(unit, descendants_ok, scoped_cp)
+
+    def _resolve_pending(self, path, cp, pipeline, result, plan, outer_ok):
+        """Walk a pending-attempt path (``N/M/S``) through nested pipelines; return (unit, its checkpoint, descendants_ok) or None."""
+        from mountainash.pipelines.units.nested import PipelineUnit
+        g = pipeline.graph; head, rest = path[0], path[1:]
+        if head not in result.statuses: return None
         ok = lambda names: all(result.statuses.get(d) in (Status.COMPLETE, Status.REUSED) for d in names)   # noqa: E731
-        for path, _att in list(self.cp.pending_all()):
-            if len(path) != 1 or path[0] not in result.statuses: continue     # nested (6c) or outside the selected subgraph
-            n = path[0]
-            u = g.nodes[n]; u.lifecycle.commit(u, ok(g.descendants(n)), self.cp)
+        u = g.nodes[head]
+        if not rest:
+            return (u, cp, outer_ok and ok(g.descendants(head)))
+        if not isinstance(u, PipelineUnit): return None
+        outer_desc_ok = outer_ok and ok(g.descendants(head))
+        scoped = cp.scoped(head)
+        if head in result.nested:                                        # executed this run: real inner statuses
+            inner, inner_plan, inner_result = result.nested[head]
+            return inner._resolve_pending(rest, scoped, u.pipeline, inner_result, inner_plan, outer_desc_ok)
+        if result.statuses[head] is Status.REUSED:                       # reused this run: last recorded inner statuses, selected subgraph only (spec §7 / F7)
+            inner, inner_plan = plan.identified[head].prepared
+            synth = RunResult(statuses={k: (Status.REUSED if st is Status.COMPLETE else st) for k in inner_plan.order if (st := scoped.last_status(k)) is not None})
+            return inner._resolve_pending(rest, scoped, u.pipeline, synth, inner_plan, outer_desc_ok)
+        return None
 
     def run(self, *, params=None, target=None, resume=True, force=False) -> RunResult:
         plan = self.plan(params=params, target=target, resume=resume, force=force)

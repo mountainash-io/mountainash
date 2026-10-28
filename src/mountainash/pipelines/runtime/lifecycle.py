@@ -132,6 +132,31 @@ def _as_result(res, identity, unit, upstream):
     return SourceResult(v, res.next_cursor)
 
 
+class NestedLifecycle(UnitLifecycle):
+    @staticmethod
+    def identify(unit, upstream, params, cp, opts):
+        from mountainash.pipelines.runtime.runner import Runner
+        inner = Runner(unit.pipeline, checkpoint=cp.scoped(unit.name), workers=opts["workers"], retry=opts["retry"])
+        plan = inner.plan(params=params, target=unit.target, resume=opts["resume"], force=opts["force"], injected_identities=upstream)
+        return Identified(plan.identity_of(unit.target), prepared=(inner, plan))
+
+    @staticmethod
+    def execute(unit, ident, decision, upstream, ctx, cp, runner, result):
+        from mountainash.pipelines.errors import UnitFailed
+        if decision.tag == "REUSE":
+            return Outcome(ident.identity, Status.REUSED, decision.record.value)
+        inner, plan = ident.prepared
+        inner_result = inner.execute(plan, upstream_values=upstream)
+        st = inner_result.statuses[unit.target]
+        if st in (Status.FAILED, Status.SKIPPED):
+            raise UnitFailed(f"{unit.name}: inner target {unit.target} {st.value}")
+        st = Status.COMPLETE if st in (Status.COMPLETE, Status.REUSED) else Status.PARTIAL
+        v = replace(inner_result.values[unit.target], identity=ident.identity)
+        cp.record(unit.name, Record(ident.identity, st, datetime.now(), v.coverage, v))
+        runner.register_nested(result, unit.name, inner, plan, inner_result)
+        return Outcome(ident.identity, st, v)
+
+
 def bind_lifecycles() -> None:
     from mountainash.pipelines.units.dag import DagUnit
     from mountainash.pipelines.units.python import PythonUnit
@@ -139,4 +164,5 @@ def bind_lifecycles() -> None:
     from mountainash.pipelines.units.source import SourceUnit
     PythonUnit.lifecycle = DagUnit.lifecycle = SinkUnit.lifecycle = UnitLifecycle
     SourceUnit.lifecycle = SourceLifecycle
-    # PipelineUnit bound in 6c
+    from mountainash.pipelines.units.nested import PipelineUnit
+    PipelineUnit.lifecycle = NestedLifecycle
