@@ -2,7 +2,10 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from mountainash.pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.errors import InvalidStorageKeyError
 from mountainash.pipelines.storage.memory import MemoryPipelineStorage
 from mountainash.pipelines.storage.filesystem import FileSystemPipelineStorage
 from mountainash.pipelines.storage.dual import DualPipelineStorage
@@ -107,3 +110,91 @@ class TestDualStorage:
 
             retrieved = dual.read_step_output("test", "key1")
             assert retrieved is not None
+
+
+class TestFileSystemStoragePathValidation:
+    """F-12: step_name / cache_key are joined into cache paths and must not escape the base dir."""
+
+    BAD_NAMES = [
+        "..",
+        "../escape",
+        "..\\escape",
+        "a/b",
+        "a\\b",
+        "/abs",
+        "",
+        ".",
+        "step.name",
+        "step\x00",
+        "1step",
+        "with space",
+        "ünïcode",
+    ]
+
+    def test_valid_step_names_unchanged(self, tmp_path):
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        for name in ("fetch", "extract_data", "_private", "Step2"):
+            storage.write_step_output(name, _make_result(step_name=name))
+            assert (tmp_path / name / "key1.json").is_file()
+            assert storage.read_step_output(name, "key1").data == [{"id": 1}]
+
+    def test_hex_digest_cache_keys_unchanged(self, tmp_path):
+        from mountainash.pipelines.core.cache_key import compute_cache_key
+
+        key = compute_cache_key("v1", "fetch", {}, None)
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        storage.write_step_output("fetch", _make_result(step_name="fetch", cache_key=key))
+        assert (tmp_path / "fetch" / f"{key}.json").is_file()
+        assert (tmp_path / "fetch" / f"{key}.meta.json").is_file()
+        assert storage.read_step_output("fetch", key) is not None
+
+    @pytest.mark.parametrize("bad", BAD_NAMES)
+    def test_write_rejects_bad_step_name(self, tmp_path, bad):
+        base = tmp_path / "cache"
+        base.mkdir()
+        storage = FileSystemPipelineStorage(base_path=base)
+        with pytest.raises(InvalidStorageKeyError):
+            storage.write_step_output(bad, _make_result())
+        assert sorted(p.name for p in tmp_path.rglob("*") if p != base) == []
+
+    @pytest.mark.parametrize("bad", BAD_NAMES)
+    def test_read_and_is_fresh_reject_bad_step_name(self, tmp_path, bad):
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        with pytest.raises(InvalidStorageKeyError):
+            storage.read_step_output(bad, "key1")
+        with pytest.raises(InvalidStorageKeyError):
+            storage.is_fresh(bad, "key1")
+
+    @pytest.mark.parametrize("bad", ["../key", "a/b", "a\\b", "", "..", "k.meta", "key\x00", "/abs"])
+    def test_rejects_bad_cache_key(self, tmp_path, bad):
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        with pytest.raises(InvalidStorageKeyError):
+            storage.write_step_output("fetch", _make_result(cache_key=bad))
+        with pytest.raises(InvalidStorageKeyError):
+            storage.read_step_output("fetch", bad)
+
+    def test_traversal_does_not_write_outside_base(self, tmp_path):
+        base = tmp_path / "cache"
+        base.mkdir()
+        storage = FileSystemPipelineStorage(base_path=base)
+        with pytest.raises(InvalidStorageKeyError):
+            storage.write_step_output("../outside", _make_result())
+        assert not (tmp_path / "outside").exists()
+
+    def test_error_is_value_error_and_mountainash_error(self):
+        from mountainash.core.errors import MountainashError
+
+        assert issubclass(InvalidStorageKeyError, ValueError)
+        assert issubclass(InvalidStorageKeyError, MountainashError)
+
+    def test_error_message_names_the_field_and_value(self, tmp_path):
+        storage = FileSystemPipelineStorage(base_path=tmp_path)
+        with pytest.raises(InvalidStorageKeyError, match=r"step_name.*'\.\./escape'"):
+            storage.read_step_output("../escape", "key1")
+
+    def test_dual_storage_rejects_without_caching_in_memory(self, tmp_path):
+        mem = MemoryPipelineStorage()
+        dual = DualPipelineStorage(memory=mem, filesystem=FileSystemPipelineStorage(base_path=tmp_path))
+        with pytest.raises(InvalidStorageKeyError):
+            dual.write_step_output("../x", _make_result())
+        assert mem.read_step_output("../x", "key1") is None

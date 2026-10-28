@@ -1,13 +1,31 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta
 
 from mountainash.pipelines.core.result import StepMetadata, StepResult
+from mountainash.pipelines.errors import InvalidStorageKeyError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+# A step name is a single path component named like a Python identifier.
+_STEP_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# A cache key is a single path component; hex digests may start with a digit.
+_CACHE_KEY = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def _validate_component(field: str, value: object, pattern: re.Pattern[str]) -> str:
+    # fullmatch (not match/$) so a trailing newline is rejected.
+    if not isinstance(value, str) or pattern.fullmatch(value) is None:
+        raise InvalidStorageKeyError(
+            f"Invalid {field} {value!r}: must match {pattern.pattern!r} "
+            "(a single path component with no separators or traversal)"
+        )
+    return value
 
 
 class FileSystemPipelineStorage:
@@ -15,21 +33,24 @@ class FileSystemPipelineStorage:
         self._base = base_path
 
     def _step_dir(self, step_name: str) -> Path:
-        return self._base / step_name
+        return self._base / _validate_component("step_name", step_name, _STEP_NAME)
 
-    def _data_path(self, step_name: str, cache_key: str) -> Path:
-        return self._step_dir(step_name) / f"{cache_key}.json"
+    def _data_path(self, step_name: str, cache_key: str, suffix: str = ".json") -> Path:
+        key = _validate_component("cache_key", cache_key, _CACHE_KEY)
+        return self._step_dir(step_name) / f"{key}{suffix}"
 
     def _meta_path(self, step_name: str, cache_key: str) -> Path:
-        return self._step_dir(step_name) / f"{cache_key}.meta.json"
+        return self._data_path(step_name, cache_key, ".meta.json")
 
     def write_step_output(self, step_name: str, result: StepResult) -> None:
         step_dir = self._step_dir(step_name)
+        # Validate the cache key before creating any directory.
+        self._data_path(step_name, result.cache_key)
         step_dir.mkdir(parents=True, exist_ok=True)
 
         if hasattr(result.data, "num_rows"):
             import pyarrow.parquet as pq
-            data_path = self._step_dir(step_name) / f"{result.cache_key}.parquet"
+            data_path = self._data_path(step_name, result.cache_key, ".parquet")
             pq.write_table(result.data, data_path)
             fmt = "parquet"
         else:
@@ -58,7 +79,7 @@ class FileSystemPipelineStorage:
         fmt = meta_raw.get("format", "json")
         if fmt == "parquet":
             import pyarrow.parquet as pq
-            data_path = self._step_dir(step_name) / f"{cache_key}.parquet"
+            data_path = self._data_path(step_name, cache_key, ".parquet")
             if not data_path.exists():
                 return None
             data = pq.read_table(data_path)
