@@ -319,3 +319,23 @@ def test_transfer_matrix(src, dst, case):
 def test_lazy_only_narwhals_destinations_refused(dst):
     with pytest.raises(UnsupportedRelationTransportError):
         ma.relation(ibis.duckdb.connect().create_table("t", {"k": [1]})).collect(target=dst)
+
+
+@pytest.mark.parametrize("src", list(MATRIX_BACKENDS))
+def test_to_pyarrow_nested_types_match_across_backends(src):
+    """Same logical nested type -> same Arrow type string (offset width aside),
+    whatever the engine names its list children (DuckDB uses ``l``). PyArrow's
+    ``==`` ignores child names, so compare the type strings."""
+    table = pa.table({
+        "k": pa.array([0, 1], pa.int64()),
+        "tags": pa.array([["a"], []], pa.list_(pa.string())),
+        "s": pa.array([{"q": [1]}, None], pa.struct([("q", pa.list_(pa.int64()))])),
+    })
+    if src == "ibis-sqlite":
+        pytest.xfail("SQLite source cannot hold nested types (spike J)")
+    out = ma.relation(MATRIX_BACKENDS[src].build_typed(table, "t")).to_pyarrow()
+    def logical(dtype):
+        return str(dtype).replace("large_", "")
+
+    assert logical(out.schema.field("tags").type) == "list<item: string>"
+    assert logical(out.schema.field("s").type) == "struct<q: list<item: int64>>"

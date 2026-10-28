@@ -65,13 +65,23 @@ class IbisBaseRelationSystem(BaseRelationSystem):
         return self._cross_join_names(left_names, right_names, suffix or "_right")
 
     def export(self, native: Any, *, source: ExecutionLocation) -> pa.Table:
-        """Arrow export; a bare in-memory table is read without execution."""
+        """Arrow export; a bare in-memory table is read without execution.
+
+        List child fields take Arrow's default name (``item``): engines name
+        them differently (DuckDB uses ``l``), which would make the same logical
+        type compare unequal across backends.
+        """
         from ibis.expr.operations import InMemoryTable
 
         op = native.op()
         if isinstance(op, InMemoryTable):
             return op.data.to_pyarrow(native.schema())
-        return native.to_pyarrow()
+        table = native.to_pyarrow()
+        schema = _canonical_schema(table.schema)
+        # Schema equality ignores list child names; compare the rendered types.
+        if [str(f.type) for f in schema] == [str(f.type) for f in table.schema]:
+            return table
+        return table.cast(schema)
 
     def check_import(
         self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
@@ -116,3 +126,25 @@ class IbisBaseRelationSystem(BaseRelationSystem):
         return self._native_scan_for(
             resource, resource.to_dialect(), location=location,
         )
+
+
+def _canonical_type(dtype: pa.DataType) -> pa.DataType:
+    import pyarrow as pa
+
+    if pa.types.is_list(dtype) or pa.types.is_large_list(dtype) or pa.types.is_fixed_size_list(dtype):
+        child = dtype.value_field
+        field = pa.field("item", _canonical_type(child.type), child.nullable, child.metadata)
+        if pa.types.is_large_list(dtype):
+            return pa.large_list(field)
+        if pa.types.is_fixed_size_list(dtype):
+            return pa.list_(field, dtype.list_size)
+        return pa.list_(field)
+    if pa.types.is_struct(dtype):
+        return pa.struct([f.with_type(_canonical_type(f.type)) for f in dtype])
+    return dtype
+
+
+def _canonical_schema(schema: pa.Schema) -> pa.Schema:
+    import pyarrow as pa
+
+    return pa.schema([f.with_type(_canonical_type(f.type)) for f in schema], metadata=schema.metadata)
