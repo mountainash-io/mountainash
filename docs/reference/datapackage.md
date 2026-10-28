@@ -246,13 +246,8 @@ files, malformed JSON, and wrong document kinds use the typed errors exported fr
 `mountainash.exceptions`.
 
 Remote resolution requires an injected resolver with an explicit scheme allow-list. To
-use the storage-backed resolver, install the optional dependency:
-
-```bash
-uv pip install "mountainash[storage]"
-```
-
-Then construct an opt-in resolver and pass it to an input method:
+use the storage-backed resolver (`mountainash-transport` is a core dependency),
+construct an opt-in resolver and pass it to an input method:
 
 ```python
 from mountainash import DataPackage

@@ -7,7 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import AbstractSet, Any, Protocol
+from typing import TYPE_CHECKING, AbstractSet, Any, Protocol
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
 try:
@@ -35,6 +35,10 @@ else:
     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError, _TransportPathNotFoundError)
 
 
+if TYPE_CHECKING:
+    from mountainash_transport.location import LocationPolicy
+
+
 class DescriptorKind(StrEnum):
     SCHEMA = "schema"
     DIALECT = "dialect"
@@ -56,6 +60,7 @@ class DescriptorContext:
     base_uri: str | None
     resolver: DescriptorResolver
     package_sources: tuple[Mapping[str, Any], ...]
+    policy: "LocationPolicy | None" = None
 
 
 def _base_error(value: object, message: str) -> InvalidDescriptorStructure:
@@ -403,6 +408,7 @@ def build_descriptor_context(
     base_uri: str | Path | None = None,
     resolver: DescriptorResolver | None = None,
     package_sources: Iterable[Mapping[str, Any]] = (),
+    policy: "LocationPolicy | None" = None,
 ) -> DescriptorContext:
     """Build a context with canonical base and owned package-source storage."""
     frozen_sources = tuple(deepcopy(dict(source)) for source in package_sources)
@@ -410,7 +416,33 @@ def build_descriptor_context(
         base_uri=normalize_base_uri(base_uri),
         resolver=resolver if resolver is not None else LocalDescriptorResolver(),
         package_sources=frozen_sources,
+        policy=policy,
     )
+
+
+def loader_policy(
+    base_uri: str | Path | None,
+    policy: "LocationPolicy | None",
+) -> "LocationPolicy":
+    """Return the loader's policy with its root declared (explicit root wins).
+
+    A local base roots at that base; no base or a remote base roots at the
+    load-time working directory. A remote base grants no permission.
+    """
+    import os
+
+    from mountainash_transport.location import (
+        LocationPolicy,
+        identify_scheme,
+        local_path,
+    )
+
+    declared = os.getcwd()
+    if base_uri is not None:
+        text = str(base_uri)
+        if identify_scheme(text) in ("", "file"):
+            declared = local_path(text)
+    return (policy or LocationPolicy()).with_declared_root(declared)
 
 
 __all__ = [
@@ -418,6 +450,7 @@ __all__ = [
     "DescriptorResolver",
     "DescriptorContext",
     "build_descriptor_context",
+    "loader_policy",
     "normalize_base_uri",
     "normalize_document_uri",
     "descriptor_cache_key",

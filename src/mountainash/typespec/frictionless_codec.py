@@ -16,9 +16,11 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, V
 
 if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataPackage, DataResource
+    from mountainash_transport.location import LocationPolicy
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     build_descriptor_context,
+    loader_policy,
     DescriptorResolver,
 )
 from mountainash.typespec.spec import TableSchema
@@ -422,12 +424,14 @@ def decode_package_descriptor(
     *,
     base_uri: str | Path | None = None,
     resolver: DescriptorResolver | None = None,
+    policy: LocationPolicy | None = None,
 ) -> DataPackage:
     mapping = require_package_mapping(raw)
     context = build_descriptor_context(
         base_uri=base_uri,
         resolver=resolver,
         package_sources=(),
+        policy=loader_policy(base_uri, policy),
     )
     return _decode_owned_package(deepcopy(mapping), context=context)
 
@@ -437,21 +441,26 @@ def decode_package_json(
     *,
     base_uri: str | Path | None = None,
     resolver: DescriptorResolver | None = None,
+    policy: LocationPolicy | None = None,
 ) -> DataPackage:
     raw = parse_descriptor_json(text)
-    return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
+    return decode_package_descriptor(
+        raw, base_uri=base_uri, resolver=resolver, policy=policy
+    )
 
 
 def decode_package_path(
     path: str | Path,
     *,
     resolver: DescriptorResolver | None = None,
+    policy: LocationPolicy | None = None,
 ) -> DataPackage:
     absolute_path, text = read_local_package_text(path)
     return decode_package_json(
         text,
         base_uri=absolute_path.parent,
         resolver=resolver,
+        policy=policy,
     )
 
 

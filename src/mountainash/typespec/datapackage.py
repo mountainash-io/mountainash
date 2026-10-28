@@ -44,6 +44,8 @@ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from mountainash_transport.location import LocationPolicy
+
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 
 
@@ -494,6 +496,9 @@ class DataResource(BaseModel):
 
     @classmethod
     def model_validate(cls, obj: Any, **kwargs: Any) -> "DataResource":
+        retained_context = (
+            obj._descriptor_context if isinstance(obj, cls) else None
+        )
         raw = (
             _resource_public_values(obj)
             if isinstance(obj, cls)
@@ -530,7 +535,11 @@ class DataResource(BaseModel):
                 required_forms=_RESOURCE_REQUIRED_FORMS,
             ) from exc
         result._invariant_location = InvariantLocation("$", resource_name)
-        result._descriptor_context = _default_descriptor_context()
+        result._descriptor_context = (
+            retained_context
+            if retained_context is not None
+            else _default_descriptor_context()
+        )
         result._package_resource_names = frozenset()
         return result
 
@@ -593,7 +602,9 @@ class DataResource(BaseModel):
             retain_data_identity=True,
             copy_typed_declarations=True,
         )
-        return type(self).model_validate(values)
+        result = type(self).model_validate(values)
+        result._descriptor_context = self._descriptor_context
+        return result
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, DataResource):
@@ -1098,6 +1109,15 @@ def _finalize_package_resources(
     return owned_tuple
 
 
+def _rebind_package_resources(
+    package: DataPackage, context: DescriptorContext
+) -> None:
+    """Re-bind resources the pydantic validator rebuilt via ``__init__``."""
+    resource_names = _validate_unique_resource_names(tuple(package.resources))
+    for resource in package.resources:
+        _bind_resource(resource, context=context, resource_names=resource_names)
+
+
 def _package_public_values(package: DataPackage) -> dict[str, object]:
     values: dict[str, object] = {}
     for field_name, field in type(package).model_fields.items():
@@ -1252,13 +1272,18 @@ class DataPackage(BaseModel):
             )
         prepared, context = _prepare_package_input(
             obj,
-            context=_default_descriptor_context(),
+            context=(
+                obj._descriptor_context
+                if isinstance(obj, cls)
+                else _default_descriptor_context()
+            ),
         )
         try:
             result = super().model_validate(prepared, **kwargs)
         except ValidationError as exc:
             raise _package_validation_error(exc) from exc
         result._descriptor_context = context
+        _rebind_package_resources(result, context)
         return result
 
     @classmethod
@@ -1279,6 +1304,7 @@ class DataPackage(BaseModel):
         except ValidationError as exc:
             raise _package_validation_error(exc) from exc
         result._descriptor_context = context
+        _rebind_package_resources(result, context)
         return result
 
     @classmethod
@@ -1330,10 +1356,13 @@ class DataPackage(BaseModel):
         *,
         base_uri: str | Path | None = None,
         resolver: DescriptorResolver | None = None,
+        policy: "LocationPolicy | None" = None,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_descriptor
 
-        return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
+        return decode_package_descriptor(
+            raw, base_uri=base_uri, resolver=resolver, policy=policy
+        )
 
     @classmethod
     def from_json(
@@ -1342,10 +1371,13 @@ class DataPackage(BaseModel):
         *,
         base_uri: str | Path | None = None,
         resolver: DescriptorResolver | None = None,
+        policy: "LocationPolicy | None" = None,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_json
 
-        return decode_package_json(text, base_uri=base_uri, resolver=resolver)
+        return decode_package_json(
+            text, base_uri=base_uri, resolver=resolver, policy=policy
+        )
 
     @classmethod
     def from_path(
@@ -1353,10 +1385,11 @@ class DataPackage(BaseModel):
         path: str | Path,
         *,
         resolver: DescriptorResolver | None = None,
+        policy: "LocationPolicy | None" = None,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_path
 
-        return decode_package_path(path, resolver=resolver)
+        return decode_package_path(path, resolver=resolver, policy=policy)
 
     def to_descriptor(self) -> dict[str, Any]:
         from mountainash.typespec.frictionless_codec import encode_package_descriptor
