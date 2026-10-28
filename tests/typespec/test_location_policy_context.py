@@ -101,3 +101,13 @@ def test_datacontract_loader_roots_at_source_parent(tmp_path, monkeypatch):
     schema.write_text(json.dumps({"fields": [{"name": "a", "type": "integer"}]}))
     ma.datacontract(schema)
     assert os.path.realpath(resource_policy(seen[0]).root) == os.path.realpath(tmp_path)
+
+
+@pytest.mark.parametrize("base", ["https://[bad", "file://evilhost/tmp/"])
+@pytest.mark.parametrize("loader", ["from_descriptor", "from_json"])
+def test_malformed_base_keeps_descriptor_error(base, loader):
+    from mountainash.typespec.errors import InvalidDescriptorStructure
+    doc = {"name": "p", "resources": [{"name": "r", "path": "a.csv"}]}
+    arg = doc if loader == "from_descriptor" else json.dumps(doc)
+    with pytest.raises(InvalidDescriptorStructure):
+        getattr(ma.DataPackage, loader)(arg, base_uri=base)

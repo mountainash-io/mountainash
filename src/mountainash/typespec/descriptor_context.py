@@ -431,17 +431,12 @@ def loader_policy(
     """
     import os
 
-    from mountainash_transport.location import (
-        LocationPolicy,
-        identify_scheme,
-        local_path,
-    )
+    from mountainash_transport.location import LocationPolicy
 
+    normalized = normalize_base_uri(base_uri)  # existing descriptor errors fire first
     declared = os.getcwd()
-    if base_uri is not None:
-        text = str(base_uri)
-        if identify_scheme(text) in ("", "file"):
-            declared = local_path(text)
+    if normalized is not None and urlsplit(normalized).scheme == "file":
+        declared = str(_local_path_from_uri(normalized, reference=normalized))
     return (policy or LocationPolicy()).with_declared_root(declared)
 
 
