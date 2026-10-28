@@ -227,7 +227,9 @@ def test_duckdb_sample_projection_treats_selector_like_names_literally(projectio
         with expect_call_failure(
             reason="355 / NW-REL-02: native DuckDB projections parse literal identifiers",
             errors=(duckdb.BinderException, duckdb.ParserException, nw.exceptions.DuplicateError),
-            when=(nw.__version__, duckdb.__version__) == ("2.27.1", "1.5.6"),
+            when=(nw.__version__, duckdb.__version__) in {
+                ("2.27.1", "1.5.6"), ("2.28.0", "1.5.6"), ("2.28.0", "2.0.0"),
+            },
         ):
             try:
                 query.compile()

@@ -76,8 +76,12 @@ def test_empty_global_extrema_remain_unqualified(backend_name):
     if backend_name in {"pandas", "narwhals-pandas"}:
         expected = D.FP64
     elif backend_name in {"pyarrow", "narwhals-pyarrow"}:
+        import narwhals as nw
         import pyarrow as pa
-        expected = NativeDtype(value=pa.null(), target=TypeTarget.PYARROW)
+        # Narwhals 2.28.0 types an empty PyArrow min() as the input dtype
+        # (matching the other backends); 2.27.1 reported null.
+        expected = (D.I64 if tuple(map(int, nw.__version__.split(".")[:2])) >= (2, 28)
+                    else NativeDtype(value=pa.null(), target=TypeTarget.PYARROW))
     elif backend_name == "ibis-sqlite":
         import ibis.expr.datatypes as dt
         expected = NativeDtype(value=dt.null, target=TypeTarget.IBIS)
