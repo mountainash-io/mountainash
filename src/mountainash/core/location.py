@@ -23,14 +23,23 @@ def resolve_resource_location(resource: Any, path: str) -> str:
     opt out of descriptor-relative resolution. Without a base, a loader policy's root
     is the base; programmatic contexts (no policy) return the path unchanged.
     """
-    from urllib.parse import urlsplit, urlunsplit
+    from mountainash_transport.location import require_known_scheme
 
-    from mountainash_transport.location import identify_scheme, local_path, require_known_scheme
-
-    ctx = getattr(resource, "_descriptor_context", None)
     active = resource_policy(resource)
     if active is not None:
         require_known_scheme(path, active)  # sanitized error before any raw classification
+    result = _join(resource, path)
+    if active is not None and result != path:
+        require_known_scheme(result, active)  # the joined value is what callers classify next
+    return result
+
+
+def _join(resource: Any, path: str) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+
+    from mountainash_transport.location import identify_scheme, local_path
+
+    ctx = getattr(resource, "_descriptor_context", None)
     base = getattr(ctx, "base_uri", None)
     if base is None:
         pol = getattr(ctx, "policy", None)

@@ -187,3 +187,15 @@ def test_programmatic_malformed_path_keeps_value_error():
     with pytest.raises(ValueError) as e:
         ResourceRef(res).read_bytes()
     assert not isinstance(e.value, LocationNotAllowed)
+
+
+@pytest.mark.parametrize("target", ["polars", "ibis"])
+def test_joined_location_malformed_credential_sanitized(target):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash_transport.location import LocationNotAllowed
+    d = {"name": "p", "resources": [{"name": "r", "path": "0user:secret@exam\uff0fple.com/x", "format": "csv"}]}
+    res = ma.DataPackage.from_json(json.dumps(d), base_uri="/").resources[0]
+    with pytest.raises(LocationNotAllowed) as e:
+        Relation(ResourceReadRelNode(resource=res)).collect(target=target)
+    _assert_sanitized(e)
