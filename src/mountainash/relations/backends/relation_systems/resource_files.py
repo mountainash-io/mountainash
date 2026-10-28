@@ -8,6 +8,7 @@ dependency (direct or transitive, at import or during parse) surfaces as
 """
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from mountainash.relations.dag.errors import (
@@ -170,33 +171,77 @@ def dialect_native_safe(dialect: Any) -> bool:
     return True
 
 
+def escape_duckdb_glob(path: str) -> str:
+    """Make a file path literal for DuckDB's glob-expanding readers: ``[ * ?`` -> ``[[] [*] [?]``."""
+    return path.replace("[", "[[]").replace("*", "[*]").replace("?", "[?]")
+
+
+def confined_local_paths(resource: Any, *, tree: bool) -> list[str] | None:
+    """Effective local paths for a resource, confined by its loader policy.
+
+    Each authored path is joined to the descriptor base (also under
+    ``allow_unconfined``). Returns ``None`` when any resolved location is not
+    local (the files fallback owns it). Under an active policy local paths are
+    confined (``tree`` also walks a directory) and an unrecognised scheme raises
+    ``LocationNotAllowed``.
+    """
+    from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
+
+    from mountainash.core.location import resolve_resource_location, resource_policy
+
+    policy = resource_policy(resource)
+    raw_path = resource.path
+    raws = raw_path if isinstance(raw_path, list) else [raw_path]
+    out: list[str] = []
+    for raw in raws:
+        resolved = resolve_resource_location(resource, str(raw))
+        scheme = identify_scheme(resolved)
+        if policy is not None and scheme is None:
+            raise LocationNotAllowed(str(raw), "unknown scheme")
+        if scheme not in ("", "file", None):
+            return None
+        out.append(resolved if policy is None else confine_local(resolved, policy, tree=tree))
+    return out
+
+
+def polars_native_scan_paths(resource: Any, fmt: str, dialect: Any) -> list[str] | None:
+    """Effective paths for a Polars/Narwhals lazy scan, or ``None`` for the files fallback.
+
+    The one native decision: routing classifies the descriptor-resolved location,
+    and under an active policy authored globs and non-local locations fall back.
+    """
+    if resource.data is not None or fmt not in {"csv", "parquet"} or resource.path is None:
+        return None
+
+    from mountainash.core.io import is_remote
+    from mountainash.core.location import resolve_resource_location, resource_policy
+
+    authored = resource.path if isinstance(resource.path, list) else [resource.path]
+    if not authored:
+        return None
+    for path in authored:
+        text = str(path)
+        if (
+            is_remote(resolve_resource_location(resource, text))
+            or any(char in text for char in _GLOB_CHARS)
+            or text.lower().endswith(_COMPRESSION_SUFFIXES)
+        ):
+            return None
+
+    if fmt == "csv":
+        ensure_dialect_supported(dialect)
+        if not dialect_native_safe(dialect):
+            return None
+    return confined_local_paths(resource, tree=resource_policy(resource) is not None)
+
+
 def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
     """Whether Polars/Narwhals can read this resource through their lazy scan.
 
     This is shared by the reader and schema-phase visitor so schema inspection
     never mistakes the eager Arrow fallback for native metadata planning.
     """
-    if resource.data is not None or fmt not in {"csv", "parquet"} or resource.path is None:
-        return False
-
-    paths = resource.path if isinstance(resource.path, list) else [resource.path]
-    if not paths:
-        return False
-    from mountainash.core.io import is_remote
-
-    for path in paths:
-        text = str(path)
-        if (
-            is_remote(path)
-            or any(char in text for char in _GLOB_CHARS)
-            or text.lower().endswith(_COMPRESSION_SUFFIXES)
-        ):
-            return False
-
-    if fmt == "csv":
-        ensure_dialect_supported(dialect)
-        return dialect_native_safe(dialect)
-    return True
+    return polars_native_scan_paths(resource, fmt, dialect) is not None
 
 
 def _normalise_format(resource: Any, path_for_suffix: str) -> str | None:
@@ -254,6 +299,11 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
     (e.g. ``a.zip/*.csv``) -- glob resolves filesystem paths, archive members
     are selected by ``ZipArchive.file_pattern``; the two do not compose here."""
     _parse, FileSourceSpec, _CsvSpec, GzipCompression, ZipArchive = _require_files()
+    from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
+
+    from mountainash.core.location import resolve_resource_location, resource_policy
+
+    policy = resource_policy(resource)
     raw = resource.path
     paths = raw if isinstance(raw, list) else [raw]
     specs: list[Any] = []
@@ -266,9 +316,22 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
         format_arg: Any = fmt
         if fmt == "csv":
             format_arg = _csv_spec_from_dialect(dialect)
+        base = resolve_resource_location(resource, base)
+        if policy is not None and pattern is None:
+            scheme = identify_scheme(base)
+            if scheme is None:
+                raise LocationNotAllowed(entry, "unknown scheme")
+            if scheme in ("", "file"):
+                base = confine_local(base, policy)
+                if os.path.isdir(base):
+                    raise LocationNotAllowed(
+                        entry,
+                        "directory resource not supported for this backend under a "
+                        "location policy; use a glob",
+                    )
         specs.append(
             FileSourceSpec(path=base, glob=pattern, format=format_arg,
-                           archive=archive)
+                           archive=archive, policy=policy)
         )
     return specs
 

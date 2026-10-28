@@ -8,6 +8,7 @@ import polars as pl
 import pytest
 
 from mountainash.typespec.datapackage import DataPackage
+from mountainash_transport.location import LocationPolicy
 
 FIXTURES = Path(__file__).parent.parent.parent / "typespec" / "fixtures"
 
@@ -81,7 +82,7 @@ def test_descriptor_round_trip_through_dag(tmp_path: Path) -> None:
 def test_descriptor_dag_preserves_lazy_reads_and_source_inheritance(tmp_path: Path) -> None:
     raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
 
-    package = DataPackage.from_descriptor(raw)
+    package = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
     resource = package.resources[0]
     resource.path = str(tmp_path / "deferred.csv")
     assert all(r.sources is None for r in package.resources)
@@ -167,7 +168,7 @@ def test_descriptor_collect_one_resource(tmp_path: Path) -> None:
     target_name = raw["resources"][0]["name"]
     raw = _stub_resources(raw, tmp_path, drop_schema=True)
 
-    pkg = DataPackage.from_descriptor(raw)
+    pkg = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
     pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
     result = dag.collect(target_name)
@@ -180,7 +181,7 @@ def test_descriptor_collect_all_resources(tmp_path: Path) -> None:
     raw = json.loads((FIXTURES / "gdp.datapackage.json").read_text())
     raw = _stub_resources(raw, tmp_path, drop_schema=True)
 
-    pkg = DataPackage.from_descriptor(raw)
+    pkg = DataPackage.from_descriptor(raw, policy=LocationPolicy(root=tmp_path))
     pkg = _bind_stub_paths(pkg, tmp_path)
     dag = pkg.to_relation_dag()
 
