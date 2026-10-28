@@ -141,6 +141,32 @@ including at materializing terminals; supply a bound table or `target=<connectio
 late union inputs), and directs you to `.collect()`; `.explain()` describes
 placement and transfers without executing them.
 
+### Transfers between locations
+
+A value crossing between locations is exported by its source family to Arrow
+and imported by the destination family (`export` / `import_into` on the
+registered relation system), once per boundary. Values that stay in one native
+library (Polars wrapped by Narwhals, eager to lazy) move without Arrow.
+Destination specifics:
+
+- **pandas / `narwhals-pandas`** imports keep Arrow types (`pd.ArrowDtype`
+  columns): an integer column with nulls stays integer, NaN stays distinct from
+  null, decimals stay decimal. `to_pandas()` on a non-pandas result still
+  returns NumPy-backed columns.
+- **`narwhals-lazy`** (Narwhals over Polars lazy) is a valid target. Lazy-only
+  Narwhals implementations (`narwhals-duckdb`, `narwhals-dask`) cannot import
+  Arrow and refuse with `UnsupportedRelationTransportError`.
+- **Ibis-SQLite** refuses IEEE NaN (stored as NULL), non-null decimals and
+  nested types; an owned table copy (a `target=<sqlite connection>` collect)
+  also refuses decimal columns, including all-null ones.
+- Arrow exported from Ibis names list children `item` whatever the engine
+  uses (DuckDB uses `l`), so the same logical type renders identically across
+  backends.
+
+Refusals carry the destination's declared `IMPORT_INTO` capability fact as
+`UnsupportedRelationTransportError.limitation`. Owned-copy adoption onto MySQL,
+SingleStoreDB and Exasol connections is blocked by the same key's declarations.
+
 Principle: `e.cross-backend/backend-detection.md`.
 
 ## Explicit Arrow ingestion
