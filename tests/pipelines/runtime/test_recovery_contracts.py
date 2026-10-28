@@ -87,3 +87,36 @@ def test_same_runner_two_runs_force_then_failure_keeps_attempt_pending(tmp_path)
     r = Runner(p, checkpoint=FileCheckpoint(tmp_path)); r.run()
     t._fail = 1; r.run(force=True)
     assert FileCheckpoint(tmp_path).pending("S") is not None                        # source-commit invariant (nested variant lives in 6c)
+
+def test_force_discards_pending_even_if_replacement_fetch_fails(tmp_path):
+    import polars as pl
+    fail = [False]
+    def fetch(up, params, state):
+        if fail[0]: raise RuntimeError("new fetch failed")
+        return SourceResult(Value.of(rows(A), Identity.of("t"), Coverage.source({A}, {A}, set())), A)
+    p = Pipeline("g").add(CallableSource(fetch, name="S")).add(LogSink("X", "S", fail_times=1))
+    Runner(p, checkpoint=FileCheckpoint(tmp_path)).run(params={"revision": 1})
+    assert FileCheckpoint(tmp_path).pending("S") is not None
+    fail[0] = True
+    r = Runner(p, checkpoint=FileCheckpoint(tmp_path)).run(params={"revision": 2}, force=True)
+    assert r.statuses["S"] is Status.FAILED
+    assert FileCheckpoint(tmp_path).pending("S") is None and FileCheckpoint(tmp_path).progress("S") == SourceState()
+    fail[0] = False
+    r = Runner(p, checkpoint=FileCheckpoint(tmp_path)).run(params={"revision": 2})          # no IncompatibleResume
+    assert r.statuses["S"] is Status.COMPLETE
+
+def test_regenerate_applies_empty_policy_fail(tmp_path):
+    import polars as pl
+    from mountainash.pipelines.core.policies import EmptyPolicy
+    calls = []
+    def fetch(up, params, state):
+        calls.append(state)
+        df = pl.DataFrame({"p": [1]}) if len(calls) == 1 else pl.DataFrame({"p": []}, schema={"p": pl.Int64})
+        return SourceResult(Value.of(df, Identity.of("t"), Coverage.source({A}, {A}, set())), A)
+    x = LogSink("X", "S", fail_times=1)
+    p = Pipeline("h").add(CallableSource(fetch, name="S", empty=EmptyPolicy.FAIL)).add(x)
+    Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
+    assert FileCheckpoint(tmp_path).pending("S").record.value is None               # not retained → REGENERATE next
+    r = Runner(p, checkpoint=FileCheckpoint(tmp_path)).run()
+    assert r.statuses["S"] is Status.FAILED and r.statuses["X"] is not Status.COMPLETE and x.log == []
+    assert FileCheckpoint(tmp_path).progress("S") == SourceState()

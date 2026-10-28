@@ -107,9 +107,11 @@ class SourceLifecycle:
         if decision.tag == "REGENERATE":
             a = decision.attempt
             res = _as_result(runner.retrying(lambda: unit.run(upstream, replace(ctx, state=a.state_in))), a.identity, unit, upstream)
+            runner.apply_empty_policy(unit, res.value)
             a2 = a.replace(res); cp.set_pending(unit.name, a2)
             runner.invalidate_descendants(unit.name)
             return Outcome(a2.identity, a2.record.status, a2.record.value)
+        if cp.pending(unit.name) is not None: cp.clear_pending(unit.name)   # force discards the pending attempt (spec §7); committed progress untouched
         res = _as_result(runner.retrying(lambda: unit.run(upstream, replace(ctx, state=decision.state))), ident.identity, unit, upstream)
         runner.apply_empty_policy(unit, res.value)
         cov = res.value.coverage; st = Status.COMPLETE if (cov is None or cov.complete) else Status.PARTIAL
