@@ -166,24 +166,30 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # Keep schema-phase eligibility identical to this reader's actual lazy
         # route; all other formats and path forms use the eager files fallback.
         # The decision also yields the effective (confined) paths: computed once.
-        paths = rf.polars_native_scan_paths(resource, fmt, dialect)
-        if paths is not None:
+        sources = rf.polars_native_scan_sources(resource, fmt, dialect)
+        if sources is not None:
             self._resource_lowering = DEFERRED_ONLY
-            return self._native_local_scan(fmt, paths, resource, dialect)
+            return self._native_scan(fmt, sources, resource, dialect)
         return pl.from_arrow(
             rf.parse_resource_to_arrow(resource, dialect=dialect)
         ).lazy()
 
-    def _native_local_scan(
-        self, fmt: str, paths: list[str], resource: Any, dialect: Any,
+    def _native_scan(
+        self, fmt: str, sources: list[tuple[str, dict[str, str]]], resource: Any, dialect: Any,
     ) -> pl.LazyFrame:
         # Eligibility excludes authored globs; the descriptor base stays literal.
         kwargs = {**self._reader_kwargs(resource, fmt, dialect), "glob": False}
         if fmt == "csv":
-            frames = [pl.scan_csv(p, **kwargs) for p in paths]
+            frames = [pl.scan_csv(p, storage_options=options, **kwargs) for p, options in sources]
         else:
-            frames = [pl.scan_parquet(p, glob=False) for p in paths]
-        return frames[0] if len(frames) == 1 else pl.concat(frames, how="vertical")
+            frames = [pl.scan_parquet(p, glob=False, storage_options=options) for p, options in sources]
+        result = frames[0] if len(frames) == 1 else pl.concat(frames, how="diagonal_relaxed")
+        if fmt == "csv" and dialect is not None and dialect.header is False:
+            result = result.rename({
+                name: f"field{index}"
+                for index, name in enumerate(result.collect_schema().names(), 1)
+            })
+        return result
 
 
     @staticmethod

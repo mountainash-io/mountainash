@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — opt-in confinement and resource storage bindings (backlog 387)
+## Unreleased — native resource reads and opt-in confinement (backlog 387)
 
 ### Breaking
 - Location confinement is off by default, including descriptor loaders and schema/dialect references. Enable it with a storage profile's `LOCATION_POLICY` or an explicit `policy=LocationPolicy(...)`. Omission inherits; explicit `None` disables; an explicit policy replaces. Authentication and TLS are unchanged.
@@ -9,6 +9,13 @@
 ### Added
 - `DataResource.with_storage` and `DataPackage.with_storage` bind existing direct/named storage and auth profiles without reading resource data or serializing credentials. Copies/revalidation preserve access; package rebinding retains explicit resource bindings.
 - Bound access reaches byte reads, file parsing, schema inspection and matching-provider schema/dialect references. Owned byte-read facades close on success and failure; unrelated-provider references do not inherit credentials.
+- Eligible unconfined CSV/Parquet reads use native Polars, Polars-backed Narwhals and Ibis-DuckDB readers with bound static S3 or anonymous HTTP access. Active remote confinement and unrepresentable access retain the files fallback.
+- Native plans preserve explicit credentials, non-default dialects, headerless `field1`… column names, and null/missing-field path-list unions. DuckDB temporary setup survives shared connection lifetimes; late route changes remain blocked below.
+
+### Qualification blocker
+- Non-range HTTP sources that the files reader handles still fail in Polars 2.1 native scans (`PL-REL-01`, backlog 393). Item 387 remains NO-GO; strict expected-failure coverage is not a workaround or a scope waiver.
+- A DuckDB native route becoming ineligible after preparation can lose its selected connection and admit eager fallback during compile. The attempted compilation-time anchor repair was removed because it violated preparation-owned transfer planning. Failing regressions remain; design reconciliation is required before merge.
+- Resource binding composition now retains an absent package descriptor base or load-time working-directory anchor, without overriding an explicit resource base. The core-consumed native setup query is declared on the backend protocol.
 
 ## Unreleased — 2026-10-29 (slim transport base install, transport backlog 33)
 

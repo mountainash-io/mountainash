@@ -14,6 +14,7 @@ from mountainash.typespec.descriptor_context import (
     DescriptorResolver,
     DefaultDescriptorResolver,
     _bind_storage,
+    _effective_policy,
 )
 from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
@@ -1090,7 +1091,18 @@ def _bind_resource(
         or retained.default_base is not None
         or retained.policy_override is not POLICY_UNSET
     ):
-        context = replace(retained, package_sources=context.package_sources)
+        context = replace(
+            retained,
+            package_sources=context.package_sources,
+            base_uri=(
+                retained.base_uri if retained.base_uri is not None else context.base_uri
+            ),
+            default_base=(
+                retained.default_base if retained.default_base is not None else context.default_base
+            ),
+        )
+        if context.base_uri != retained.base_uri or context.default_base != retained.default_base:
+            context = replace(context, policy=_effective_policy(context))
     resource._descriptor_context = context
     resource._package_resource_names = resource_names
 

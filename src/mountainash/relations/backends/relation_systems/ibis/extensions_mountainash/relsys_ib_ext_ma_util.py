@@ -183,37 +183,46 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
     def _native_scan_for(
         self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
     ) -> bool:
-        return self._native_scan_paths(resource, dialect, location=location) is not None
+        return self._native_scan_sources(resource, dialect, location=location) is not None
 
-    def _native_scan_paths(
+    @staticmethod
+    def _selected_connection(location: ExecutionLocation | None) -> Any:
+        if location is not None and location.connection is not None:
+            return location.connection
+        return ibis.get_backend()
+
+    @staticmethod
+    def _remote_accesses(sources: list[Any]) -> list[Any]:
+        return [access for access in sources if access.scheme != "file"]
+
+    def _native_scan_sources(
         self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
-    ) -> list[str] | None:
-        """The one native-scan decision (predicate and reader), yielding the
-        effective paths. Routing classifies the descriptor-resolved location; under
-        an active policy only DuckDB reads natively, and a directory whose path
-        has glob characters falls back (its confinement is then refused there)."""
+    ) -> list[Any] | None:
+        """The one native-scan decision (predicate, setup gate and reader), yielding
+        the effective ``NativeReadAccess`` list. Routing classifies the descriptor-resolved
+        location; under an active policy only DuckDB reads natively, and a directory
+        whose path has glob characters falls back (its confinement is then refused
+        there). Remote sources are native only on DuckDB, when the shared adapter can
+        represent them faithfully; eligibility only inspects engine metadata."""
         import os
 
-        import ibis
-
-        from mountainash.core.io import is_remote
-        from mountainash.core.location import resolve_resource_location, resource_policy
+        from mountainash.core.location import resource_policy
+        from mountainash.relations.backends.relation_systems import native_access
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         if resource.data is not None or resource.path is None:
             return None
         fmt = self._detect_format_name(resource)
-        raw_path = resource.path
-        paths = raw_path if isinstance(raw_path, list) else [raw_path]
-        all_local = all(not is_remote(resolve_resource_location(resource, p)) for p in paths)
-        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
-        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
-        con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
         native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
-        if not (
-            all_local and no_glob and no_archive and native
-            and hasattr(con, native)
-            and (fmt != "csv" or rf.dialect_is_default(dialect))
+        con = self._selected_connection(location)
+        if not (native and hasattr(con, native)):
+            return None
+        duckdb = con.name == "duckdb"
+        # DuckDB maps delimiter (up to 4 bytes)/header/quote/null natively; other
+        # engines' ``read_csv`` ignores a dialect, so they keep the default-only rule.
+        if fmt == "csv" and not (
+            rf.dialect_native_safe(dialect, max_delimiter_bytes=4)
+            if duckdb else rf.dialect_is_default(dialect)
         ):
             return None
         policy = resource_policy(resource)
@@ -221,20 +230,45 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             key = location.dialect if location is not None and location.dialect else f"ibis-{con.name}"
             if key != "ibis-duckdb":
                 return None
-        effective = rf.confined_local_paths(resource, tree=policy is not None)
-        if effective is None:
+        sources = rf.native_read_accesses(resource)
+        if sources is None:
+            return None
+        remote = self._remote_accesses(sources)
+        if remote and not duckdb:
             return None
         if policy is not None and any(
-            os.path.isdir(p) and any(c in p for c in "[*?") for p in effective
+            access.scheme == "file" and os.path.isdir(access.location)
+            and any(c in access.location for c in "[*?")
+            for access in sources
         ):
             return None
-        return effective
+        if remote and not native_access.duckdb_native_eligible(remote, con):
+            return None
+        return sources
+
+    def _native_setup_required(
+        self, resource: Any, *, location: ExecutionLocation | None = None,
+    ) -> bool:
+        """Whether reading this resource would first create new DuckDB setup.
+
+        Non-executing: the preparation COMPILE gate asks it; fallback and
+        already-ready setup answer ``False``."""
+        from mountainash.relations.backends.relation_systems import native_access
+
+        sources = self._native_scan_sources(resource, resource.to_dialect(), location=location)
+        if sources is None:
+            return False
+        con = self._selected_connection(location)
+        remote = self._remote_accesses(sources)
+        return con.name == "duckdb" and bool(remote) and native_access.duckdb_setup_required(remote, con)
 
     def read_resource(self, resource: Any, *, location: ExecutionLocation | None = None) -> ir.Table:
-        """Load a DataResource into an Ibis table. Native engine reads for local
-        plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
-        for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
-        with the other backends (spec §A.6)."""
+        """Load a DataResource into an Ibis table. Native engine reads for plain
+        CSV/Parquet: local files on any engine with ``read_*`` (default dialect), and
+        local or remote sources on DuckDB (delimiter/header/quote/null dialect,
+        remote access the native adapter can represent). Arrow-coerced fallback (no
+        pandas) for JSON, glob, archive, active remote policy, unrepresentable
+        access/dialect -- uniform with the other backends (spec §A.6)."""
         from mountainash.core.lowering_reuse import OCCURRENCE
 
         self._resource_lowering = OCCURRENCE
@@ -261,15 +295,45 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         if fmt == "csv":
             rf.ensure_dialect_supported(dialect)
-        paths = self._native_scan_paths(resource, dialect, location=location)
-        if paths is not None:
+        sources = self._native_scan_sources(resource, dialect, location=location)
+        con = self._selected_connection(location)
+        if sources is not None and con.name == "duckdb":
+            from mountainash.relations.backends.relation_systems import native_access
+
+            remote = self._remote_accesses(sources)
+            # A pre-read conflict selects the files reader; a data error propagates.
+            if remote and not native_access.setup_duckdb(remote, con):
+                sources = None
+        if sources is not None:
             native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
-            con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
             # Eligibility excludes authored globs, independently of confinement.
             if con.name == "duckdb":
-                paths = [p if os.path.isdir(p) else rf.escape_duckdb_glob(p) for p in paths]
-            options = {"glob": False} if con.name == "polars" else {}
-            return getattr(con, native)(paths if len(paths) > 1 else paths[0], **options)
+                paths = [
+                    a.location if a.scheme != "file" or os.path.isdir(a.location)
+                    else rf.escape_duckdb_glob(a.location)
+                    for a in sources
+                ]
+            else:
+                paths = [a.location for a in sources]
+            options: dict[str, Any] = {"glob": False} if con.name == "polars" else {}
+            if fmt == "csv" and con.name == "duckdb":
+                options.update(delim=",", header=True, quote='"')
+            if fmt == "csv" and con.name == "duckdb" and dialect is not None:
+                if dialect.delimiter is not None:
+                    options["delim"] = dialect.delimiter
+                if dialect.header is not None:
+                    options["header"] = dialect.header
+                if dialect.quote_char is not None:
+                    options["quote"] = dialect.quote_char
+                if dialect.null_sequence is not None:
+                    options["nullstr"] = dialect.null_sequence
+            if fmt == "parquet" and con.name == "duckdb" and len(paths) > 1:
+                options["union_by_name"] = True
+            table = getattr(con, native)(paths if len(paths) > 1 else paths[0], **options)
+            if options.get("header") is False:
+                # The files reader names headerless columns field1..N; keep them.
+                table = table.rename({f"field{i}": name for i, name in enumerate(table.columns, 1)})
+            return table
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).

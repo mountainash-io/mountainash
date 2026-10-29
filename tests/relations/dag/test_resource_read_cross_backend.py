@@ -774,22 +774,6 @@ def test_resource_schema_preserves_missing_and_access_errors(tmp_path, monkeypat
     with pytest.raises(PermissionError, match="access denied"):
         Relation(ResourceReadRelNode(resource=protected)).collect_schema()
 
-@pytest.fixture
-def schema_resource_http_url(tmp_path):
-    from functools import partial
-    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-    from threading import Thread
-
-    handler = partial(SimpleHTTPRequestHandler, directory=str(tmp_path))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}/rows.csv"
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
 
 
 @pytest.mark.parametrize(
@@ -1005,3 +989,120 @@ def test_schema_of_eager_narwhals_join_never_collects_scan(tmp_path, monkeypatch
     schema = dag.ref("j").collect_schema()
     assert set(schema) == {"id", "tag", "amount"}
     assert all(n == 0 for n in collected)  # type-only: never a row
+
+
+@pytest.mark.parametrize("target", ["polars", "narwhals-polars", "narwhals-lazy", "ibis-duckdb"])
+@pytest.mark.parametrize("fmt,delimiter,header", [
+    ("csv", ",", True), ("csv", ";", True), ("csv", ";", False), ("parquet", None, True),
+])
+def test_anonymous_http_native_without_files_import(
+    target, fmt, delimiter, header, tmp_path, schema_resource_http_url, monkeypatch,
+):
+    import mountainash as ma
+    from mountainash.relations.backends.relation_systems import resource_files
+
+    source = pl.DataFrame({
+        "id": [11, 12], "value": [-2147483649, 4294967297], "label": ["a,b", None],
+    })
+    path = tmp_path / f"rows.{fmt}"
+    if fmt == "csv":
+        source.write_csv(path, separator=delimiter, null_value="NULL", include_header=header)
+    else:
+        source.write_parquet(path)
+
+    def no_materializing_reader(*args, **kwargs):
+        raise AssertionError("native read must not materialize through mountainash-files")
+
+    monkeypatch.setattr(resource_files, "parse_resource_to_arrow", no_materializing_reader)
+    url = schema_resource_http_url.rsplit("/", 1)[0] + "/" + path.name
+    dialect = {"delimiter": delimiter, "nullSequence": "NULL", "header": header} if fmt == "csv" else None
+    resource = ma.DataResource(name="rows", path=url, format=fmt, dialect=dialect)
+    connection = None
+    if target == "ibis-duckdb":
+        import ibis
+
+        connection = ibis.duckdb.connect()
+    try:
+        result = ma.ResourceRef(resource).relation().collect(target=connection or target)
+        frame = _collect_pl(result)
+        names = ["id", "value", "label"] if header else ["field1", "field2", "field3"]
+        assert frame.to_dicts() == [
+            dict(zip(names, [11, -2147483649, "a,b"])),
+            dict(zip(names, [12, 4294967297, None])),
+        ]
+        assert frame.schema == dict(zip(names, [pl.Int64, pl.Int64, pl.String]))
+    finally:
+        if connection is not None:
+            connection.disconnect()
+
+
+@pytest.mark.parametrize("target", ["polars", "narwhals-polars", "narwhals-lazy", "ibis-duckdb"])
+@pytest.mark.parametrize("shape", ["int64", "int8", "nested-missing"])
+def test_remote_parquet_list_promotes_null_schema(
+    target, shape, tmp_path, schema_resource_http_url,
+):
+    import mountainash as ma
+
+    if shape == "nested-missing":
+        first = pl.DataFrame({"record": [{"value": None}], "items": [[None]], "first": ["a"]})
+        second = pl.DataFrame(
+            {"record": [{"value": 7}], "items": [[7]], "second": ["b"]},
+            schema={"record": pl.Struct({"value": pl.Int8}), "items": pl.List(pl.Int8), "second": pl.String},
+        )
+        expected = [
+            {"record": {"value": None}, "items": [None], "first": "a", "second": None},
+            {"record": {"value": 7}, "items": [7], "first": None, "second": "b"},
+        ]
+        schema = {"record": pl.Struct({"value": pl.Int8}), "items": pl.List(pl.Int8),
+                  "first": pl.String, "second": pl.String}
+    else:
+        value, dtype = (2**40, pl.Int64) if shape == "int64" else (7, pl.Int8)
+        first = pl.DataFrame({"v": [None]})
+        second = pl.DataFrame({"v": [value]}, schema={"v": dtype})
+        expected, schema = [{"v": None}, {"v": value}], {"v": dtype}
+    first.write_parquet(tmp_path / "null.parquet")
+    second.write_parquet(tmp_path / "integer.parquet")
+    base = schema_resource_http_url.rsplit("/", 1)[0]
+    resource = ma.DataResource(name="rows", format="parquet",
+                               path=[f"{base}/null.parquet", f"{base}/integer.parquet"])
+    connection = None
+    if target == "ibis-duckdb":
+        import ibis
+
+        connection = ibis.duckdb.connect()
+    try:
+        frame = _collect_pl(ma.ResourceRef(resource).relation().collect(target=connection or target))
+        assert frame.to_dicts() == expected
+        assert frame.schema == schema
+    finally:
+        if connection is not None:
+            connection.disconnect()
+
+
+@pytest.mark.parametrize("target", ["polars", "narwhals-polars", "narwhals-lazy", "ibis-duckdb"])
+def test_remote_csv_multibyte_delimiter_retains_fallback(
+    target, tmp_path, schema_resource_http_url,
+):
+    import mountainash as ma
+
+    (tmp_path / "rows.csv").write_text("id|||||label\n11|||||first\n12|||||second\n")
+    resource = ma.DataResource(name="rows", path=schema_resource_http_url, format="csv",
+                               dialect={"delimiter": "|||||"})
+    connection = None
+    if target == "ibis-duckdb":
+        import ibis
+
+        connection = ibis.duckdb.connect()
+    try:
+        frame = _collect_pl(ma.ResourceRef(resource).relation().collect(target=connection or target))
+        assert frame.to_dicts() == [{"id": 11, "label": "first"}, {"id": 12, "label": "second"}]
+    finally:
+        if connection is not None:
+            connection.disconnect()
+
+
+def test_csv_default_delimiter_is_not_autodetected(backend_ext, tmp_path):
+    path = tmp_path / "rows.csv"
+    path.write_text("left;right\nnorth;south\n")
+    resource = DataResource(name="rows", path=str(path), format="csv")
+    assert _to_dict_list(backend_ext.read_resource(resource)) == [{"left;right": "north;south"}]

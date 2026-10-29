@@ -103,7 +103,20 @@ def _load_path(directory, descriptor, policy=POLICY_UNSET):
 
 
 def _collect(pkg, name):
-    return _values(pkg.to_relation_dag().collect("r", target=_target(name)))
+    target = _target(name)
+    try:
+        return _values(pkg.to_relation_dag().collect("r", target=target))
+    finally:
+        if hasattr(target, "disconnect"):
+            target.disconnect()
+
+
+def _expect_nonrange_http_gap(request, target_name):
+    request.node.add_marker(pytest.mark.xfail(
+        target_name in {"polars", "narwhals"},
+        reason="PL-REL-01: Polars 2.1 native HTTP needs Range support; backlog 393 blocks item 387",
+        strict=True, raises=OSError,
+    ))
 
 
 # Owner default is OFF: every protective case opts in explicitly ("confined" or a stricter allow-list).
@@ -165,8 +178,10 @@ def test_read_confinement(case, target_name, world, monkeypatch):
 
 @pytest.mark.parametrize("policy", [POLICY_UNSET, None], ids=["omitted", "explicit-none"])
 @pytest.mark.parametrize("case", DEFAULT_OFF_CASES, ids=[c[0] for c in DEFAULT_OFF_CASES])
-def test_read_default_off(case, policy, target_name, world, monkeypatch):
+def test_read_default_off(case, policy, target_name, world, monkeypatch, request):
     _id, spec, expected = case
+    if _id in {"remote", "remote_base_relative_resource"}:
+        _expect_nonrange_http_gap(request, target_name)
     pkg = _load_case(world, spec, policy, monkeypatch)
     assert _collect(pkg, target_name) == expected
 
@@ -231,7 +246,8 @@ def test_opt_out_reads_relative_to_descriptor_not_cwd(target_name, tmp_path, mon
     assert _collect(pkg, target_name) == [5]
 
 
-def test_opt_out_remote_base_relative_resource_takes_fallback(target_name, world, monkeypatch):
+def test_opt_out_remote_base_relative_resource(target_name, world, monkeypatch, request):
+    _expect_nonrange_http_gap(request, target_name)
     monkeypatch.chdir(world["elsewhere"])
     (world["elsewhere"] / "secret.csv").write_text("v\n1\n")
     pkg = DataPackage.from_descriptor(
@@ -239,6 +255,15 @@ def test_opt_out_remote_base_relative_resource_takes_fallback(target_name, world
         base_uri=f"http://127.0.0.1:{world['port']}/",
         policy=LocationPolicy(allow_unconfined=True),
     )
+    assert _collect(pkg, target_name) == [666]
+
+
+def test_nonrange_http_parquet_preserves_values(target_name, world, request):
+    _expect_nonrange_http_gap(request, target_name)
+    pl.DataFrame({"v": [666]}).write_parquet(world["outside"] / "secret.parquet")
+    pkg = DataPackage.from_descriptor(_descriptor(
+        f"http://127.0.0.1:{world['port']}/secret.parquet", fmt="parquet",
+    ))
     assert _collect(pkg, target_name) == [666]
 
 

@@ -137,6 +137,29 @@ supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed
 the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
 see the [resource-read support matrix](resource-read-support-matrix.md).
 
+### Native collection
+
+With confinement off, representable plain CSV/Parquet resources use native readers
+automatically. There is no route selector or size threshold. Static S3 bindings and
+anonymous range-capable HTTP are qualified on Polars, Polars-backed Narwhals and
+Ibis-DuckDB; other access uses the existing fallback. `narwhals-lazy` retains
+downstream pushdown, while `narwhals-polars` remains eager.
+
+DuckDB uses the connection supplied through `target=`. Its compatible temporary
+setup remains available to deferred results and other connections sharing that
+database. Conflicting credentials select fallback without replacing earlier or
+caller-owned setup. Compile cannot create new setup; use collection first, after
+which compatible setup may be reused.
+
+Non-range HTTP preservation is currently blocked by upstream `PL-REL-01` (backlog
+393); item 387 is not release-qualified. See the support matrix for the exact
+native/fallback and option boundaries.
+
+DuckDB route changes after preparation are also unqualified: newly conflicting
+shared setup can cause an unbound fallback or eager work during compile. This is
+an implementation/design blocker, not a supported change to connection ownership
+or phase semantics.
+
 ## Outputs and ownership
 
 The default writer is preserve mode:

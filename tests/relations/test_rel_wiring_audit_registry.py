@@ -105,7 +105,9 @@ KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
 
 # Transfer/scan services declared on the extension protocol for location-centred
 # transfer: they are called directly, not dispatched through a relation node.
-NON_OPERATION_METHODS = frozenset({"export", "check_import", "import_into", "native_scan_eligible"})
+NON_OPERATION_METHODS = frozenset({
+    "export", "check_import", "import_into", "native_scan_eligible", "native_setup_required",
+})
 
 
 def _protocol_methods(protocol_cls: type) -> list[str]:

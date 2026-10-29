@@ -1034,6 +1034,66 @@ def test_descriptor_base_is_not_retargeted_by_profile_or_policy_root(tmp_path):
     assert ResourceRef(package.resources[0]).read_bytes() == b"v\n11\n"
 
 
+@pytest.mark.parametrize("build", ["copy-update", "model-validate"])
+def test_bound_resource_in_package_inherits_package_base(tmp_path, build):
+    from mountainash import ResourceRef
+    from mountainash_transport.settings.storage.profiles import HTTPStorageProfile
+
+    (tmp_path / "orders.csv").write_bytes(b"id\n1\n")
+    (tmp_path / "schema.json").write_text('{"fields": [{"name": "id", "type": "integer"}]}')
+    (tmp_path / "dialect.json").write_text('{"delimiter": ";"}')
+    package = DataPackage.from_descriptor({"resources": [
+        {"name": "orders", "path": "orders.csv", "format": "csv", "schema": "schema.json"},
+    ]}, base_uri=tmp_path)
+    assert ResourceRef(package.resources[0]).read_bytes() == b"id\n1\n"
+    bound = DataResource(
+        name="orders", path="orders.csv", format="csv", schema="schema.json", dialect="dialect.json",
+    ).with_storage(HTTPStorageProfile())
+    if build == "copy-update":
+        rebuilt = package.model_copy(update={"resources": [bound]})
+    else:
+        rebuilt = DataPackage.model_validate(package.model_copy(update={"resources": [bound]}))
+    resource = rebuilt.resources[0]
+    assert ResourceRef(resource).read_bytes() == b"id\n1\n"
+    assert resource.to_table_schema().field_names == ["id"]
+    assert resource.to_dialect().delimiter == ";"
+
+
+def test_bound_resource_inherits_package_load_time_cwd(tmp_path, monkeypatch):
+    from mountainash import ResourceRef
+    from mountainash_transport.settings.storage.profiles import HTTPStorageProfile
+
+    for name, value in (("loaded", 11), ("later", 91)):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "rows.csv").write_text(f"v\n{value}\n")
+    monkeypatch.chdir(tmp_path / "loaded")
+    package = DataPackage.from_descriptor(
+        {"resources": [{"name": "r", "path": "rows.csv", "format": "csv"}]},
+    )
+    bound = DataResource(name="r", path="rows.csv", format="csv").with_storage(HTTPStorageProfile())
+    rebuilt = package.model_copy(update={"resources": [bound]})
+    monkeypatch.chdir(tmp_path / "later")
+    assert ResourceRef(rebuilt.resources[0]).read_bytes() == b"v\n11\n"
+
+
+def test_explicit_resource_base_is_kept_over_package_base(tmp_path):
+    from mountainash import ResourceRef
+
+    for name, value in (("own", 11), ("pkg", 91)):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "rows.csv").write_text(f"v\n{value}\n")
+    explicit = DataPackage.from_descriptor(
+        {"resources": [{"name": "r", "path": "rows.csv", "format": "csv"}]},
+        base_uri=tmp_path / "own",
+    ).resources[0]
+    package = DataPackage.from_descriptor(
+        {"resources": [{"name": "original", "path": "rows.csv", "format": "csv"}]},
+        base_uri=tmp_path / "pkg",
+    )
+    rebuilt = package.model_copy(update={"resources": [explicit]})
+    assert ResourceRef(rebuilt.resources[0]).read_bytes() == b"v\n11\n"
+
+
 def test_binding_does_not_read_data_or_trust_descriptor_settings(tmp_path):
     from mountainash import ResourceRef
     from mountainash_transport.settings.storage.profiles import LocalStorageProfile

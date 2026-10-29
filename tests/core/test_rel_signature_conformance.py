@@ -382,7 +382,7 @@ _KNOWN_ENUM_PROTOCOL_DRIFT: dict[str, str] = {}
 # dispatched from a relation node; they take no enum member (a single
 # IMPORT_INTO capability key is registered separately).
 _NON_OPERATION_PROTOCOL_METHODS = frozenset(
-    {"export", "check_import", "import_into", "native_scan_eligible"}
+    {"export", "check_import", "import_into", "native_scan_eligible", "native_setup_required"}
 )
 
 

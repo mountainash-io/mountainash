@@ -2390,3 +2390,26 @@ issues:
     conversion, retaining nullable-child, null-container, masked-row and UInt64
     boundary controls, after an upstream repair.
   last_verified: '2026-10-24'
+- id: PL-REL-01
+  project: polars
+  category: relation-ops
+  summary: Native CSV and Parquet HTTP scans reject servers without Range support
+  root_cause: upstream_bug
+  affected_backends:
+  - polars
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: https://github.com/pola-rs/polars/issues/28400
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: xfail_strict
+  notes: >-
+    Verified directly with Polars 2.1.0 and standard-library SimpleHTTPRequestHandler
+    on 2026-10-29. Files reads return the CSV/Parquet rows; native scan_csv/scan_parquet
+    raise OSError (Range request not supported). Mountainash backlog 393 blocks
+    item 387's required existing HTTP preservation. No retry fallback, eager probe,
+    policy requirement or scope waiver. Range-capable HTTP remains qualified.
+    Polars CSV report: https://github.com/pola-rs/polars/issues/29817.
+    Shared root cause: https://github.com/apache/arrow-rs-object-store/issues/806,
+    whose 2026-10-09 update explicitly includes servers ignoring Range.
+  last_verified: '2026-10-29'

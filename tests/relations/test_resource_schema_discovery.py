@@ -24,42 +24,36 @@ def resource_relation(path, *, format, schema=None):
     )))
 
 
-def test_http_parquet_dag_preserves_recursive_types_without_row_loading(tmp_path, monkeypatch):
+def test_http_parquet_dag_preserves_recursive_types_without_row_loading(
+    tmp_path, monkeypatch, schema_resource_http_url,
+):
     path = tmp_path / "rows.parquet"
     pq.write_table(pa.table({
         "id": [1],
         "at": pa.array([0], type=pa.timestamp("us", "UTC")),
         "items": pa.array([[2, 3]], type=pa.list_(pa.int32())),
     }), path)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(tmp_path)))
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        source = resource_relation(f"http://127.0.0.1:{server.server_port}/rows.parquet", format="parquet")
-        dag = ma.RelationDAG()
-        dag.add("source", source)
-        query = dag.ref("source").select(ma.col("id").add(1).alias("next"), "at", "items")
-        dag.add("output", query)
-        expected = {
-            "next": D.I64,
-            "at": TimestampDtype(precision=6, timezone_aware=True, timezone="UTC"),
-            "items": ListDtype(element=D.I32),
-        }
-        from mountainash.relations.backends.relation_systems import resource_files
+    source = resource_relation(schema_resource_http_url.removesuffix(".csv") + ".parquet", format="parquet")
+    dag = ma.RelationDAG()
+    dag.add("source", source)
+    query = dag.ref("source").select(ma.col("id").add(1).alias("next"), "at", "items")
+    dag.add("output", query)
+    expected = {
+        "next": D.I64,
+        "at": TimestampDtype(precision=6, timezone_aware=True, timezone="UTC"),
+        "items": ListDtype(element=D.I32),
+    }
+    from mountainash.relations.backends.relation_systems import resource_files
 
-        def forbid_rows(*args, **kwargs):
-            raise AssertionError("schema inspection loaded resource rows")
+    def forbid_rows(*args, **kwargs):
+        raise AssertionError("schema inspection loaded resource rows")
 
-        with monkeypatch.context() as guard:
-            guard.setattr(resource_files, "parse_resource_to_arrow", forbid_rows)
-            assert dag.schema("output") == expected
-            assert query.collect_schema() == expected
-            assert query.collect_schema(allow_execution=True) == expected
-        assert query.to_dict()["next"] == [2]
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+    with monkeypatch.context() as guard:
+        guard.setattr(resource_files, "parse_resource_to_arrow", forbid_rows)
+        assert dag.schema("output") == expected
+        assert query.collect_schema() == expected
+        assert query.collect_schema(allow_execution=True) == expected
+    assert query.to_dict()["next"] == [2]
 
 
 @pytest.mark.parametrize("backend", ["polars", "narwhals"])
