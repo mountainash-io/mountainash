@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 2026-10-29 (slim transport base install, transport backlog 33)
+
+### Breaking
+- `mountainash-transport`'s base install no longer includes its remote/profile stack (settings, auth-client, pydantic, universal_pathlib, httpx, fsspec). Local files work as before; reading URL resources (`https://…`) needs the new `http` extra (`pip install 'mountainash[files,http]'`). The cloud extras (`s3`, `gcs`, `azure`, `sftp`) include it.
+
+### Added
+- `http` extra forwarding to `mountainash-transport[http]`; `all` includes it.
+
+### Fixed
+- A missing transport extra now surfaces as transport's `MissingExtraError` naming the extra, instead of being relabelled "install mountainash[files]".
+
 ## Unreleased — 2026-10-28 (path and URL confinement by default, backlog 381)
 
 ### Breaking

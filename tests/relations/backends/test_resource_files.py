@@ -323,7 +323,6 @@ def test_inspect_schema_glob_and_archive_members(tmp_path):
     assert archive_complete is True
 
 
-
 @pytest.mark.parametrize("entry", ["parse", "inspect"])
 def test_missing_transport_extra_is_not_relabelled_as_files(monkeypatch, tmp_path, entry):
     # A URL resource on a base transport install raises MissingExtraError naming [http];
