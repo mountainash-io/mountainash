@@ -47,6 +47,11 @@ Public installation of `mountainash[ibis]` requires the Data, Settings and
 Auth-client releases to be published first. Candidate-wheel rehearsal verifies
 the dependency declaration, not public-index availability.
 
+Local file resources need only `mountainash[files]`. Reading URL resources
+(`https://…`) also needs `mountainash[http]` (install `mountainash[files,http]`);
+the cloud extras include it. Without it the read raises transport's
+`MissingExtraError` naming the extra.
+
 ## Installed-artifact hello world
 
 There is not yet a supported public PyPI release. Build a candidate with [RELEASE.md](RELEASE.md), then install its wheel into a fresh Python 3.12 environment outside the checkout. Dependencies must come from public PyPI, not sibling checkouts. Ibis/files/storage/cloud extras also require their sibling releases to be public; a working base example does not establish those extras.

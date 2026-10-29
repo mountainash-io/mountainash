@@ -322,3 +322,34 @@ def test_inspect_schema_glob_and_archive_members(tmp_path):
     assert glob_complete is True
     assert archive_complete is True
 
+
+
+@pytest.mark.parametrize("entry", ["parse", "inspect"])
+def test_missing_transport_extra_is_not_relabelled_as_files(monkeypatch, tmp_path, entry):
+    # A URL resource on a base transport install raises MissingExtraError naming [http];
+    # mountainash must not turn it into "install mountainash[files]".
+    from mountainash_transport import MissingExtraError
+    from mountainash_files import FileSourceSpec
+    from mountainash_files.formats.csv import CsvSpec
+    from mountainash_files.specs.archive import GzipCompression, ZipArchive
+
+    err = MissingExtraError(
+        "The [http] extra is required for storage profiles: pip install 'mountainash-transport[http]'"
+    )
+    err.extra, err.feature = "http", "storage profiles"
+
+    def boom(_spec):
+        raise err
+
+    p = tmp_path / "d.csv"; p.write_text("a\n1\n")
+    res = DataResource(name="d", path=str(p), format="csv")
+    if entry == "parse":
+        monkeypatch.setattr(rf, "_require_files",
+                            lambda: (boom, FileSourceSpec, CsvSpec, GzipCompression, ZipArchive))
+        with pytest.raises(MissingExtraError) as caught:
+            _parse(res)
+    else:
+        monkeypatch.setattr("mountainash_files.inspect_schema", boom)
+        with pytest.raises(MissingExtraError) as caught:
+            rf.inspect_resource_schema(res, dialect=res.to_dialect())
+    assert caught.value is err

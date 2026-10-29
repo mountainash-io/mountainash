@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
+from mountainash_transport import MissingExtraError
+
 from mountainash.relations.dag.errors import (
     MissingFilesDependency,
     UnsupportedResourceFormat,
@@ -393,6 +395,8 @@ def parse_resource_to_arrow(resource: Any, *, dialect: Any) -> "pa.Table":
         for spec in _file_source_specs(resource, dialect):
             for part in parse(spec):
                 tables.append(_part_data_to_arrow(part.data, resource.name))
+    except MissingExtraError:  # transport extra (e.g. [http]) names its own remedy
+        raise
     except ImportError as exc:  # transitive dep surfacing during parse()
         raise MissingFilesDependency(
             f"reading resource {resource.name!r} needs the file-reading extra; "
@@ -446,6 +450,8 @@ def inspect_resource_schema(resource: Any, *, dialect: Any) -> tuple["pa.Schema"
             for spec in _file_source_specs(resource, dialect)
             for result in inspect_schema(spec)
         ]
+    except MissingExtraError:  # transport extra (e.g. [http]) names its own remedy
+        raise
     except ImportError as exc:
         raise MissingFilesDependency(
             f"reading resource {resource.name!r} needs the file-reading extra; "
