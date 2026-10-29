@@ -257,18 +257,19 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         import os
 
-        from mountainash.core.location import resource_policy
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         if fmt == "csv":
             rf.ensure_dialect_supported(dialect)
         paths = self._native_scan_paths(resource, dialect, location=location)
         if paths is not None:
-            if resource_policy(resource) is not None:  # files are literal; directories unchanged
-                paths = [p if os.path.isdir(p) else rf.escape_duckdb_glob(p) for p in paths]
             native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
             con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
-            return getattr(con, native)(paths if len(paths) > 1 else paths[0])
+            # Eligibility excludes authored globs, independently of confinement.
+            if con.name == "duckdb":
+                paths = [p if os.path.isdir(p) else rf.escape_duckdb_glob(p) for p in paths]
+            options = {"glob": False} if con.name == "polars" else {}
+            return getattr(con, native)(paths if len(paths) > 1 else paths[0], **options)
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).

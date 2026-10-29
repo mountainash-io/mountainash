@@ -27,11 +27,11 @@ they are not registry-distributed requirements.
 
 ## Location policy
 
-Under an active `LocationPolicy` (descriptor loaders set one by default; see
-[datapackage](datapackage.md#location-policy)) transport decides the location and the
-engine reads natively only on a probed allow-list. Everything else goes through the
-files fallback (transport → Arrow → `ibis.memtable` on Ibis). With no policy, or with
-`LocationPolicy(allow_unconfined=True)`, the table above applies unchanged.
+Confinement is off by default. Enable it with a profile's `LOCATION_POLICY` or
+an explicit loader/binding `policy=`; see [datapackage](datapackage.md#location-policy).
+Under an active policy transport decides the location and native readers stay within
+the qualified local allow-list. Other reads use the files fallback. With no policy,
+or with `LocationPolicy(allow_unconfined=True)`, the table above applies.
 
 | Resource kind | Polars / Narwhals (`narwhals-polars`, `narwhals-lazy`) | Ibis on DuckDB | Other Ibis backends |
 |---|---|---|---|
@@ -95,6 +95,7 @@ the M4b execution receipt. Before publication, dependency floors must advance
 to the migrated published releases. Downstream merge/publication remains on
 hold until settings 0.1.0 is published.
 
-Authenticated remote resource reads remain deferred under spec §E of
-`2026-07-04-dag-hardening-pr3-readers-item32-design.md`. The existing resource
-reader does not expose storage/auth profile or selected-store parameters.
+Resources and packages accept trusted runtime access through
+`with_storage(storage_profile, auth_profile=..., policy=...)`. The files fallback,
+byte reads, schema inspection and matching-provider descriptor references use that
+binding. Profiles and credentials are not serialized into descriptors.

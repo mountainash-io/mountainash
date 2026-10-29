@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — opt-in confinement and resource storage bindings (backlog 387)
+
+### Breaking
+- Location confinement is off by default, including descriptor loaders and schema/dialect references. Enable it with a storage profile's `LOCATION_POLICY` or an explicit `policy=LocationPolicy(...)`. Omission inherits; explicit `None` disables; an explicit policy replaces. Authentication and TLS are unchanged.
+- `ROOT_PATH`, descriptor bases and loader-time working-directory anchoring select locations independently of confinement. Switching policy off no longer changes literal native handling of descriptor directory names containing glob characters.
+
+### Added
+- `DataResource.with_storage` and `DataPackage.with_storage` bind existing direct/named storage and auth profiles without reading resource data or serializing credentials. Copies/revalidation preserve access; package rebinding retains explicit resource bindings.
+- Bound access reaches byte reads, file parsing, schema inspection and matching-provider schema/dialect references. Owned byte-read facades close on success and failure; unrelated-provider references do not inherit credentials.
+
 ## Unreleased — 2026-10-29 (slim transport base install, transport backlog 33)
 
 ### Breaking
@@ -12,6 +22,8 @@
 - A missing transport extra now surfaces as transport's `MissingExtraError` naming the extra, instead of being relabelled "install mountainash[files]".
 
 ## Unreleased — 2026-10-28 (path and URL confinement by default, backlog 381)
+
+The default-on behavior in this historical entry is superseded by backlog 387 above.
 
 ### Breaking
 - Descriptor loaders (`DataPackage.from_path`/`from_json`/`from_descriptor`, `datacontract`) confine locations by default. Relative resource paths resolve beside the descriptor (or against `base_uri` / the working directory), matching Frictionless. Absolute paths outside the root and remote resource paths and references need `policy=LocationPolicy(...)` (an `allowed_remote` allow-list, a different `root`, or `allow_unconfined=True` to opt out); `datacontract(source)` has no `policy` and confines to the source's parent directory. Packages and resources built in code stay unconfined.

@@ -316,16 +316,13 @@ class MountainashNarwhalsExtensionRelationSystem(
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
         paths = self._native_scan_paths(resource, dialect, location=location)
         if paths is not None:
-            from mountainash.core.location import resource_policy
-
             self._resource_lowering = DEFERRED_ONLY
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
                 resource, fmt, dialect
             )
-            literal = {"glob": False} if resource_policy(resource) is not None else {}
             scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
             frames = [
-                scan(p, backend="polars", **literal, **(kwargs if fmt == "csv" else {}))
+                scan(p, backend="polars", glob=False, **(kwargs if fmt == "csv" else {}))
                 for p in paths
             ]
             scanned = frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")

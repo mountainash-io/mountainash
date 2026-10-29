@@ -159,21 +159,31 @@ def test_relative_reference_requires_base() -> None:
 
 
 @pytest.mark.parametrize(
-    "reference",
+    ("reference", "unsupported"),
     [
-        "http://example.com/schema.json",
-        "https://example.com/schema.json",
-        "s3://bucket/schema.json",
-        "gs://bucket/schema.json",
-        "ftp://example.com/schema.json",
-        "memory://bucket/schema.json",
-        "custom+scheme://example.com/schema.json",
+        ("http://example.com/schema.json", False),
+        ("https://example.com/schema.json", False),
+        ("s3://bucket/schema.json", False),
+        pytest.param("gs://bucket/schema.json", True, id="gs-unsupported-or-policy-denied"),
+        pytest.param("ftp://example.com/schema.json", True, id="ftp-unsupported-or-policy-denied"),
+        ("memory://bucket/schema.json", False),
+        ("custom+scheme://example.com/schema.json", False),
     ],
 )
-def test_default_resolver_denies_remote_scheme(reference: str) -> None:
-    with pytest.raises(LocationNotAllowed):
+def test_explicit_policy_rejects_remote_before_network(reference: str, unsupported: bool, monkeypatch) -> None:
+    import socket
+    from mountainash_transport import BackendNotImplementedError
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("denied descriptor attempted remote access")
+
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(socket.socket, "connect", forbidden)
+    error = (BackendNotImplementedError, LocationNotAllowed) if unsupported else LocationNotAllowed
+    with pytest.raises(error):
         DefaultDescriptorResolver().resolve(
-            reference, base_uri=None, expected_kind=DescriptorKind.SCHEMA
+            reference, base_uri=None, expected_kind=DescriptorKind.SCHEMA,
+            policy=LocationPolicy(),
         )
 
 

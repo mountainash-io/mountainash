@@ -303,6 +303,7 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
     _parse, FileSourceSpec, _CsvSpec, GzipCompression, ZipArchive = _require_files()
     from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
 
+    from mountainash.core.io import bound_access
     from mountainash.core.location import resolve_resource_location, resource_policy
 
     policy = resource_policy(resource)
@@ -333,7 +334,8 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
                     )
         specs.append(
             FileSourceSpec(path=base, glob=pattern, format=format_arg,
-                           archive=archive, policy=policy)
+                           archive=archive, policy=policy,
+                           **bound_access(getattr(resource, "_descriptor_context", None), base))
         )
     return specs
 

@@ -161,7 +161,6 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         fmt = self._detect_format(resource)
         assert resource.path is not None, f"DataResource '{resource.name}' has no path"
 
-        from mountainash.core.location import resource_policy
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         # Keep schema-phase eligibility identical to this reader's actual lazy
@@ -170,23 +169,20 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         paths = rf.polars_native_scan_paths(resource, fmt, dialect)
         if paths is not None:
             self._resource_lowering = DEFERRED_ONLY
-            return self._native_local_scan(
-                fmt, paths, resource, dialect, literal=resource_policy(resource) is not None
-            )
+            return self._native_local_scan(fmt, paths, resource, dialect)
         return pl.from_arrow(
             rf.parse_resource_to_arrow(resource, dialect=dialect)
         ).lazy()
 
     def _native_local_scan(
-        self, fmt: str, paths: list[str], resource: Any, dialect: Any, *, literal: bool = False
+        self, fmt: str, paths: list[str], resource: Any, dialect: Any,
     ) -> pl.LazyFrame:
-        kwargs = self._reader_kwargs(resource, fmt, dialect)
-        if literal:  # confined paths are literal: never glob-expand them
-            kwargs = {**kwargs, "glob": False}
+        # Eligibility excludes authored globs; the descriptor base stays literal.
+        kwargs = {**self._reader_kwargs(resource, fmt, dialect), "glob": False}
         if fmt == "csv":
             frames = [pl.scan_csv(p, **kwargs) for p in paths]
         else:
-            frames = [pl.scan_parquet(p, **({"glob": False} if literal else {})) for p in paths]
+            frames = [pl.scan_parquet(p, glob=False) for p in paths]
         return frames[0] if len(frames) == 1 else pl.concat(frames, how="vertical")
 
 

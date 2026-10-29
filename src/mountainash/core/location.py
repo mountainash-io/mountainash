@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def resource_policy(resource: Any) -> "LocationPolicy | None":
-    """Return the resource's active location policy, or None (programmatic or opted out)."""
+    """Return the selected active location policy, or None when confinement is off."""
     ctx = getattr(resource, "_descriptor_context", None)
     pol = getattr(ctx, "policy", None)
     return pol if pol is not None and pol.active else None
@@ -20,8 +20,8 @@ def resolve_resource_location(resource: Any, path: str) -> str:
     """Join a resource path to its descriptor base (spec §5): bare paths literally, URIs hierarchically.
 
     Applies whether or not confinement is active: opting out of confinement does not
-    opt out of descriptor-relative resolution. Without a base, a loader policy's root
-    is the base; programmatic contexts (no policy) return the path unchanged.
+    opt out of descriptor-relative resolution. Profile roots and loader-time cwd
+    anchoring remain independent of an active confinement policy.
     """
     from mountainash_transport.location import require_known_scheme
 
@@ -42,8 +42,12 @@ def _join(resource: Any, path: str) -> str:
     ctx = getattr(resource, "_descriptor_context", None)
     base = getattr(ctx, "base_uri", None)
     if base is None:
+        base = getattr(ctx, "storage_root", None)
+    if base is None:
         pol = getattr(ctx, "policy", None)
         base = getattr(pol, "root", None)
+    if base is None:
+        base = getattr(ctx, "default_base", None)
     if base is None or identify_scheme(path) != "" or os.path.isabs(path):
         return path
     if identify_scheme(str(base)) in ("", "file"):
