@@ -82,7 +82,7 @@ dependencies = [
     # settings/auth-client are the shared
     # runtime import chain. Mirrors [envs.test] but with temp/ (CI) vs ../ (local).
     "mountainash_files @       {root:uri}/temp/mountainash-files",
-    "mountainash_transport @   {root:uri}/temp/mountainash-transport",
+    "mountainash_transport[http] @   {root:uri}/temp/mountainash-transport",
     "mountainash_settings @    {root:uri}/temp/mountainash-settings",
     "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
     "mountainash_data @        {root:uri}/temp/mountainash-data",
@@ -136,7 +136,7 @@ dependencies = [
     # checkouts; settings/auth-client are transport's declared runtime chain.
     # Installed-candidate qualification uses exact wheels instead of these paths.
     "mountainash_files @       {root:uri}/../mountainash-files",
-    "mountainash_transport @   {root:uri}/../mountainash-transport",
+    "mountainash_transport[http] @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
     "mountainash_data @        {root:uri}/../mountainash-data",
@@ -279,7 +279,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pytest==8.3.5",
     "mountainash_files @       {root:uri}/../mountainash-files",
-    "mountainash_transport @   {root:uri}/../mountainash-transport",
+    "mountainash_transport[http] @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
 ]

@@ -27,6 +27,7 @@ EXTRA_IMPORTS = {
     "storage": ("mountainash_transport",),
     "files": ("mountainash_files",),
     "dbos": ("dbos",),
+    "http": ("mountainash_transport", "httpx", "upath", "fsspec"),
     "s3": ("mountainash_files", "boto3", "s3fs"),
     "gcs": ("mountainash_files", "google.cloud.storage", "gcsfs"),
     "azure": ("mountainash_files", "azure.storage.blob", "adlfs"),
