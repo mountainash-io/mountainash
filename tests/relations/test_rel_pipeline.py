@@ -47,11 +47,11 @@ def _row_count(result) -> int:
 
 def _columns(result) -> list[str]:
     """Get column names from any result type."""
+    if hasattr(result, "column_names"):
+        return result.column_names
     if hasattr(result, "columns"):
         cols = result.columns
         return list(cols) if not isinstance(cols, list) else cols
-    if hasattr(result, "column_names"):
-        return result.column_names
     raise TypeError(f"Cannot get columns from {type(result)}")
 
 

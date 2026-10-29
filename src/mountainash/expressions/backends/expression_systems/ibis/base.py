@@ -5,16 +5,15 @@ Provides the base ExpressionSystem class for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import ibis.expr.types as ir
 
-from mountainash.core.types import KnownLimitation
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
-)
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
 class IbisBaseExpressionSystem(BaseExpressionSystem):
@@ -24,27 +23,12 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
     Ibis protocol implementations.
     """
 
-    _IB_DATETIME_OFFSET_LITERAL_ONLY = KnownLimitation(
-        message="Ibis datetime offset operations require literal integer values",
-        native_errors=(TypeError,),
-        workaround="Use a literal integer for the offset amount",
-    )
-
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
-        (FK_DT.ADD_YEARS, "years"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MONTHS, "months"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_DAYS, "days"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_HOURS, "hours"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MINUTES, "minutes"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_SECONDS, "seconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MILLISECONDS, "milliseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-        (FK_DT.ADD_MICROSECONDS, "microseconds"): _IB_DATETIME_OFFSET_LITERAL_ONLY,
-    }
+    BACKEND_NAME: str = "ibis"
 
     @property
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
+    def backend_type(self) -> CONST_BACKEND:
         """Return the Ibis backend type identifier."""
-        return CONST_VISITOR_BACKENDS.IBIS
+        return CONST_BACKEND.IBIS
 
     def is_native_expression(self, expr: Any) -> bool:
         """Check if the expression is a native Ibis expression.
@@ -56,8 +40,127 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             True if expr is an Ibis expression type.
         """
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
+    def fixed_result_type(
+        self,
+        logical_kind: LogicalKind,
+        nullable: bool | None,
+        input_type: Any = None,
+        node: Any = None,
+    ) -> Any:
+        """Associate declared fixed results with their emitted Ibis dtype."""
+        import ibis.expr.datatypes as dt
 
-    BACKEND_NAME: str = "ibis"
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        native = dt.boolean if logical_kind == "boolean" else dt.string if logical_kind == "text" else None
+        return ResolvedOperand(OperandType(logical_kind, "native", nullable), native)
+
+    def field_operand_type(self, input_data: Any, field: str) -> Any:
+        """Resolve Ibis table schema metadata without executing the table."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        schema = input_data.schema()
+        try:
+            dtype = schema[field]
+        except KeyError as error:
+            raise BackendCapabilityError(
+                f"operand metadata is unresolved: field {field!r} is absent",
+                backend=self.BACKEND_NAME,
+                function_key=None,
+            ) from error
+        name = str(dtype).lstrip("!").split("(", 1)[0].split("<", 1)[0]
+        logical: LogicalKind
+        if name in {"bool", "boolean"}:
+            logical = "boolean"
+        elif name.startswith(("int", "uint")):
+            logical = "integer"
+        elif name.startswith("float"):
+            logical = "float"
+        elif name == "string":
+            logical = "text"
+        elif name == "null":
+            logical = "null"
+        else:
+            logical = "other"
+        storage: StorageKind = "sql_dynamic" if self.dialect == "ibis-sqlite" else "native"
+        if storage == "sql_dynamic" and name in {"null", "binary"}:
+            logical = "unknown"
+        return ResolvedOperand(
+            OperandType(logical, storage, getattr(dtype, "nullable", None)), dtype
+        )
+
+    def infer_expression_operand_type(self, input_data: Any, expression: Any) -> Any:
+        """Infer an Ibis computed expression from its deferred type metadata."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        from ibis.common.deferred import Deferred
+
+        if isinstance(expression, Deferred):
+            expression = expression.resolve(input_data)
+        dtype = expression.type()
+        name = str(dtype).lstrip("!").split("(", 1)[0].split("<", 1)[0]
+        logical: LogicalKind
+        if name in {"bool", "boolean"}:
+            logical = "boolean"
+        elif name.startswith(("int", "uint")):
+            logical = "integer"
+        elif name.startswith("float"):
+            logical = "float"
+        elif name == "string":
+            logical = "text"
+        elif name == "null":
+            logical = "null"
+        else:
+            logical = "other"
+        storage: StorageKind = "sql_dynamic" if self.dialect == "ibis-sqlite" else "native"
+        if storage == "sql_dynamic" and name in {"null", "binary"}:
+            logical = "unknown"
+        return ResolvedOperand(
+            OperandType(logical, storage, getattr(dtype, "nullable", None)), dtype
+        )
+
+    def _lift_deferred(self, x: Any, y: Any) -> tuple[Any, Any]:
+        """Fix the one broken operand ordering: concrete-left ∘ Deferred-right.
+
+        ``col()`` yields a ``Deferred``; ``lit()`` a concrete value. ONLY
+        ``concrete ∘ Deferred`` (``lit + col``, ``5 + col``) crashes — the
+        concrete literal's arithmetic dunder raises on a right-hand ``Deferred``
+        instead of deferring (upstream Ibis #11742 / IB-TYPE-01). Every other
+        ordering already works and MUST be left byte-identical, so lift ONLY the
+        concrete left operand and ONLY when the right is a ``Deferred``. The
+        method body is unchanged and operand order is preserved (safe for
+        non-commutative ops).
+        """
+        from ibis.common.deferred import Deferred, deferred
+
+        if not isinstance(x, Deferred) and isinstance(y, Deferred):
+            x = deferred(x)
+        return x, y
+
+    def _lift_deferred_receiver(self, receiver: Any, *args: Any) -> Any:
+        """Method-call analog of ``_lift_deferred`` for ``receiver.method(*args)``.
+
+        A concrete literal receiver's method RAISES when handed a ``Deferred``
+        argument (``lit.str.contains(col)``, ``lit.repeat(col)``) — the same
+        concrete-∘-Deferred asymmetry as literal-first arithmetic (item 226b /
+        Ibis #11742), here on the string/method-dispatch path (item 226c). Lift
+        the receiver into the Deferred world ONLY when it is concrete AND at
+        least one argument is a ``Deferred`` (the sole crashing shape); every
+        already-working shape (Deferred receiver, all-concrete args) is returned
+        unchanged. Arguments are left untouched (order preserved). ``None`` args
+        are ignored (never Deferred), so optional params pass through safely.
+        """
+        from ibis.common.deferred import Deferred, deferred
+
+        if not isinstance(receiver, Deferred) and any(
+            isinstance(a, Deferred) for a in args
+        ):
+            receiver = deferred(receiver)
+        return receiver
 
     def _extract_literal_if_possible(self, expr: Any) -> Any:
         """Extract literal value from an Ibis expression.
@@ -76,6 +179,16 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             except Exception:
                 pass
         return expr
+
+    def native_argument_form(self, value: Any) -> str | None:
+        from ibis.common.deferred import Deferred
+
+        extracted = self._extract_literal_if_possible(value)
+        if isinstance(extracted, (str, int, float, bool, type(None))):
+            return "literal"
+        if isinstance(value, (ir.Value, Deferred)):
+            return "dynamic"
+        return None
 
     def _extract_column_name(self, expr: Any) -> str | None:
         """Extract the column name from an Ibis expression.

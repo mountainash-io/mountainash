@@ -1,16 +1,25 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-    RefRelNode,
-)
+from mountainash.relations.core.execution.preparation import ExecutionPhase
+from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+from mountainash.relations.dag.traversal import walk_refs as _walk_refs
+
 
 if TYPE_CHECKING:
-    from .resource_ref import ResourceRef
+    from mountainash.conform.drift import ConformCollection
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.resource_ref import ResourceRef
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.dag.dag_relation import DAGRelation
+    from mountainash.relations.dag.errors import UnknownRelationRef
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
+    from mountainash.typespec.spec import ForeignKey
+    from .validation import DAGValidationResult
 
 """RelationDAG — orchestrator over named Relations.
 
@@ -20,39 +29,59 @@ time to derive dependency edges (from RefRelNode instances), then defers
 materialization to ``collect()`` (added in Task 17).
 """
 
-def _walk_refs(node: Any) -> set[str]:
-    """Recursively collect names of all RefRelNode descendants under ``node``."""
-    found: set[str] = set()
-    if node is None:
-        return found
-    if isinstance(node, RefRelNode):
-        found.add(node.name)
-    # Walk children using known attribute names from relation node subtypes:
-    # - input: FilterRelNode, SortRelNode, ProjectRelNode, FetchRelNode, AggregateRelNode
-    # - left / right: JoinRelNode
-    # - inputs: SetRelNode (list)
-    for attr in ("input", "left", "right", "inputs"):
-        child = getattr(node, attr, None)
-        if child is None:
-            continue
-        if isinstance(child, list):
-            for c in child:
-                found |= _walk_refs(c)
-        else:
-            found |= _walk_refs(child)
-    return found
 
+def _force_eager(value: Any, *, unwrap: bool) -> Any:
+    """Collect lazy Polars/Narwhals values and optionally unwrap Narwhals."""
+    from mountainash.core.types import (
+        is_narwhals_dataframe,
+        is_narwhals_lazyframe,
+        is_polars_lazyframe,
+    )
+
+    if is_polars_lazyframe(value):
+        return value.collect()
+    if is_narwhals_lazyframe(value):
+        value = value.collect()
+    if unwrap and is_narwhals_dataframe(value):
+        return value.to_native()
+    return value
 
 class RelationDAG:
-    """Container for named Relations with dependency and constraint edge sets."""
+    """Container for named Relations with dependency and constraint edge sets.
+
+    ``relations``, ``dependency_edges``, ``constraint_edges`` and
+    ``constraint_metadata`` are read-only views over the shared
+    ``Graph[Relation]`` kernel; mutate through the method API (``add``,
+    ``add_constraint``, ``source``, ``bind``).
+    """
 
     def __init__(self) -> None:
-        self.relations: dict[str, Any] = {}
-        self.assets: dict[str, ResourceRef] = {}
-        self.dependency_edges: set[tuple[str, str]] = set()
-        self.constraint_edges: set[tuple[str, str]] = set()
+        from mountainash.graph.container import Graph
 
-    def add(self, name: str, relation: Any) -> None:
+        self._graph: Graph[Relation] = Graph()
+        self.assets: dict[str, ResourceRef] = {}
+
+    @property
+    def relations(self) -> dict[str, Relation]:
+        return self._graph.nodes
+
+    @property
+    def dependency_edges(self) -> set[tuple[str, str]]:
+        return self._graph.dependency_edges
+
+    @property
+    def constraint_edges(self) -> set[tuple[str, str]]:
+        return self._graph.constraint_edges
+
+    @property
+    def constraint_metadata(self) -> dict[tuple[str, str], list["ForeignKey"]]:
+        # Structured FK detail, strictly subordinate to constraint_edges:
+        # set(constraint_metadata.keys()) ⊆ constraint_edges always. An edge
+        # with no metadata entry is a topology-only relationship.
+        # ``_record_constraint`` is the sole metadata mutation path.
+        return self._graph.constraint_metadata
+
+    def add(self, name: str, relation: Relation) -> None:
         """Add a named relation to the DAG.
 
         Automatically walks the relation tree for ``RefRelNode`` instances and
@@ -62,21 +91,112 @@ class RelationDAG:
         """
         if name in self.relations:
             raise ValueError(f"relation {name!r} already in DAG")
-        self.relations[name] = relation
-        root = getattr(relation, "_node", None)
-        for upstream in _walk_refs(root):
-            self.dependency_edges.add((upstream, name))
+        self._graph.add(
+            name, relation, depends_on=_walk_refs(getattr(relation, "_node", None))
+        )
 
-    def ref(self, name: str) -> Any:
-        """Return a Relation backed by a ``RefRelNode`` for ``name``.
+    def bind(self, **sources: Any) -> "RelationDAG":
+        """Fresh execution DAG: ``sources`` registered, then every template
+        relation, constraint and asset. Registration only — no compilation,
+        no execution; the template is not mutated."""
+        from mountainash.graph.errors import DuplicateNodeError
 
-        Chaining ``.filter()``, ``.select()``, etc. on the returned object
-        builds a normal relational AST with the ref at its leaf. The dependency
-        edge is recorded when ``add()`` is later called with the result.
+        out = RelationDAG()
+        for name, payload in sources.items():
+            out.source(name, payload)
+        for name, rel in self.relations.items():
+            if name in out.relations:
+                raise DuplicateNodeError(
+                    f"bound source {name!r} collides with template relation"
+                )
+            out.add(name, rel)
+        for edge, fks in self.constraint_metadata.items():
+            for fk in fks:
+                out._record_constraint(edge, fk)
+        for edge in self.constraint_edges - set(self.constraint_metadata):
+            out._graph.constraint_edges.add(edge)
+        out.assets.update(self.assets)
+        return out
+
+    def ref(self, name: str) -> "DAGRelation":
+        """Return a DAGRelation backed by a ``RefRelNode`` for ``name``.
+
+        Chaining ``.filter()``, ``.select()``, etc. preserves the DAGRelation
+        type and its DAG binding; terminals compile through this DAG. The
+        dependency edge is recorded only when ``add()`` is later called.
         """
-        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.dag.dag_relation import DAGRelation
+
         node = RefRelNode(name=name)
-        return Relation(node)
+        return DAGRelation(node, self)
+
+    def source(self, name: str, data: Any) -> "DAGRelation":
+        """Register source data and return a DAGRelation ref for downstream use."""
+        from mountainash.relations.core.relation_api.relation import relation
+
+        self.add(name, relation(data))
+        return self.ref(name)
+
+    def _record_constraint(
+        self,
+        edge: tuple[str, str],
+        fk: "ForeignKey",
+    ) -> None:
+        """Record one constraint edge and its equality-deduplicated metadata."""
+        self.constraint_edges.add(edge)
+        bucket = self.constraint_metadata.setdefault(edge, [])
+        if fk not in bucket:  # equality dedup; ForeignKey is unhashable
+            bucket.append(fk)
+
+
+    def add_constraint(self, child: str, fk: "ForeignKey") -> None:
+        """Declare a foreign-key constraint on a *derived* relation.
+
+        Populates ``constraint_edges`` and ``constraint_metadata`` together
+        under the same ``(target, child)`` key. Never touches
+        ``dependency_edges`` (two-edge-graph-model). This is the sole
+        supported mutation path for ``constraint_metadata`` — do not mutate
+        the dict directly.
+
+        Raises:
+            KeyError: ``child`` is not a relation in this DAG.
+            ValueError: the FK target is not a relation in this DAG, or
+                ``child`` is a pass-through resource — its foreign keys
+                belong in the resource's ``table_schema``
+                (lossless-frictionless-storage), not here.
+        """
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            ResourceReadRelNode,
+        )
+
+        if child not in self.relations:
+            raise KeyError(f"unknown relation {child!r}")
+        root = getattr(self.relations[child], "_node", None)
+        if isinstance(root, ResourceReadRelNode):
+            raise ValueError(
+                f"{child!r} is a pass-through resource; declare its foreign "
+                "keys in the resource's table_schema, not via add_constraint()."
+            )
+        # Empty/self reference normalises to the (child, child) edge key —
+        # the same rule as the DataPackage parse path.
+        ref_resource = fk.reference.resource
+        target = ref_resource if ref_resource else child
+        if target != child and target not in self.relations:
+            raise ValueError(f"unknown foreign-key target {target!r}")
+        self._record_constraint((target, child), fk)
+
+    def constraints_for(self, child: str) -> "list[ForeignKey]":
+        """All declared foreign keys whose child side is ``child``.
+
+        Derived from ``constraint_metadata`` (FKs in insertion order per
+        edge; edges in insertion order). Topology-only constraint edges
+        (no metadata entry) contribute nothing.
+        """
+        out: "list[ForeignKey]" = []
+        for (_target, c), fks in self.constraint_metadata.items():
+            if c == child:
+                out.extend(fks)
+        return out
 
     def topological_order(self, target: Optional[str] = None) -> list[str]:
         """Return a topologically sorted list of relation names.
@@ -84,178 +204,400 @@ class RelationDAG:
         If ``target`` is given, only ancestors of ``target`` (and ``target``
         itself) are included.
 
-        Raises ``ValueError`` if a cycle is detected.
-        """
-        nodes: set[str] = set(self.relations.keys())
-        if target is not None:
-            # Restrict to ancestors of target (including target itself)
-            wanted: set[str] = {target}
-            stack = [target]
-            while stack:
-                cur = stack.pop()
-                for u, d in self.dependency_edges:
-                    if d == cur and u not in wanted:
-                        wanted.add(u)
-                        stack.append(u)
-            nodes = wanted
+        Delegates to the shared ``Graph`` kernel.
 
-        # Kahn's algorithm
-        indeg: dict[str, int] = {n: 0 for n in nodes}
-        adj: dict[str, list[str]] = defaultdict(list)
-        for u, d in self.dependency_edges:
-            if u in nodes and d in nodes:
-                adj[u].append(d)
-                indeg[d] += 1
-        ready = sorted(n for n, i in indeg.items() if i == 0)
-        out: list[str] = []
-        while ready:
-            n = ready.pop(0)
-            out.append(n)
-            for m in sorted(adj[n]):
-                indeg[m] -= 1
-                if indeg[m] == 0:
-                    ready.append(m)
-        if len(out) != len(nodes):
-            raise ValueError(
-                f"cycle detected in dependency_edges (target={target!r})"
-            )
-        return out
+        Raises ``CycleError`` (a ``ValueError``) if a cycle is detected and
+        ``UnknownNodeError`` if ``target`` is not registered.
+        """
+        return self._graph.topological_order(target)
 
     # ------------------------------------------------------------------
     # Task 17: collect() — topological compilation with per-call cache
     # ------------------------------------------------------------------
 
-    def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
-        """Topologically walk dependencies of ``name`` and compile each in order.
+    def collect(self, name: str, *, target: Any = None) -> Any:
+        """Topologically walk dependencies and materialize residue once."""
+        from mountainash.core.capabilities.policy import _resolve_policy
 
-        Each upstream relation's compiled value is cached for the duration of
-        this call and exposed to the visitor as ``ref_resolver(name)``.
-        Returns the backend-native compiled value for ``name`` itself.
+        execution_policy = _resolve_policy()
+        result, visitor = self._collect_with_visitor(
+            name, target=target, execution_policy=execution_policy,
+        )
+        checks = visitor.terminal_residue_checks()
+        has_trace = any(
+            trace.records for trace in visitor.diagnostic_traces.values()
+        )
+        if not checks and not has_trace:
+            return result
+
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
+
+        original = result
+        result = enrich_materialization(
+            visitor.backend,
+            lambda: _force_eager(result, unwrap=False),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=checks,
+            execution_context=visitor.execution_context,
+        )
+        if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
+            result = result.lazy()
+        return result
+
+    def collect_with_drift(
+        self, name: str, *, target: Any = None
+    ) -> "ConformCollection":
+        """Collect ``name`` and return the frame plus per-conform-node drift reports.
+
+        DAG-level counterpart to :meth:`Relation.collect_with_drift`. A
+        ``freeze`` policy (on any dimension, including ``keys``) still
+        raises ``SchemaDriftError`` before this returns — the exception's
+        ``.drift`` carries the tripping node's report.
+
+        Returns:
+            A :class:`~mountainash.conform.drift.ConformCollection` with the
+            materialized ``frame``, the ordered list of ``drifts`` collected
+            during compilation (one per conform node that assessed
+            anything), and ``effective_schema`` derived from the ACTUAL
+            output frame.
         """
+        from mountainash.conform.drift import ConformCollection
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        result, visitor = self._collect_with_visitor(
+            name, target=target, execution_policy=_resolve_policy(),
+        )
+        checks = visitor.terminal_residue_checks()
+        frame = enrich_materialization(
+            visitor.backend,
+            lambda: _force_eager(result, unwrap=True),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=checks,
+            execution_context=visitor.execution_context,
+        )
+        return ConformCollection(
+            frame=frame,
+            drifts=list(visitor.drift_reports),
+            effective_schema=_schema_from_dataframe(frame),
+        )
+
+    def _collect_with_visitor(
+        self,
+        name: str,
+        *,
+        target: Any = None,
+        execution_policy: "CapabilityPolicy",
+    ) -> "tuple[Any, Any]":
+        """Shared core for :meth:`collect` / :meth:`collect_with_drift`."""
         if name not in self.relations:
             raise KeyError(f"relation {name!r} not in DAG")
 
-        from mountainash.relations.core.relation_protocols.relsys_base import (
-            get_relation_system,
-        )
-        from mountainash.expressions.core.expression_system.expsys_base import (
-            get_expression_system,
-        )
-        from mountainash.expressions.core.unified_visitor import (
-            UnifiedExpressionVisitor,
-        )
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
+        rel = self.relations[name]
+        root = getattr(rel, "_node", None)
+        if root is None:
+            raise ValueError(f"relation {name!r} has no _node attribute")
 
-        resolved_backend = self._resolve_backend_const(backend, name)
-        relation_system_cls = get_relation_system(resolved_backend)
-        relation_system = relation_system_cls()
-        expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls()
-        expr_visitor = UnifiedExpressionVisitor(expression_system)
-
-        cache: dict[str, Any] = {}
-
-        def resolver(n: str) -> Any:
-            return cache[n]
-
-        visitor = UnifiedRelationVisitor(
-            relation_system,
-            expression_visitor=expr_visitor,
-            ref_resolver=resolver,
-        )
-
+        # All refs reachable via dependency_edges for this name
         order = self.topological_order(target=name)
-        for n in order:
-            rel = self.relations[n]
-            root = getattr(rel, "_node", None)
-            if root is None:
-                raise ValueError(f"relation {n!r} has no _node attribute")
-            cache[n] = root.accept(visitor)
-        return cache[name]
+        ref_names = {n for n in order if n != name}
 
-    def to_package(self) -> Any:
+        return self._compile_with_refs(
+            root,
+            ref_names,
+            target=target,
+            key_target_name=name,
+            execution_policy=execution_policy,
+        )
+
+    def execute(self, relation: Relation, *, target: Any = None) -> Any:
+        """Compile an ad-hoc relation against this DAG without registering it.
+
+        Any ``RefRelNode`` leaves in the relation's AST are resolved from
+        ``self.relations`` (transitively), but the relation itself is never
+        added to the DAG — no mutations to ``self.relations`` or
+        ``self.dependency_edges``.
+
+        Raises ``ValueError`` if the relation has no ``_node`` attribute.
+        Raises ``KeyError`` if a referenced name is not in the DAG.
+        """
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        result, _visitor = self._execute_with_visitor(
+            relation, target=target, execution_policy=_resolve_policy(),
+        )
+        return result
+
+    def _execute_with_visitor(
+        self,
+        relation: "Relation",
+        *,
+        target: Any = None,
+        execution_policy: "CapabilityPolicy",
+        phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        execution_context: Any = None,
+        retain_execution_scope: bool = False,
+    ) -> "tuple[Any, Any]":
+        """``execute()`` variant returning ``(result, visitor)`` for terminals
+        needing post-compile visitor state (e.g. ``collect_with_drift``).
+
+        Ad-hoc: resolves ref leaves transitively, never mutates the DAG, and
+        never assigns the target a key identity (``key_target_name=None``).
+        """
+        node = getattr(relation, "_node", None)
+        if node is None:
+            raise ValueError("relation has no _node attribute")
+
+        # Collect all transitive ref names
+        all_refs: set[str] = set()
+        pending = _walk_refs(node)
+        while pending:
+            name = pending.pop()
+            if name not in self.relations:
+                raise self._unknown_ref_error(name)
+            if name not in all_refs:
+                all_refs.add(name)
+                # Walk the registered relation's node for further refs
+                ref_node = getattr(self.relations[name], "_node", None)
+                if ref_node is not None:
+                    pending |= _walk_refs(ref_node) - all_refs
+
+        return self._compile_with_refs(
+            node,
+            all_refs,
+            target=target,
+            key_target_name=None,
+            execution_policy=execution_policy,
+            phase=phase,
+            execution_context=execution_context,
+            retain_execution_scope=retain_execution_scope,
+        )
+
+    def _compile_with_refs(
+        self,
+        node: Any,
+        ref_names: set[str],
+        *,
+        target: Any = None,
+        key_target_name: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
+        phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        execution_context: Any = None,
+        retain_execution_scope: bool = False,
+    ) -> "tuple[Any, Any]":
+        """Preflight the complete root before compiling any named dependency.
+
+        The DAG session owns named canonical plans and consumer bindings;
+        CompilationSession shares the prepared placement and transport scope.
+        """
+        missing_refs = sorted(n for n in ref_names if n not in self.relations)
+        if missing_refs:
+            raise self._unknown_ref_error(missing_refs[0])
+
+        from mountainash.relations.core.execution.compilation import CompilationSession
+        from mountainash.relations.core.execution.preparation import prepare_execution
+        from mountainash.relations.dag.key_context import KeyDriftContext
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+        session = DAGMaterializationSession(
+            self, execution_policy=execution_policy, target=target,
+        )
+
+        prepared = prepare_execution(
+            node, phase=phase, target=target,
+            identity_resolver=session._canonical_node,
+            execution_context=execution_context,
+        )
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
+        if phase is ExecutionPhase.EXPLAIN:
+            from mountainash.relations.core.execution.preparation import render_execution
+
+            return render_execution(prepared), None
+
+        session._execution_phase = phase
+        if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
+            from mountainash.relations.core.owned_copy import require_copy_idle
+
+            require_copy_idle(prepared.locations[prepared.root_key].connection)
+        session._execution_tokens = prepared.tokens
+        from mountainash.relations.dag.introspection import structural_schema
+        key_context = (KeyDriftContext(
+            resource_name=key_target_name,
+            constraints_for=self.constraints_for,
+            schema_of=lambda name: structural_schema(self, name),
+        ) if key_target_name is not None else None)
+        compilation = CompilationSession(
+            prepared, ref_resolver_factory=session.resolver_for,
+            key_context=key_context,
+        )
+        session._execution_transport = compilation.transport
+        session._execution_metadata = compilation.metadata
+        try:
+            envelope, visitor = compilation.compile_root()
+            if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
+                from mountainash.relations.core.relation_api.relation import _guard_native_terminal
+
+                _guard_native_terminal(visitor.structured_field_plans)
+                envelope = session.cache_root(key_target_name, envelope, visitor)
+            visitor._execution_session = session if retain_execution_scope else compilation
+            visitor._egress_session = compilation
+            return envelope.value, visitor
+        except BaseException as primary:
+            for owner in (compilation, session):
+                try:
+                    owner.close(release_owned=True)
+                except BaseException as cleanup:
+                    primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
+            raise
+        finally:
+            if not retain_execution_scope:
+                session.close(release_owned=False)
+
+    def schema(
+        self, name: str
+    ) -> dict[str, "MountainashDtype | SchemaTypeStatus"]:
+        """Return the inferred output schema for a named relation.
+
+        Values are canonical ``MountainashDtype`` where inferable, or a
+        ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+        """
+        from mountainash.relations.dag.introspection import schema
+
+        return schema(self, name)
+
+    def describe(self) -> dict[str, dict]:
+        """Return a structural summary of every registered relation."""
+        from mountainash.relations.dag.introspection import describe
+
+        return describe(self)
+
+    def to_dot(self) -> str:
+        """Return a Graphviz DOT string of the DAG structure."""
+        from mountainash.relations.dag.introspection import to_dot
+
+        return to_dot(self)
+
+    def to_package(self, *, strict: bool = False) -> Any:
         """Export this DAG as a Frictionless DataPackage descriptor.
 
-        Each named relation must either:
-        1. Have a ResourceReadRelNode at its root (so we can reuse the original
-           DataResource), OR
-        2. Expose an output schema we can derive (currently only the first case
-           is supported — derived synthesis is deferred).
+        Emits a resource for every named tabular relation: a ResourceReadRelNode
+        reuses its original DataResource; any other relation derives its schema via
+        the ref-resolved dag.schema(name) and emits best-effort (schema-less when no
+        columns are determinable). Assets pass through unchanged.
 
-        Raises ``MissingResourceSchema`` if any relation has neither.
-        Assets pass through to the returned package unchanged.
+        Default is non-fatal (principle best-effort-introspection R3). strict=True
+        raises MissingResourceSchema for any relation whose schema is empty or
+        contains a genuinely-UNKNOWN column (R4)."""
+        from mountainash.relations.dag.packaging import to_package
+
+        return to_package(self, strict=strict)
+
+    # ------------------------------------------------------------------
+    # DAG-level validation
+    # ------------------------------------------------------------------
+
+    def validate(
+        self,
+        specs: dict[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        backend: Optional[str] = None,
+        failure_sample: Optional[int] = None,
+        allow_imperfect_key: bool = False,
+    ) -> "DAGValidationResult":
+        """Full validation via the backend-agnostic ValidationRunner.
+
+        Per-resource checks compile from each spec/contract; FK row-integrity
+        checks are generated from constraint_metadata + spec foreign keys by
+        validation.fk.build_fk_checks and compiled as relation anti-joins.
+        A resource's invalid keyed identity is isolated into that resource's
+        own failing result (check_id="__identity__") rather than raised out
+        of this call - every other resource still validates (spec item 8j §3.2).
         """
-        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
-            ResourceReadRelNode,
+        from mountainash.core.capabilities.policy import _resolve_policy
+        from mountainash.relations.dag.validation import validate
+
+        return validate(
+            self, specs, context=context, backend=backend, failure_sample=failure_sample,
+            allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
         )
-        from mountainash.typespec.datapackage import DataPackage, DataResource
-        from .errors import MissingResourceSchema
 
-        resources: list[DataResource] = []
-        missing: list[str] = []
+    def validate_quick(
+        self,
+        specs: dict[str, Any],
+        *,
+        context: dict[str, Any] | None = None,
+        backend: Optional[str] = None,
+        failure_sample: Optional[int] = None,
+        allow_imperfect_key: bool = False,
+    ) -> "DAGValidationResult":
+        """Fast validation via the ValidationRunner (fail_fast=True; identical shapes)."""
+        from mountainash.core.capabilities.policy import _resolve_policy
+        from mountainash.relations.dag.validation import validate_quick
 
-        for name, relation in self.relations.items():
-            root = getattr(relation, "_node", None)
-            if isinstance(root, ResourceReadRelNode):
-                res = root.resource
-                if res.name != name:
-                    res = res.model_copy(update={"name": name})
-                resources.append(res)
-                continue
-            # No source resource — try the relation's declared output schema
-            output_schema = getattr(relation, "output_schema", None)
-            if output_schema is None:
-                missing.append(name)
-                continue
-            resources.append(
-                DataResource(  # type: ignore[call-arg]
-                    name=name,
-                    path=f"{name}.csv",  # placeholder
-                    type="table",
-                    format="csv",
-                    table_schema=output_schema,
-                )
-            )
+        return validate_quick(
+            self, specs, context=context, backend=backend, failure_sample=failure_sample,
+            allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
+        )
 
-        # Asset resources pass through
-        for name, ref in self.assets.items():
-            res = ref.resource
-            if res.name != name:
-                res = res.model_copy(update={"name": name})
-            resources.append(res)
+    def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":
+        """Unified missing-upstream error, naming registered dependents."""
+        from mountainash.relations.dag.errors import UnknownRelationRef
 
-        if missing:
-            raise MissingResourceSchema(
-                f"cannot export to DataPackage; relations without schema: {missing}"
-            )
-        return DataPackage(resources=resources)
+        dependents = sorted(d for (u, d) in self.dependency_edges if u == missing)
+        referenced_by = (
+            ", ".join(repr(d) for d in dependents)
+            if dependents
+            else "an unregistered relation"
+        )
+        return UnknownRelationRef(
+            f"relation {missing!r} referenced but not in DAG "
+            f"(referenced by {referenced_by})"
+        )
 
-    def _resolve_backend_const(
-        self, backend: Optional[str], target_name: str
-    ) -> CONST_BACKEND:
-        """Determine the CONST_BACKEND to use for compilation.
+    def _resolve_actual_identity_for(
+        self, target_name: str
+    ) -> "tuple[CONST_BACKEND | None, str | None]":
+        """Detected physical ``(family, dialect)`` for ``target_name``'s own
+        dependency tree, walking in the SAME topological/ancestor order the
+        two independent resolvers below used historically (so both keep
+        resolving from the same leaf), but in ONE walk making exactly ONE
+        :func:`native_identity` probe per candidate leaf --
+        replacing the previous two independent walks (one via
+        ``identify_backend``, one via ``native_identity``) that
+        duplicated detection for no reason (round-2 finding:
+        ``native_identity`` already calls ``identify_backend``
+        internally).
 
-        If ``backend`` is given explicitly, honour it. Otherwise walk the
-        dependency tree of ``target_name`` to find the first ReadRelNode and
-        detect its backend. Falls back to Polars when no ReadRelNode is found
-        (e.g. pure SourceRelNode / inline data trees).
+        Deliberately IGNORES any explicit ``backend=`` override -- the
+        override is an execution request, not evidence about a ref's own
+        physical identity. Per-ref/anchor guards that need to detect
+        "would an override create an invalid hybrid" must call this
+        directly rather than the override-honouring
+        ``_resolve_backend_const`` wrapper below.
+
+        Returns a 3-way taxonomy distinguishing "no physical read at all"
+        from "physical read, unresolved dialect" (round-1 finding: the
+        old two-resolver approach collapsed both to ``dialect=None``,
+        conflating "inherit the anchor unconditionally" with "this ref
+        genuinely has an unknown dialect"):
+          ``(None, None)``      -- no readable leaf (pure SourceRelNode
+                                    tree, or every candidate failed
+                                    detection)
+          ``(family, None)``    -- a readable leaf was found, but its
+                                    dialect is genuinely unbound/unknown
+                                    (e.g. an unbound Ibis table)
+          ``(family, dialect)`` -- fully resolved
         """
-        if backend is not None:
-            try:
-                return CONST_BACKEND(backend.lower())
-            except ValueError:
-                raise ValueError(f"unknown backend: {backend!r}")
-
-        # Walk through relations in topological order and look for a
-        # ReadRelNode to detect the backend from its dataframe.
         from mountainash.relations.core.relation_api.relation_base import (
             RelationBase,
         )
-        from mountainash.expressions.core.expression_system.expsys_base import (
-            identify_backend,
-        )
+        from mountainash.core.backend_detection import native_identity
         from mountainash.relations.dag.errors import RelationDAGRequired
 
         order = self.topological_order(target=target_name)
@@ -267,12 +609,98 @@ class RelationDAG:
             try:
                 read_node = RelationBase._find_leaf_read_node(root)
             except (ValueError, AttributeError, RelationDAGRequired):
-                # Node type not handled (e.g. RefRelNode) — skip, try next.
+                # Node type not handled, or this candidate's own root is
+                # itself a bare RefRelNode with no direct physical leaf --
+                # skip, try the next candidate in topological order.
                 continue
             if read_node is not None:
                 try:
-                    return identify_backend(read_node.dataframe)
+                    identity = native_identity(read_node.dataframe)
+                    return identity.family, identity.dialect
                 except Exception:
                     pass
-        # No ReadRelNode found — default to Polars (SourceRelNode / inline data).
-        return CONST_BACKEND.POLARS
+        return None, None
+
+    def _resolve_identity_leaf(
+        self, target_name: str
+    ) -> "tuple[CONST_BACKEND | None, str | None, Any | None]":
+        """Return the identity and leaf selected for a named relation."""
+        from mountainash.relations.core.relation_api.relation_base import RelationBase
+        from mountainash.core.backend_detection import native_identity
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        for n in self.topological_order(target=target_name):
+            root = getattr(self.relations[n], "_node", None)
+            if root is None:
+                continue
+            try:
+                read_node = RelationBase._find_leaf_read_node(root)
+            except (ValueError, AttributeError, RelationDAGRequired):
+                continue
+            if read_node is not None:
+                try:
+                    identity = native_identity(read_node.dataframe)
+                    return identity.family, identity.dialect, read_node
+                except Exception:
+                    pass
+        return None, None, None
+
+    def _resolve_actual_identity_for_node(
+        self, node: Any
+    ) -> "tuple[CONST_BACKEND | None, str | None]":
+        """Sibling of :meth:`_resolve_actual_identity_for` for the ad-hoc
+        (non-named) ``execute()`` case: a single leaf probe on ``node``
+        itself -- there is no registered relation name to walk via
+        :meth:`topological_order`, so this inspects only ``node``'s own
+        leaf directly."""
+        from mountainash.relations.core.relation_api.relation_base import (
+            RelationBase,
+        )
+        from mountainash.core.backend_detection import native_identity
+        from mountainash.relations.dag.errors import RelationDAGRequired
+
+        try:
+            read_node = RelationBase._find_leaf_read_node(node)
+        except (ValueError, AttributeError, RelationDAGRequired):
+            return None, None
+        if read_node is None:
+            return None, None
+        try:
+            identity = native_identity(read_node.dataframe)
+            return identity.family, identity.dialect
+        except Exception:
+            return None, None
+
+    def _resolve_backend_const(
+        self, backend: Optional[str], target_name: str
+    ) -> CONST_BACKEND:
+        """Determine the CONST_BACKEND to use for compilation.
+
+        If ``backend`` is given explicitly, honour it -- this is the ONE
+        caller-facing entry point that still applies the override;
+        internal per-ref/anchor guards needing the override-independent
+        physical family must call :meth:`_resolve_actual_identity_for`
+        directly. Otherwise walk ``target_name``'s dependency tree for its
+        detected physical family, falling back to Polars when no
+        ReadRelNode is found (e.g. pure SourceRelNode / inline data trees).
+        """
+        if backend is not None:
+            try:
+                return CONST_BACKEND(backend.lower())
+            except ValueError:
+                raise ValueError(f"unknown backend: {backend!r}")
+        family, _dialect = self._resolve_actual_identity_for(target_name)
+        return family if family is not None else CONST_BACKEND.POLARS
+
+    def _resolve_dialect_for(self, target_name: str) -> Optional[str]:
+        """Dialect for the first ReadRelNode found while walking
+        ``target_name``'s dependency tree -- same anchor-selection order
+        as :meth:`_resolve_backend_const`, so family and dialect are
+        always resolved from the same leaf. Unlike backend-family
+        resolution, dialect is *not* determinable from an explicit
+        ``backend=`` string override, so this always walks regardless.
+        Returns ``None`` when no ReadRelNode is found, or when one is
+        found but its dialect is genuinely unbound/unknown.
+        """
+        _family, dialect = self._resolve_actual_identity_for(target_name)
+        return dialect

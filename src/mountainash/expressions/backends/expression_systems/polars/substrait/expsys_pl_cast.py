@@ -5,105 +5,58 @@ Implements type casting operations for the Polars backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
+from ..temporal_cast import cast_temporal_compatible
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
+from mountainash.core.dtypes import (
+    CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget,
+    dtype_is_complete, registry, resolve_dtype_parameters,
+)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-
-# Mapping from string type names to Polars dtypes
-_POLARS_DTYPE_MAP = {
-    # Substrait standard names
-    "i8": pl.Int8,
-    "i16": pl.Int16,
-    "i32": pl.Int32,
-    "i64": pl.Int64,
-    "fp32": pl.Float32,
-    "fp64": pl.Float64,
-    "f32": pl.Float32,
-    "f64": pl.Float64,
-    "string": pl.Utf8,
-    "bool": pl.Boolean,
-    "boolean": pl.Boolean,
-    "date": pl.Date,
-    "timestamp": pl.Datetime,
-    # Common string representations from str(pl.Type)
-    "Int8": pl.Int8,
-    "Int16": pl.Int16,
-    "Int32": pl.Int32,
-    "Int64": pl.Int64,
-    "Float32": pl.Float32,
-    "Float64": pl.Float64,
-    "Utf8": pl.Utf8,
-    "String": pl.Utf8,
-    "Boolean": pl.Boolean,
-    "Date": pl.Date,
-    "Datetime": pl.Datetime,
-    # Python type names
-    "int": pl.Int64,
-    "float": pl.Float64,
-    "str": pl.Utf8,
-    # Common aliases
-    "int64": pl.Int64,
-    "int32": pl.Int32,
-    "float64": pl.Float64,
-    "float32": pl.Float32,
-    # Unsigned integers
-    "u8": pl.UInt8,
-    "u16": pl.UInt16,
-    "u32": pl.UInt32,
-    "u64": pl.UInt64,
-    "UInt8": pl.UInt8,
-    "UInt16": pl.UInt16,
-    "UInt32": pl.UInt32,
-    "UInt64": pl.UInt64,
-    "uint8": pl.UInt8,
-    "uint16": pl.UInt16,
-    "uint32": pl.UInt32,
-    "uint64": pl.UInt64,
-    # Missing canonical names
-    "binary": pl.Binary,
-    "Binary": pl.Binary,
-    "time": pl.Time,
-    "Time": pl.Time,
-}
-
-
 class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of CastExpressionProtocol."""
 
-    def cast(self, x: PolarsExpr, /, dtype: Any) -> PolarsExpr:
-        """Cast an expression to a target data type.
+    _TARGET = TypeTarget.POLARS
 
-        Args:
-            x: The expression to cast.
-            dtype: The target data type (string name or Polars dtype).
+    def cast(
+        self,
+        x: PolarsExpr,
+        /,
+        dtype: CastTarget,
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> PolarsExpr:
+        """Cast an expression to a canonical or native-passthrough dtype.
 
-        Returns:
-            A Polars expression cast to the specified type.
+        `failure_behavior="null"` maps to Polars' `strict=False`, which
+        returns null for values that cannot convert instead of raising.
         """
-        # Try canonical resolution first
-        try:
-            from mountainash.core.dtypes import resolve_dtype
-            dtype = resolve_dtype(dtype)
-        except ValueError:
-            pass  # Fall through to backend-specific handling
-
-        # If already a Polars dtype, use directly
-        if isinstance(dtype, pl.DataType) or (isinstance(dtype, type) and issubclass(dtype, pl.DataType)):
-            return x.cast(dtype)
-
-        # Convert string to Polars dtype
-        if isinstance(dtype, str):
-            polars_dtype = _POLARS_DTYPE_MAP.get(dtype)
-            if polars_dtype is not None:
-                return x.cast(polars_dtype)
-
-        # Fallback: try to use as-is
-        return x.cast(dtype)
+        strict = failure_behavior != "null"
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return x
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+        if (
+            dtype is MountainashDtype.TIMESTAMP
+            or dtype is MountainashDtype.DURATION
+            or (
+                isinstance(dtype, PARAMETERIZED_DTYPES)
+                and dtype.native is None and not dtype_is_complete(dtype)
+            )
+        ):
+            return x.pipe_with_dtype(
+                lambda expr, native: cast_temporal_compatible(
+                    expr,
+                    registry.to_native_cast(resolve_dtype_parameters(
+                        dtype, registry.from_native(native, self._TARGET),
+                    ), self._TARGET),
+                    strict=strict,
+                )
+            )
+        return cast_temporal_compatible(x, registry.to_native_cast(dtype, self._TARGET), strict=strict)

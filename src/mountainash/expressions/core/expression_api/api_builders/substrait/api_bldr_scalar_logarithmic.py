@@ -78,6 +78,17 @@ class SubstraitScalarLogarithmicAPIBuilder(BaseExpressionAPIBuilder, SubstraitSc
         )
         return self._build(node)
 
+    def log1p(self) -> BaseExpressionAPI:
+        """Natural logarithm of (1 + x). More accurate than log(1+x) for small x.
+
+        Substrait: log1p
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG1P,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
     def log(
         self,
         base: Union[BaseExpressionAPI, "ExpressionNode", Any, float],

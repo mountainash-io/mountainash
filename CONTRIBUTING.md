@@ -16,8 +16,8 @@ This document outlines the process for contributing to the project and provides 
 ## Getting Started
 
 1. Fork the repository on GitHub.
-2. Clone your fork locally: `git clone https://github.com/your-username/mountainash-expressions.git`
-3. Add the original repository as a remote: `git remote add upstream https://github.com/mountainash-io/mountainash-expressions.git`
+2. Clone your fork locally: `git clone https://github.com/your-username/mountainash.git`
+3. Add the original repository as a remote: `git remote add upstream https://github.com/mountainash-io/mountainash.git`
 4. Install development dependencies: `hatch shell`
 5. Create a new branch for your contribution (see [Branching Strategy](#branching-strategy)).
 
@@ -116,10 +116,16 @@ import polars as pl
 
 # Mountain Ash imports
 from mountainash_constants import BaseValueConstant
-from mountainash_expressions.constants import CONST_EXPRESSION_LOGIC_OPERATORS
+from mountainash.constants import CONST_EXPRESSION_LOGIC_OPERATORS
 ```
 
 ## Testing
+
+> **How the suite is run (tiers, backend scope, change selection, CI):** see the
+> [Test Orchestration guide](docs/guides/test-orchestration.md). It covers the
+> marker tiers, `MA_BACKEND_SCOPE`, the affected-tests selector, the CI
+> PR/merge-queue/nightly tiers, and how to keep the taxonomy closed when you add
+> tests or modules.
 
 - Write unit tests for all new functionality.
 - Ensure all existing tests pass before submitting a pull request.
@@ -198,8 +204,8 @@ def eval_is_true(self) -> Callable:
 
 ```bash
 # Clone and setup
-git clone https://github.com/mountainash-io/mountainash-expressions.git
-cd mountainash-expressions
+git clone https://github.com/mountainash-io/mountainash.git
+cd mountainash
 hatch shell
 
 # Install in development mode
@@ -245,7 +251,7 @@ Before submitting a pull request, ensure:
 
 If you need help or have questions:
 
-- Check existing [Issues](https://github.com/mountainash-io/mountainash-expressions/issues)
+- Check existing [Issues](https://github.com/mountainash-io/mountainash/issues)
 - Review the [documentation](README.md) and [CLAUDE.md](CLAUDE.md)
 - Ask questions in pull request discussions
 - Contact the maintainers directly

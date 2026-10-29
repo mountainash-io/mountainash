@@ -444,11 +444,11 @@ The anti-join approach is efficient because it leverages Polars' native join eng
 <!-- concept:164 -->
 ## validate_match Function
 
-The `validate_match` function (from the type system module) checks whether a DataFrame's actual schema matches an expected TypeSpec. It is used within the DAG validation pipeline as the first phase (table-level validation) before FK checks are performed.
+The `validate_match` function (from the type system module) checks whether a DataFrame's actual schema matches an expected TableSchema. It is used within the DAG validation pipeline as the first phase (table-level validation) before FK checks are performed.
 
 The full DAG validation runs in two phases:
 
-1. **Phase 1 -- Table Validation**: For each table, materialize it via `dag.collect()`, then validate the resulting DataFrame against its TypeSpec or data contract
+1. **Phase 1 -- Table Validation**: For each table, materialize it via `dag.collect()`, then validate the resulting DataFrame against its TableSchema or data contract
 2. **Phase 2 -- FK Integrity**: Using the cached DataFrames from Phase 1, check all foreign key relationships defined in the specs
 
 The result is a `DAGValidationResult` object:

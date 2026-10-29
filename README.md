@@ -10,7 +10,7 @@ The package keeps the semantic model separate from backend code. It uses a small
 
 ## Source development
 
-Install Python 3.10 or later and Hatch. Start from the `develop` branch:
+Install Python 3.12 or later and Hatch. Start from the `develop` branch:
 
 ```bash
 git clone https://github.com/mountainash-io/mountainash.git
@@ -28,6 +28,53 @@ hatch run mypy:check
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, pull requests, and coding standards. See [TESTING.md](TESTING.md) for test tiers and backend test commands.
+
+### Ibis physical transaction support
+
+The `ibis` extra declares `mountainash-data>=0.1.0,<0.2` for SQL transaction
+and owned-copy support, alongside Ibis 12 or later and
+`sqlglot>=29.0.1,<30.18.0`. Local and CI environments resolve Data from its
+sibling checkout. Drivers remain explicit (for example,
+`ibis-framework[duckdb]`); the adapter supports SQLite, DuckDB and PostgreSQL
+with one connection, one user and sequential execution.
+
+The adapter borrows an existing connection, refuses caller transactions for
+owned-copy work, and performs physical operations through mountainash-data's
+public API. Base Polars/Narwhals execution does not import mountainash-data.
+Ordinary collection does not automatically enter a transaction.
+
+Public installation of `mountainash[ibis]` requires the Data, Settings and
+Auth-client releases to be published first. Candidate-wheel rehearsal verifies
+the dependency declaration, not public-index availability.
+
+Local file resources need only `mountainash[files]`. Reading URL resources
+(`https://…`) also needs `mountainash[http]` (install `mountainash[files,http]`);
+the cloud extras include it. Without it the read raises transport's
+`MissingExtraError` naming the extra.
+
+## Installed-artifact hello world
+
+There is not yet a supported public PyPI release. Build a candidate with [RELEASE.md](RELEASE.md), then install its wheel into a fresh Python 3.12 environment outside the checkout. Dependencies must come from public PyPI, not sibling checkouts. Ibis/files/storage/cloud extras also require their sibling releases to be public; a working base example does not establish those extras.
+
+The candidate verification command runs this transformation and checks the expected rows:
+
+```python
+import mountainash as ma
+import polars as pl
+
+df = pl.DataFrame({"name": ["Ada", "Lin", "Sam"], "age": [37, 22, None]})
+rows = (
+    ma.relation(df)
+    .filter(ma.col("age").gt(30))
+    .sort("name")
+    .to_polars()
+    .to_dicts()
+)
+print(rows)
+# [{'name': 'Ada', 'age': 37}]
+```
+
+`scripts/verify_release.py` checks the wheel, the sdist-derived wheel, dependency consistency and advertised extras. Its `--base-only` mode is diagnostic, not full release acceptance.
 
 ## Quick examples
 
@@ -75,14 +122,42 @@ plan = (
 result = plan.to_polars()
 ```
 
-`Relation.conform` attaches a backend-agnostic TypeSpec to a plan. The transformation runs when the plan compiles.
+`Relation.conform` attaches a backend-agnostic `TableSchema` to a plan as a deferred `ConformRelNode`. The transformation runs when the plan compiles. Conform converts; contracts and validation check.
 
 ```python
 import mountainash as ma
-spec = ma.typespec({"name": "string", "age": "integer"})
+schema = ma.table_schema({"name": "string", "age": "integer"})
 
-result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(spec).collect()
+result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(schema).collect()
 ```
+
+Python ingress resolves source dtypes per column: explicit `source_table_schema`, then
+dataclass/Pydantic scalar annotations, then native inference. Unrefined `ANY`
+leaves the next source of evidence in control. Declared nullable columns retain
+their types even when all values are null or the first non-null value is late.
+Undeclared row input still uses Polars' 100-row inference limit; ingress does not
+scan farther or retry on failure.
+
+`table_schema` describes a conversion target, not the source representation:
+
+```python
+from mountainash.pydata import PydataIngress
+
+rows = [{"raw": None}] * 100 + [{"raw": "2026-10-12"}]
+raw = PydataIngress.convert(
+    rows,
+    source_table_schema=ma.table_schema({"raw": "string"}),
+    table_schema=ma.table_schema({"raw": "date"}),
+    inline_conform=False,
+)  # String source; no target conversion
+dates = ma.relation(raw).conform(ma.table_schema({"raw": "date"})).to_polars()
+```
+
+`inline_conform` defaults to `True`. Setting it to `False` suppresses target
+transforms, including custom converters, but not constructor typing/coercion.
+Source declarations do not perform renaming, null filling, or validation.
+Python-only custom converters retain their existing pre-construction behavior;
+their output uses bounded inference rather than stale source-type overrides.
 
 Use `.compile()` for the backend-native result. Lazy backends return an unexecuted plan, but eager backends can return materialized data. Use `.collect()` when you require eager materialization. Use `.to_polars()`, `.to_pandas()`, `.to_dict()`, or `.to_dicts()` when you need a specific output form.
 
@@ -108,6 +183,40 @@ ma.relation(data)     -> capability facts     -> native plan         -> collect 
 
 Backend systems register with the expression and relation registries. This keeps backend selection out of API builders and makes capability differences explicit.
 
+Capability declarations are prepared once per `register_segment()` publication.
+The call accepts one validated `BoundSegment` and publishes its information and
+policy rules as one immutable generation, or leaves the preceding generation
+unchanged. Initial loading is likewise transactional; a failed load retains its
+original exception until reset or restore.
+
+A physical `SEGMENT` contains only two kinds of declaration:
+`CapabilityInformation` describes a native or public behavior, while a
+`CapabilityPolicyRule` gives one concrete dialect an explicit executable
+consumer and action. Information may be family-wide or dialect-specific and is
+available for inspection; only a concrete policy participates in execution.
+Compiler routing never infers a policy by executing a family description.
+
+Compilation looks up operand names and operation/backend predicate candidates
+without enumerating the complete catalogue. Operand type descriptors are still
+resolved freshly in the current input scope, never cached across frames. Each
+registry accessor reads one immutable generation, not an entire
+compilation-wide transaction. Finish registration before compiling if the whole
+compilation must use one configuration. Same-thread recursive mutations and
+recursive first-load queries raise `RuntimeError`; warm reads remain available
+during registration. Snapshot tokens are opaque and must only be passed back to
+`restore()`. `reset()` enters isolated mode, which allows local queries but
+refuses production reporting.
+
+Cold catalogue captures inspect information and policies independently with
+`InformationQuery` and `PolicyQuery`. Exact readers preserve their requested
+scope; `composed_information()` is the explicit inspection-only operation that
+adds captured family information to a captured dialect scope. Gap inventories
+are acquired separately and passed directly to `capture(inventories=...)`.
+Ordinary tests own their concrete inputs and oracles; capability declarations
+do not select, execute, or supply test cases. See the
+[known-divergences guide](docs/guides/known-divergences.md) for authoring and
+inspection.
+
 ## Top-level package map
 
 | Module | Responsibility and boundary |
@@ -115,10 +224,10 @@ Backend systems register with the expression and relation registries. This keeps
 | `core` | Shared types, canonical dtypes, backend detection, registries, capability facts, and common errors. It supplies infrastructure used by other modules rather than a user-facing query API. |
 | `expressions` | Fluent expression builders and the backend-agnostic expression AST. Its boundary ends at native expression compilation through registered expression systems. |
 | `relations` | Fluent relational plans, relation nodes, joins, aggregates, schema inference, and `RelationDAG`. Its boundary ends at native plan compilation and materialization. |
-| `typespec` | Typed, serializable schemas with universal types, field constraints, keys, and Frictionless descriptor and dialect models. It describes data and does not execute transforms. |
-| `conform` | Structural schema conformance and drift reporting. It turns a TypeSpec into relation and expression work. Value-level checks belong to `validation`. |
+| `typespec` | Typed, serializable schemas: immutable unnamed `FieldDefinition` declarations (copy with `.variant(...)`), an ordered name-to-definition `TableSchema`, `FieldConstraints`, keys, and Frictionless descriptor and dialect models. It describes data and does not execute transforms. |
+| `conform` | Structural schema conformance and drift reporting. It turns a `TableSchema` into relation and expression work. Value-level checks belong to `validation`. |
 | `validation` | Backend-agnostic value checks, identities, runners, diagnostics, and validation results. Checks compile through existing visitors instead of embedding backend code. |
-| `datacontracts` | Data contract declarations and compilation from TypeSpec. It maps constraints to checks and provides contract validation plans and results. |
+| `datacontracts` | Data contract declarations and compilation from `TableSchema`. It maps constraints to checks and provides contract validation plans and results. |
 | `pydata` | Ingress from Python collections and models, plus egress to Python data. It owns conversion at the Python boundary, not relational semantics. |
 | `graph` | General graph algorithms such as topological order, ancestor discovery, and parallel layers. Relation-specific dependency and constraint edges remain in `relations`. |
 | `pipelines` | Pipeline sources, steps, fluent builders, parameters, and relation integration. It connects pipeline execution to relations without replacing the relation AST. |
@@ -148,9 +257,9 @@ mountainash does not currently provide native Substrait serialization. The align
 
 `typespec` models the typed operational schema. It maps universal types, field properties, constraints, keys, missing values, and Mountainash extensions to the Frictionless Table Schema shape.
 
-`DataPackage`, `DataResource`, and `TableDialect` represent Frictionless Data Package descriptors. The descriptor boundary can preserve raw schema and dialect mappings, resolve local references through descriptor context, and convert a resource schema to a `TypeSpec`. Standard properties stay in their standard locations. Mountainash-specific properties use the `x-mountainash` namespace.
+`DataPackage`, `DataResource`, and `TableDialect` represent Frictionless Data Package descriptors. The descriptor boundary can preserve raw schema and dialect mappings, resolve local references through descriptor context, and convert a resource schema to a `TableSchema` with `DataResource.to_table_schema()`. Standard properties stay in their standard locations. Mountainash-specific properties use the `x-mountainash` namespace.
 
-This support covers the current descriptor, Table Schema, and TypeSpec mapping code. Frictionless v2 also defines separate conformance, validation, and resource-reader boundaries. Those boundaries are not all complete, so this README does not describe v2 support as a complete implementation.
+This support covers the current descriptor, Table Schema, and `TableSchema` mapping code. Frictionless v2 also defines separate conformance, validation, and resource-reader boundaries. Those boundaries are not all complete, so this README does not describe v2 support as a complete implementation.
 
 ## Roadmap
 
@@ -186,7 +295,11 @@ Publish a supported distribution only when installation, dependency resolution, 
 
 ## License
 
-mountainash is released under the [MIT License](LICENSE).
+Mountainash's first-party code is licensed under the [Apache License, Version 2.0](LICENSE).
+The bundled [GeoJSON schema](src/mountainash/validation/schemas/GeoJSON.json) retains its
+[MIT licence and Tim Schaub attribution](src/mountainash/validation/schemas/LICENSE.geojson-schema.txt).
+The distribution's SPDX licence expression is `Apache-2.0 AND MIT`; this does not
+offer Mountainash's first-party code under MIT. See [NOTICE](NOTICE).
 
 ## Textbook
 
@@ -231,4 +344,3 @@ Graph artifact pages (`concept-list.md`, `concept-taxonomy.md`, `faq.md`,
 `quality-metrics.md`, `taxonomy-distribution.md`) also exist under
 `docs-site/site/docs/learning-graph/` but are not wired into the site `nav`.
 Neither gap is fixed here; both predate the per-repo split.
-

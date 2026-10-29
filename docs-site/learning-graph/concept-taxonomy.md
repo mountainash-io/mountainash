@@ -38,7 +38,7 @@ Backend implementations for relational operations: PolarsRelationSystem (LazyFra
 
 ### TYPES — Type System & Schema
 
-Universal type metadata: TypeSpec/FieldSpec/FieldConstraints, UniversalType enum, Frictionless Table Schema alignment, schema extraction from DataFrames/dataclasses/Pydantic, validation, and cross-backend type conversion.
+Universal type metadata: TableSchema/FieldDefinition/FieldConstraints, UniversalType enum, Frictionless Table Schema alignment, schema extraction from DataFrames/dataclasses/Pydantic, validation, and cross-backend type conversion.
 
 ### DAG — DAG & DataPackage
 

@@ -10,10 +10,13 @@ from typing import TYPE_CHECKING
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarComparisonAPIBuilderProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+    FKEY_MOUNTAINASH_SCALAR_COMPARISON,
 )
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 
@@ -22,7 +25,7 @@ if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarComparisonAPIBuilderProtocol):
     """Mountainash extension comparison operations.
 
     Provides Polars-compatible aliases for standard comparison operations.
@@ -191,6 +194,34 @@ class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder):
         )
         return self._build(result)
 
+    def null_count(self) -> BaseExpressionAPI:
+        """Count of null values. Equivalent to is_null().sum()."""
+        is_null_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            arguments=[self._node],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            arguments=[is_null_node],
+        )
+        return self._build(node)
+
+    def has_nulls(self) -> BaseExpressionAPI:
+        """Whether any values are null. Equivalent to is_null().sum().gt(0)."""
+        is_null_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            arguments=[self._node],
+        )
+        sum_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            arguments=[is_null_node],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT,
+            arguments=[sum_node, LiteralNode(value=0)],
+        )
+        return self._build(node)
+
     def is_close(self, other, abs_tol: float = 1e-8, rel_tol: float = 1e-5) -> BaseExpressionAPI:
         """Whether two values are approximately equal.
 
@@ -230,3 +261,18 @@ class MountainAshScalarComparisonAPIBuilder(BaseExpressionAPIBuilder):
             arguments=[abs_diff, threshold],
         )
         return self._build(result)
+
+    def is_duplicated(self) -> BaseExpressionAPI:
+        """Whether the value appears more than once in the column.
+
+        Mountainash extension (not in Substrait). Compiles to a native
+        duplicate flag (Polars/Narwhals) or a per-value window count (Ibis).
+
+        Returns:
+            New ExpressionAPI with is_duplicated node.
+        """
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_DUPLICATED,
+            arguments=[self._node],
+        )
+        return self._build(node)

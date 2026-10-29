@@ -1,9 +1,55 @@
-"""Conform — compile type specifications to relation/expression operations.
+"""Conform — shared expression builder for TableSchema conformance.
 
-Provides ConformBuilder, the user-facing DSL for conforming DataFrames
-to a TypeSpec via the mountainash relations/expressions layer.
+The primary API is Relation.conform(spec). This module provides the
+internal _build_conform_exprs helper used by both Relation.conform()
+and the DAG visitor's apply_conform.
 """
 from __future__ import annotations
-from mountainash.conform.builder import ConformBuilder
 
-__all__ = ["ConformBuilder"]
+from mountainash.conform.expressions import (
+    ConformResult,
+    FieldBuildResult,
+    _build_conform_exprs,
+)
+from mountainash.conform.errors import (
+    ConformError,
+    MissingFieldsError,
+    ExtraFieldsError,
+    ExactFieldsMismatchError,
+    NoMatchingFieldsError,
+    ConformTransformError,
+    SchemaDriftError,
+    DecimalConversionRequiredError,
+    UnresolvedSourceTypeError,
+    IncompatibleSourceTypeError,
+    UnsupportedStructuredTransportUse,
+)
+from mountainash.conform.drift import (
+    TypeDrift,
+    ColumnDrift,
+    KeyDrift,
+    ConformDrift,
+    ConformCollection,
+)
+
+__all__ = [
+    "ConformResult",
+    "FieldBuildResult",
+    "_build_conform_exprs",
+    "ConformError",
+    "MissingFieldsError",
+    "ExtraFieldsError",
+    "ExactFieldsMismatchError",
+    "NoMatchingFieldsError",
+    "ConformTransformError",
+    "SchemaDriftError",
+    "DecimalConversionRequiredError",
+    "UnresolvedSourceTypeError",
+    "IncompatibleSourceTypeError",
+    "UnsupportedStructuredTransportUse",
+    "TypeDrift",
+    "ColumnDrift",
+    "KeyDrift",
+    "ConformDrift",
+    "ConformCollection",
+]

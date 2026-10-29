@@ -101,12 +101,15 @@ class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSy
         /,
         low: NarwhalsExpr,
         high: NarwhalsExpr,
+        *,
+        closed: str = "both",
     ) -> NarwhalsExpr:
-        """Whether x is between low and high (inclusive).
+        """Whether x is between low and high.
 
         Returns null if any of x, low, or high is null.
         """
-        return x.is_between(low, high, closed="both")
+        nw_closed = "none" if closed == "neither" else closed
+        return x.is_between(low, high, closed=nw_closed)
 
     # =========================================================================
     # Boolean Check Operations
@@ -170,15 +173,14 @@ class SubstraitNarwhalsScalarComparisonExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns null if x is null.
         """
-        # Narwhals doesn't have is_finite, simulate with is_nan and is_infinite
-        return ~x.is_nan() & ~x.is_infinite()
+        return x.is_finite()
 
     def is_infinite(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Whether a value is infinite.
 
         Returns null if x is null.
         """
-        return x.is_infinite()
+        return ~x.is_finite() & ~x.is_nan()
 
     # =========================================================================
     # Null Handling Operations

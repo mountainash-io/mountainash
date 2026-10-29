@@ -20,6 +20,7 @@ are direct Substrait functions and defined in prtcl_scalar_datetime.py.
 from __future__ import annotations
 
 from typing import Union, Any,Optional, Protocol, TYPE_CHECKING
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
@@ -478,17 +479,46 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
         """Convert to specified timezone."""
         ...
 
-    def assume_timezone(self, timezone: str) -> BaseExpressionAPI:
-        """Assume the timestamp is in the specified timezone."""
+    def parse_default(
+        self,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse a Frictionless default datetime value."""
         ...
 
-    # =========================================================================
-    # Formatting
-    # =========================================================================
-
-    def strftime(self, format: str) -> BaseExpressionAPI:
-        """Format datetime as string using strftime format codes."""
+    def parse_xsd_duration(
+        self,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Validate an XSD duration lexical value."""
         ...
+
+    def parse_xsd_partial_date(
+        self,
+        *,
+        kind: str,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Validate an XSD partial-date lexical value."""
+        ...
+
+    def parse_temporal_any(
+        self,
+        kind: str,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse a Frictionless temporal-any value."""
+        ...
+
+    # assume_timezone / strftime are official Substrait ops — declared on
+    # SubstraitScalarDatetimeAPIBuilderProtocol, not here.
 
     # Polars-compatible aliases
     def week(self, /) -> BaseExpressionAPI:
@@ -535,4 +565,33 @@ class MountainAshScalarDatetimeAPIBuilderProtocol(Protocol):
 
     def days_in_month(self) -> BaseExpressionAPI:
         """Return the number of days in the month of the datetime."""
+        ...
+
+    # Duration extraction
+    def total_seconds(self) -> BaseExpressionAPI:
+        """Total seconds in a duration."""
+        ...
+
+    def total_minutes(self) -> BaseExpressionAPI:
+        """Total minutes in a duration."""
+        ...
+
+    def total_milliseconds(self) -> BaseExpressionAPI:
+        """Total milliseconds in a duration."""
+        ...
+
+    def total_microseconds(self) -> BaseExpressionAPI:
+        """Total microseconds in a duration."""
+        ...
+
+    def total_days(self) -> BaseExpressionAPI:
+        """Total days in a duration."""
+        ...
+
+    def total_hours(self) -> BaseExpressionAPI:
+        """Total hours in a duration."""
+        ...
+
+    def total_nanoseconds(self) -> BaseExpressionAPI:
+        """Total nanoseconds in a duration."""
         ...

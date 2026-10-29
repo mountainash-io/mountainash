@@ -1,0 +1,115 @@
+"""Core relations errors (visitor dispatch layer)."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mountainash.conform.structured_transport import StructuredFieldPlanMap
+
+from mountainash.core.errors import MountainashError
+from mountainash.core.errors import BackendConversionError
+
+
+class IncompleteSchemaError(MountainashError, RuntimeError):
+    """The available evidence does not establish a complete output schema."""
+
+    def __init__(
+        self, *, fields: tuple[str, ...] = (), names_complete: bool = True,
+        reason: str,
+    ) -> None:
+        self.fields = fields
+        self.names_complete = names_complete
+        missing = list(fields)
+        if not names_complete:
+            missing.insert(0, "output names/order")
+        detail = f" ({', '.join(missing)})" if missing else ""
+        super().__init__(f"Incomplete schema{detail}: {reason}")
+
+
+class CompileRequiresExecutionError(MountainashError, RuntimeError):
+    """A compile-only terminal would have to execute a source boundary."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class UnsupportedRelationTransportError(BackendConversionError):
+    """No declared adapter can carry this relation operand to its destination.
+
+    ``limitation`` is the destination's declared ``IMPORT_INTO`` capability
+    fact when one explains the refusal, else ``None``.
+    """
+
+    def __init__(self, message: str, *, limitation: Any = None, **context: Any) -> None:
+        super().__init__(message, **context)
+        self.limitation = limitation
+
+
+class UnresolvedExecutionLocationError(MountainashError, ValueError):
+    """A selected execution location has no usable physical binding."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class ConflictingExecutionTargetError(MountainashError, ValueError):
+    """An explicit terminal override contradicts an explicit join target."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class UnregisteredRelationNodeError(MountainashError):
+    """A relation node type has neither a RelationVisitRegistry handler nor
+    an operation_key + RelationOperationRegistry definition (spec §3.5/§3.9)."""
+
+    def __init__(self, node_type: type) -> None:
+        self.node_type = node_type
+        super().__init__(
+            f"{node_type.__name__} cannot be compiled: it has no registered "
+            f"visit handler and no operation_key. Either register a handler "
+            f"via RelationVisitRegistry.register({node_type.__name__}, handler) "
+            f"or define _operation_key plus a RelationOperationDef for it."
+        )
+
+
+class InvalidSampleArgumentsError(MountainashError, ValueError):
+    """Relation.sample() argument-contract violation."""
+
+
+class MaterializationScopeClosedError(MountainashError, RuntimeError):
+    """Raised when a closed materialization scope receives new ownership."""
+
+
+class LogicalTerminalRequired(MountainashError, RuntimeError):
+    """A native terminal (``collect()``, ``collect_with_drift()``) was
+    requested but at least one field's structured plan requires resolving
+    through a logical terminal snapshot first (spec Task 5 step 5)."""
+
+    def __init__(self, plans: "StructuredFieldPlanMap") -> None:
+        ordered = tuple(plans.values())
+        self.fields = tuple(plan.field_name for plan in ordered)
+        self.roots = tuple(plan.root.value for plan in ordered)
+        self.supported_terminals = (
+            "validation", "to_polars", "to_pandas", "to_dict", "to_dicts",
+            "to_tuples", "item", "to_dataclasses", "to_pydantic",
+        )
+        details = ", ".join(
+            f"{plan.field_name} ({plan.root.value})" for plan in ordered
+        )
+        terminals = ", ".join(self.supported_terminals)
+        super().__init__(
+            f"Logical terminal required for {details}. Use one of: {terminals}"
+        )

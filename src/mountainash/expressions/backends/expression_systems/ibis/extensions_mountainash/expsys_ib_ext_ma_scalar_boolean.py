@@ -1,32 +1,56 @@
-"""Ibis ScalarBooleanExpressionProtocol implementation.
+"""Ibis MountainAsh boolean extension implementation.
 
-Implements boolean logical operations for the Ibis backend.
+Implements xor_parity for the Ibis backend.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ibis
 
 from ..base import IbisBaseExpressionSystem
-
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisBooleanExpr
 
 
-class SubstraitIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol["IbisBooleanExpr"]):
-    """Ibis implementation of ScalarBooleanExpressionProtocol.
+class MountainAshIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarBooleanExpressionSystemProtocol["IbisBooleanExpr"]):
+    """Ibis implementation of MountainAsh boolean extensions."""
 
-    Implements 5 boolean methods using Kleene (three-valued) logic:
-    - and_: Boolean AND (returns false if any false, null if any null and no false)
-    - or_: Boolean OR (returns true if any true, null if any null and no true)
-    - not_: Boolean NOT (negation)
-    - xor: Boolean XOR (exclusive or)
-    - and_not: Boolean AND of first value with negation of second
-    """
+    def parse_boolean(
+        self,
+        x: IbisBooleanExpr,
+        /,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        failure_behavior: str = "throw",
+    ) -> IbisBooleanExpr:
+        if self.dialect == "ibis-sqlite" and failure_behavior == "throw":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_BOOLEAN
 
+            raise BackendCapabilityError(
+                "SQLite casts invalid boolean tokens to false instead of raising; only null failure behavior is supported.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            )
+        text = x.cast("string")
+        if failure_behavior == "null":
+            return ibis.cases(
+                (text.isin(true_values), ibis.literal(True)),
+                (text.isin(false_values), ibis.literal(False)),
+                else_=ibis.null(),
+            )
+        parsed = ibis.cases(
+            (text.isin(true_values), ibis.literal("1")),
+            (text.isin(false_values), ibis.literal("0")),
+            (text.isnull(), ibis.null()),
+            else_=ibis.literal("__invalid_boolean_token__"),
+        )
+        return parsed.cast("int8").cast("boolean")
 
     def xor_parity(self, a: IbisBooleanExpr, b: IbisBooleanExpr, /) -> IbisBooleanExpr:
         """XOR parity check (odd number of TRUE values).

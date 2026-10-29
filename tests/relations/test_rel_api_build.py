@@ -10,11 +10,13 @@ import pytest
 
 from mountainash.core.constants import (
     ExecutionTarget,
-    ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
     SortField,
+)
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
 )
 from mountainash.relations.core.relation_api import Relation, relation, concat
 from mountainash.relations.core.relation_api.grouped_relation import GroupedRelation
@@ -62,7 +64,7 @@ class TestSelect:
         r = rel.select("a", "b")
         node = r._node
         assert isinstance(node, ProjectRelNode)
-        assert node.operation == ProjectOperation.SELECT
+        assert node.operation == RKEY_SUBSTRAIT_REL.PROJECT_SELECT
         assert node.expressions == ["a", "b"]
         assert isinstance(node.input, ReadRelNode)
 
@@ -72,7 +74,7 @@ class TestWithColumns:
         r = rel.with_columns("expr1", "expr2")
         node = r._node
         assert isinstance(node, ProjectRelNode)
-        assert node.operation == ProjectOperation.WITH_COLUMNS
+        assert node.operation == RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS
         assert node.expressions == ["expr1", "expr2"]
 
 
@@ -81,7 +83,7 @@ class TestDrop:
         r = rel.drop("x", "y")
         node = r._node
         assert isinstance(node, ProjectRelNode)
-        assert node.operation == ProjectOperation.DROP
+        assert node.operation == RKEY_SUBSTRAIT_REL.PROJECT_DROP
         assert node.expressions == ["x", "y"]
 
 
@@ -90,7 +92,7 @@ class TestRename:
         r = rel.rename({"old": "new"})
         node = r._node
         assert isinstance(node, ProjectRelNode)
-        assert node.operation == ProjectOperation.RENAME
+        assert node.operation == RKEY_SUBSTRAIT_REL.PROJECT_RENAME
         assert node.rename_mapping == {"old": "new"}
         assert node.expressions == []
 
@@ -275,7 +277,7 @@ class TestExtensionOps:
         r = rel.drop_nulls(subset=["a"])
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.DROP_NULLS
+        assert node.operation == RKEY_MOUNTAINASH_REL.DROP_NULLS
         assert node.options == {"subset": ["a"]}
 
     def test_drop_nulls_no_subset(self, rel: Relation):
@@ -286,21 +288,21 @@ class TestExtensionOps:
         r = rel.with_row_index(name="idx")
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.WITH_ROW_INDEX
+        assert node.operation == RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX
         assert node.options == {"name": "idx"}
 
     def test_explode(self, rel: Relation):
         r = rel.explode("tags")
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.EXPLODE
+        assert node.operation == RKEY_MOUNTAINASH_REL.EXPLODE
         assert node.options == {"columns": ["tags"]}
 
     def test_sample_n(self, rel: Relation):
         r = rel.sample(n=100)
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.SAMPLE
+        assert node.operation == RKEY_MOUNTAINASH_REL.SAMPLE
         assert node.options == {"n": 100}
 
     def test_sample_fraction(self, rel: Relation):
@@ -311,7 +313,7 @@ class TestExtensionOps:
         r = rel.top_k(5, by="score")
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.TOP_K
+        assert node.operation == RKEY_MOUNTAINASH_REL.TOP_K
         assert node.options["k"] == 5
         assert node.options["by"] == ["score"]
 
@@ -319,7 +321,7 @@ class TestExtensionOps:
         r = rel.unpivot(on=["a", "b"], index="id")
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.UNPIVOT
+        assert node.operation == RKEY_MOUNTAINASH_REL.UNPIVOT
         assert node.options["on"] == ["a", "b"]
         assert node.options["index"] == ["id"]
 
@@ -327,7 +329,7 @@ class TestExtensionOps:
         r = rel.pivot(on="cat", index="id", values="val")
         node = r._node
         assert isinstance(node, ExtensionRelNode)
-        assert node.operation == ExtensionRelOperation.PIVOT
+        assert node.operation == RKEY_MOUNTAINASH_REL.PIVOT
         assert node.options["on"] == ["cat"]
 
 
@@ -394,3 +396,53 @@ class TestFindLeafReadNode:
         node = ReadRelNode(dataframe="x")
         leaf = Relation._find_leaf_read_node(node)
         assert leaf.dataframe == "x"
+
+
+class TestSampleArgumentContract:
+    """Relation.sample validates its common argument contract at build time."""
+
+    def _rel(self) -> Relation:
+        return relation("df")
+
+    def test_neither_n_nor_fraction_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match="exactly one"):
+            self._rel().sample()
+
+    def test_both_n_and_fraction_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match="exactly one"):
+            self._rel().sample(n=2, fraction=0.5)
+
+    def test_negative_n_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        with pytest.raises(InvalidSampleArgumentsError, match=">= 0"):
+            self._rel().sample(n=-1)
+
+    def test_fraction_out_of_range_raises(self):
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        for bad in (-0.1, 1.5):
+            with pytest.raises(InvalidSampleArgumentsError, match=r"\[0, 1\]"):
+                self._rel().sample(fraction=bad)
+
+    def test_error_is_valueerror_compat(self):
+        from mountainash.core.errors import MountainashError
+        from mountainash.exceptions import InvalidSampleArgumentsError
+
+        assert issubclass(InvalidSampleArgumentsError, ValueError)
+        assert issubclass(InvalidSampleArgumentsError, MountainashError)
+
+    def test_seed_lands_in_options(self):
+        assert self._rel().sample(n=2, seed=42)._node.options == {"n": 2, "seed": 42}
+
+    def test_seed_omitted_from_options_when_none(self):
+        assert self._rel().sample(fraction=0.5)._node.options == {"fraction": 0.5}
+
+    def test_boundary_arguments_are_valid(self):
+        assert self._rel().sample(n=0)._node.options == {"n": 0}
+        assert self._rel().sample(fraction=0.0)._node.options == {"fraction": 0.0}
+        assert self._rel().sample(fraction=1.0)._node.options == {"fraction": 1.0}

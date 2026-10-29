@@ -5,16 +5,15 @@ Provides the base ExpressionSystem class for the Polars backend.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
-from mountainash.core.types import KnownLimitation
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
-)
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.metadata import LogicalKind
 
 
 class PolarsBaseExpressionSystem(BaseExpressionSystem):
@@ -26,18 +25,10 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
 
     BACKEND_NAME: str = "polars"
 
-    KNOWN_EXPR_LIMITATIONS: dict[tuple[Any, str], KnownLimitation] = {
-        (FK_STR.REPLACE, "substring"): KnownLimitation(
-            message="Polars does not support dynamic column patterns in str.replace",
-            native_errors=(pl.exceptions.ComputeError,),
-            workaround="Use a literal string substring; replacement can be a column reference",
-        ),
-    }
-
     @property
-    def backend_type(self) -> CONST_VISITOR_BACKENDS:
+    def backend_type(self) -> CONST_BACKEND:
         """Return the Polars backend type identifier."""
-        return CONST_VISITOR_BACKENDS.POLARS
+        return CONST_BACKEND.POLARS
 
     def is_native_expression(self, expr: Any) -> bool:
         """Check if the expression is a native Polars expression.
@@ -49,15 +40,73 @@ class PolarsBaseExpressionSystem(BaseExpressionSystem):
             True if expr is a pl.Expr instance.
         """
         return isinstance(expr, pl.Expr)
+    def fixed_result_type(
+        self,
+        logical_kind: LogicalKind,
+        nullable: bool | None,
+        input_type: Any = None,
+        node: Any = None,
+    ) -> Any:
+        """Associate declared fixed results with their emitted Polars dtype."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
 
-    def _extract_literal_if_possible(self, expr: Any) -> Any:
-        """Extract literal value from a Polars expression."""
-        if isinstance(expr, (str, int, float, bool, type(None))):
-            return expr
-        if isinstance(expr, pl.Expr):
-            try:
-                result = pl.select(expr).item()
-                return result
-            except Exception:
-                pass
-        return expr
+        native = pl.Boolean if logical_kind == "boolean" else pl.String if logical_kind == "text" else None
+        return ResolvedOperand(OperandType(logical_kind, "native", nullable), native)
+
+    def field_operand_type(self, input_data: Any, field: str) -> Any:
+        """Resolve a Polars field through schema metadata without a projection."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        schema = input_data.collect_schema()
+        try:
+            dtype = schema[field]
+        except KeyError as error:
+            raise BackendCapabilityError(
+                f"operand metadata is unresolved: field {field!r} is absent",
+                backend=self.BACKEND_NAME,
+                function_key=None,
+            ) from error
+        name = str(dtype).split("(", 1)[0]
+        if dtype == pl.Object:
+            descriptor = OperandType("unknown", "polars_object", None)
+        elif dtype == pl.Null:
+            descriptor = OperandType("null", "native", True)
+        elif dtype == pl.Boolean:
+            descriptor = OperandType("boolean", "native", None)
+        elif name.startswith(("Int", "UInt")):
+            descriptor = OperandType("integer", "native", None)
+        elif name.startswith("Float"):
+            descriptor = OperandType("float", "native", None)
+        elif dtype == pl.String:
+            descriptor = OperandType("text", "native", None)
+        else:
+            descriptor = OperandType("other", "native", None)
+        return ResolvedOperand(descriptor, dtype)
+
+    def infer_expression_operand_type(self, input_data: Any, expression: Any) -> Any:
+        """Infer a Polars expression dtype through LazyFrame schema resolution."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        name = "__mountainash_operand_metadata__"
+        lazy = input_data if isinstance(input_data, pl.LazyFrame) else input_data.lazy()
+        dtype = lazy.select(expression.alias(name)).collect_schema()[name]
+        dtype_name = str(dtype).split("(", 1)[0]
+        if dtype == pl.Object:
+            descriptor = OperandType("unknown", "polars_object", None)
+        elif dtype == pl.Null:
+            descriptor = OperandType("null", "native", True)
+        elif dtype == pl.Boolean:
+            descriptor = OperandType("boolean", "native", None)
+        elif dtype_name.startswith(("Int", "UInt")):
+            descriptor = OperandType("integer", "native", None)
+        elif dtype_name.startswith("Float"):
+            descriptor = OperandType("float", "native", None)
+        elif dtype == pl.String:
+            descriptor = OperandType("text", "native", None)
+        else:
+            descriptor = OperandType("other", "native", None)
+        return ResolvedOperand(descriptor, dtype)

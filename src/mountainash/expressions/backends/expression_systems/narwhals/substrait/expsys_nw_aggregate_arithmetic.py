@@ -9,6 +9,11 @@ from typing import Any, TYPE_CHECKING
 
 import narwhals as nw
 
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+)
+
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
@@ -102,21 +107,12 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
         /,
         overflow: Any = None,
     ) -> NarwhalsExpr:
-        """Product of a set of values. Returns 1 for empty input.
-
-        Args:
-            x: Expression to multiply.
-            overflow: Overflow handling (ignored in Narwhals).
-
-        Returns:
-            Product expression.
-
-        Note:
-            Narwhals doesn't have a direct product aggregate.
-            Falls back to exp(sum(log(x))) which works for positive values.
-        """
-        # Using exp(sum(log(x))) for product - works for positive values
-        return x.log().sum().exp()
+        """Reject product: Narwhals has no supported native product implementation."""
+        raise BackendCapabilityError(
+            "product is unsupported on Narwhals; use a direct Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT,
+        )
 
     def std_dev(
         self,
@@ -162,10 +158,10 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
             Variance expression.
 
         Note:
-            Narwhals may not have var. Uses std squared as approximation.
+            narwhals var() defaults to ddof=1 (sample); returns null for an
+            all-null column, and works on a LazyFrame.
         """
-        # Narwhals doesn't have var - use std squared
-        return x.std().pow(nw.lit(2))
+        return x.var()
 
     def corr(
         self,
@@ -198,14 +194,14 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
             x: Expression to find mode.
 
         Returns:
-            Mode expression.
+            Mode expression (most frequent value; ties resolved by first()).
 
-        Raises:
-            NotImplementedError: Narwhals doesn't support mode.
+        Note:
+            narwhals ``.mode()`` is length-changing and ``.first()`` is
+            order-dependent, so this is rejected on a narwhals LazyFrame.
         """
-        raise NotImplementedError(
-            "mode() is not supported by the Narwhals backend."
-        )
+        # Mirror the Polars backend: mode() may tie; take the first.
+        return x.mode().first()
 
 
     def median(self, x: NarwhalsExpr, /) -> NarwhalsExpr:

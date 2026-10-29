@@ -1,0 +1,318 @@
+"""Handler-routed relation operations (spec §3.5).
+
+Operations with genuine transformation logic — cross-backend right-side
+coercion for joins, conform application, ref resolution, Python-data
+ingress, resource reads — dispatch through these handlers, referenced from
+their RelationOperationRegistry defs. Purely declarative operations do NOT
+appear here; they bind through ArgBinding specs in definitions.py.
+"""
+from __future__ import annotations
+
+import warnings
+from typing import Any
+
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
+)
+
+
+def _check_schema_join_null_promotion(
+    visitor: Any, frame: Any, *, rename: Any = None, drop: Any = (),
+) -> None:
+    """Empty pandas inputs cannot prove value-dependent integer/bool promotion."""
+    if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
+        return
+    from mountainash.core.types import is_pandas_dataframe
+
+    native = frame.to_native() if hasattr(frame, "to_native") else frame
+    if not is_pandas_dataframe(native):
+        return
+    import numpy as np
+
+    rename = rename or {}
+    if any(
+        rename.get(name, name) not in drop
+        and isinstance(dtype, np.dtype) and dtype.kind in "biu"
+        for name, dtype in native.dtypes.items()
+    ):
+        visitor.require_schema_execution(
+            "Pandas join null promotion depends on which rows match"
+        )
+
+
+def visit_join(node: Any, visitor: Any) -> Any:
+    from mountainash.core.lowering_reuse import REPEATABLE
+    from mountainash.relations.core.join_layout import (
+        keyed_layout_applies, layout_for_node, native_column_names,
+    )
+
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
+    visitor._prepare_transport_lineage(node)
+
+    if not keyed_layout_applies(node):
+        return visitor._enrich_native_call(
+            node, RKEY_SUBSTRAIT_REL.JOIN,
+            lambda: visitor.backend.join(
+                left, right,
+                join_type=node.join_type,
+                on=node.on, left_on=node.left_on,
+                right_on=node.right_on, suffix=node.suffix,
+            ),
+        )
+
+    # One naming rule (join_layout): rename the right side to its final names,
+    # join disjoint names keeping both keys, then merge/drop keys with ordinary
+    # projections. Backends never apply their own suffixing or key merging.
+    layout = layout_for_node(node, native_column_names(left), native_column_names(right))
+    if node.join_type.value in {"right", "outer"}:
+        _check_schema_join_null_promotion(visitor, left)
+    if node.join_type.value in {"left", "outer"}:
+        _check_schema_join_null_promotion(
+            visitor, right, rename=layout.right_rename, drop=layout.drop,
+        )
+    if layout.right_rename:
+        visitor.record_lowering(visitor.backend.project_rename, REPEATABLE, value=right)
+        right = visitor.backend.project_rename(right, layout.right_rename)
+    if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
+        for original, final in layout.collisions:
+            warnings.warn(
+                f"join: right column {original!r} renamed to {final!r} because "
+                f"{original + node.suffix!r} already exists",
+                UserWarning,
+                stacklevel=2,
+            )
+    result = visitor._enrich_native_call(
+        node, RKEY_SUBSTRAIT_REL.JOIN,
+        lambda: visitor.backend.join(
+            left, right,
+            join_type=node.join_type,
+            on=None, left_on=layout.left_keys,
+            right_on=layout.right_keys, suffix=node.suffix,
+        ),
+    )
+    if layout.merge:
+        from mountainash import coalesce, col
+
+        visitor.record_lowering(visitor.backend.project_with_columns, REPEATABLE, value=result)
+        result = visitor.backend.project_with_columns(result, [
+            visitor.compile_expression(coalesce(col(lk), col(rk)).alias(lk))
+            for lk, rk in layout.merge
+        ])
+    if layout.drop:
+        visitor.record_lowering(visitor.backend.project_drop, REPEATABLE, value=result)
+        result = visitor.backend.project_drop(result, layout.drop)
+    return result
+
+
+def visit_join_asof(node: Any, visitor: Any) -> Any:
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
+    visitor._prepare_transport_lineage(node)
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        from mountainash.relations.core.join_layout import asof_right_name_map, native_column_names
+
+        right_names = native_column_names(right)
+        payload = asof_right_name_map(node, native_column_names(left), right_names)
+        _check_schema_join_null_promotion(
+            visitor, right, drop=set(right_names) - payload.keys(),
+        )
+    return visitor._enrich_native_call(
+        node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+        lambda: visitor.backend.join_asof(
+            left, right,
+            on=node.on[0] if node.on else node.left_on[0],
+            by=node.by, strategy=node.strategy or "backward",
+            tolerance=node.tolerance,
+        ),
+    )
+
+
+def visit_ref(node: Any, visitor: Any) -> Any:
+    if visitor.ref_resolver is None:
+        from mountainash.relations.dag.errors import RelationDAGRequired
+        raise RelationDAGRequired(
+            f"RefRelNode({node.name!r}) cannot be compiled standalone — "
+            "use RelationDAG.collect() or supply ref_resolver explicitly"
+        )
+    resolved = visitor.ref_resolver(node.name)
+    visitor._resolved_refs_by_name[node.name] = resolved
+    if visitor.metadata_session is not None and hasattr(visitor.ref_resolver, "envelope"):
+        visitor.metadata_session.adopt(
+            visitor, node, visitor.ref_resolver.envelope(node.name),
+        )
+    from mountainash.relations.core.structured_lineage import StructuredPlanResolver
+
+    if isinstance(visitor.ref_resolver, StructuredPlanResolver):
+        plans = visitor.ref_resolver.structured_plans(node.name)
+        visitor._ref_plans_by_node[id(node)] = plans
+        # A bare RefRelNode has no wrapping parent to merge this via
+        # _complete_transport_lineage (that mechanism only runs for nodes
+        # dispatched through _dispatch); when this ref IS the compile's own
+        # root -- e.g. dag.ref(name) used directly as a top-level target,
+        # not chained under .filter()/.select() -- its own egress boundary
+        # must see the referenced resource's transport state directly.
+        visitor.structured_field_plans = plans
+    return resolved
+
+def _schema_eager(visitor) -> bool:
+    """Whether a SCHEMA-phase read must be type-only yet eager (it joins eager frames)."""
+    from mountainash.relations.core.execution.preparation import ExecutionPhase
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    location = visitor.location
+    return (location is not None and location.form is ExecutionForm.EAGER
+            and visitor.execution_phase is ExecutionPhase.SCHEMA)
+
+
+def _reader_location(visitor):
+    """The prepared location, lazy in the SCHEMA phase so the reader never collects a native scan."""
+    from dataclasses import replace
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    location = visitor.location
+    return replace(location, form=ExecutionForm.LAZY) if _schema_eager(visitor) else location
+
+
+def visit_resource_read(node: Any, visitor: Any) -> Any:
+    from mountainash.core.lowering_reuse import OCCURRENCE, fold_lowering
+    schema_input = None
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        resource = node.resource
+        backend = visitor.backend.backend_type.name
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        native_scan = backend in {"POLARS", "NARWHALS"} and visitor.backend.native_scan_eligible(
+            resource, location=visitor.location,
+        )
+        if not native_scan:
+            if resource.data is not None or resource.path is None:
+                visitor.require_schema_execution(
+                    f"Resource {resource.name!r} has no file metadata reader"
+                )
+            schema, complete = rf.inspect_resource_schema(
+                resource, dialect=resource.to_dialect(),
+            )
+            if not complete:
+                visitor.metadata_session.schema_complete = False
+            # These are type-only inputs, never sampled source rows. Use the
+            # same carrier conversion as the ordinary resource fallback.
+            import polars as pl
+
+            schema_input = pl.from_arrow(schema.empty_table()).lazy()
+            if backend == "NARWHALS":
+                import narwhals as nw
+
+                schema_input = nw.from_native(schema_input)
+
+    def _read_and_conform():
+        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource, location=_reader_location(visitor))
+        if schema_input is None and _schema_eager(visitor) and hasattr(out, "head") and hasattr(out, "collect"):
+            out = out.head(0).collect()  # zero rows: type-only, eager like its peers
+        if schema_input is None:
+            # The selected reader reports the path it actually took. Repeating
+            # routing here would resolve external descriptors a second time.
+            fold_lowering(visitor, getattr(visitor.backend, "_resource_lowering", OCCURRENCE))
+            if isinstance(node.resource.dialect, str) or isinstance(node.resource.table_schema, str):
+                # External descriptor resolvers are callbacks, not a repeatable
+                # source contract inferred from the native reader's output.
+                fold_lowering(visitor, OCCURRENCE)
+        spec = node.resource.to_table_schema()
+        if spec is not None and node.apply_schema_conform:
+            out = visitor.apply_conform(
+                out,
+                spec,
+                empty_from_schema=True,
+                resource_name=node.resource.name,
+                owner_node=node,
+            )
+        return out
+    return visitor._enrich_native_call(node, RKEY_MOUNTAINASH_REL.READ_RESOURCE, _read_and_conform)
+
+
+
+
+def visit_source(node: Any, visitor: Any) -> Any:
+    from mountainash.pydata.ingress.pydata_ingress import (
+        PydataIngress,
+        schema_literal_ingress_safe,
+    )
+
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        from mountainash.relations.core.errors import CompileRequiresExecutionError
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
+        from dataclasses import is_dataclass
+
+        model = node.data[0] if isinstance(node.data, list) and node.data else node.data
+        declared = is_dataclass(model) and not isinstance(model, type)
+        if declared and isinstance(node.data, list):
+            declared = all(type(item) is type(model) for item in node.data)
+
+        if declared:
+            import polars as pl
+            from mountainash.core.dtypes import DtypeMappingError, TypeTarget, dtype_is_complete, registry
+            from mountainash.relations.schema_inference import _schema_from_source_data
+
+            schema = _schema_from_source_data(node.data)
+            if not all(dtype_is_complete(dtype) for dtype in schema.values()):
+                visitor.require_schema_execution("Source declarations have unresolved dtype parameters")
+            try:
+                native_schema = {
+                    name: registry.to_native_schema(dtype, TypeTarget.POLARS)
+                    for name, dtype in schema.items()
+                }
+            except DtypeMappingError as error:
+                visitor.require_schema_execution(str(error))
+            df = pl.DataFrame(schema=native_schema).lazy()
+        elif isinstance(node.data, (dict, list, tuple)):
+            if not schema_literal_ingress_safe(node.data):
+                raise CompileRequiresExecutionError(
+                    f"Source data {type(node.data).__name__} has no schema-only ingress",
+                    node_key=visitor.execution_key,
+                )
+            # Reuse the selected Python ingress strategy: indexed mappings are
+            # rows, not a dataframe's column dictionary.
+            df = PydataIngress.convert(node.data)
+        else:
+            prototype = visitor.execution.schema_input(node.data)
+            native_lazy = is_polars_lazyframe(prototype) or is_narwhals_lazyframe(prototype)
+            if prototype is node.data and not native_lazy:
+                raise CompileRequiresExecutionError(
+                    f"Source data {type(node.data).__name__} has no schema-only ingress",
+                    node_key=visitor.execution_key,
+                )
+            df = prototype if native_lazy else PydataIngress.convert(prototype)
+    else:
+        from mountainash.core.lowering_reuse import deferred_value, fold_lowering
+
+        df, lowering = PydataIngress._convert_for_compilation(node.data)
+        fold_lowering(visitor, lowering, deferred=deferred_value(df))
+    from mountainash.core.lowering_reuse import REPEATABLE
+
+    visitor.record_lowering(visitor.backend.read, REPEATABLE)
+    return visitor._enrich_native_call(
+        node, RKEY_MOUNTAINASH_REL.SOURCE,
+        lambda: visitor.backend.read(df),
+    )
+
+
+def visit_conform(node: Any, visitor: Any) -> Any:
+    native = visitor.visit(node.input)
+    return visitor._enrich_native_call(
+        node,
+        RKEY_MOUNTAINASH_REL.CONFORM,
+        lambda: visitor.apply_conform(
+            native,
+            node.spec,
+            contract=node.contract,
+            owner_node=node,
+            apply_value_transforms=node.apply_value_transforms,
+        ),
+    )

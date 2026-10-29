@@ -6,10 +6,12 @@ import logging
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
 
+
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
+from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 
 logger = logging.getLogger(__name__)
@@ -78,8 +80,10 @@ class IngressFromCollection(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
-                column_name: Optional[str] = None) -> PolarsFrame:
+                table_schema: Optional['TableSchema'] = None,
+                column_name: Optional[str] = None, *,
+                source_table_schema: Optional['TableSchema'] = None,
+                inline_conform: bool = True) -> PolarsFrame:
         """
         Convert basic container (list/set/frozenset) to single-column Polars DataFrame.
 
@@ -87,6 +91,8 @@ class IngressFromCollection(BasePydataIngressHandler):
             data: List, set, or frozenset of scalar values
             column_config: Optional column transformation configuration
             column_name: Name for the single column. Defaults to 'value'
+            source_table_schema: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply table_schema after construction.
 
         Returns:
             pl.DataFrame: Single-column DataFrame
@@ -106,6 +112,8 @@ class IngressFromCollection(BasePydataIngressHandler):
             >>> df = DataframeFromContainer.convert(data, column_name='fruit')
             >>> # Columns: ['fruit']
         """
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_table_schema)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -125,6 +133,13 @@ class IngressFromCollection(BasePydataIngressHandler):
             data_list = list(data)
         else:
             data_list = data
+
+        # An empty collection carries no column information. Returning a
+        # columnless (0, 0) frame is correct for the tabular path; fabricating
+        # a 'value' column (right for a *populated* scalar collection) is wrong
+        # for an empty one. See specs/2026-06-20-empty-resource-schema-loss-design.md.
+        if not data_list:
+            return pl.DataFrame()
 
         # Validate items are scalars
         for idx, item in enumerate(data_list):
@@ -151,11 +166,12 @@ class IngressFromCollection(BasePydataIngressHandler):
                 )
 
         # Create single-column DataFrame
-        df = pl.DataFrame({column_name: data_list})
+        df = pl.DataFrame({column_name: data_list}, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None:
-            from mountainash.conform.compiler import compile_conform
-            df = compile_conform(type_spec, df)
+        if table_schema is not None and inline_conform:
+            from .custom_type_helpers import apply_hybrid_conversion_to_dataframe
+            df = apply_hybrid_conversion_to_dataframe(df, table_schema)
 
         return df
+declare_lowering(IngressFromCollection.convert.__func__, REPEATABLE)

@@ -136,10 +136,28 @@ class SubstraitScalarAggregateAPIBuilder(
         """Most common value. Substrait ``mode(x)``.
 
         Note: behaviour on ties varies across backends — see
-        ``e.cross-backend/known-divergences.md``.
+        ``d.cross-backend/known-divergences.md``.
         """
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE,
+            arguments=[self._node],
+            options={},
+        )
+        return self._build(node)
+
+    def all(self) -> "BaseExpressionAPI":
+        """True if all values are true. Substrait ``bool_and(x)``."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND,
+            arguments=[self._node],
+            options={},
+        )
+        return self._build(node)
+
+    def any(self) -> "BaseExpressionAPI":
+        """True if any value is true. Substrait ``bool_or(x)``."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR,
             arguments=[self._node],
             options={},
         )

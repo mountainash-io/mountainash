@@ -5,98 +5,56 @@ Implements type casting operations for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
-
-import ibis.expr.datatypes as dt
+from typing import TYPE_CHECKING, Literal
 
 from ..base import IbisBaseExpressionSystem
-
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
+from mountainash.core.dtypes import (
+    CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget, dtype_is_complete, registry,
+    resolve_dtype_parameters,
+)
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr
-
-# Mapping from string type names to Ibis dtypes
-_IBIS_DTYPE_MAP = {
-    # Substrait standard names
-    "i8": "int8",
-    "i16": "int16",
-    "i32": "int32",
-    "i64": "int64",
-    "fp32": "float32",
-    "fp64": "float64",
-    "f32": "float32",
-    "f64": "float64",
-    "string": "string",
-    "bool": "boolean",
-    "boolean": "boolean",
-    "date": "date",
-    "timestamp": "timestamp",
-    # Common string representations from Polars/Narwhals
-    "Int8": "int8",
-    "Int16": "int16",
-    "Int32": "int32",
-    "Int64": "int64",
-    "Float32": "float32",
-    "Float64": "float64",
-    "Utf8": "string",
-    "String": "string",
-    "Boolean": "boolean",
-    "Date": "date",
-    "Datetime": "timestamp",
-    # Python type names
-    "int": "int64",
-    "float": "float64",
-    "str": "string",
-    # Unsigned integers
-    "u8": "uint8",
-    "u16": "uint16",
-    "u32": "uint32",
-    "u64": "uint64",
-    "UInt8": "uint8",
-    "UInt16": "uint16",
-    "UInt32": "uint32",
-    "UInt64": "uint64",
-    "uint8": "uint8",
-    "uint16": "uint16",
-    "uint32": "uint32",
-    "uint64": "uint64",
-    # Missing canonical names
-    "binary": "binary",
-    "Binary": "binary",
-    "time": "time",
-    "Time": "time",
-}
 
 
 class SubstraitIbisCastExpressionSystem(IbisBaseExpressionSystem, SubstraitCastExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of CastExpressionProtocol."""
 
-    def cast(self, x: IbisValueExpr, /, dtype: Any) -> IbisValueExpr:
-        """Cast an expression to a target data type.
+    _TARGET = TypeTarget.IBIS
 
-        Args:
-            x: The expression to cast.
-            dtype: The target data type (string name or Ibis dtype).
+    def cast(
+        self,
+        x: IbisValueExpr,
+        /,
+        dtype: CastTarget,
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> IbisValueExpr:
+        """Cast an expression to a canonical or native-passthrough dtype.
 
-        Returns:
-            An Ibis expression cast to the specified type.
+        `failure_behavior="null"` routes through Ibis' `try_cast`, which
+        returns null for values that cannot convert instead of raising.
         """
-        # Try canonical resolution first
-        try:
-            from mountainash.core.dtypes import resolve_dtype
-            dtype = resolve_dtype(dtype)
-        except ValueError:
-            pass  # Fall through to backend-specific handling
-
-        # If already an Ibis DataType, use directly
-        if isinstance(dtype, dt.DataType):
-            return x.cast(dtype)
-
-        # Convert string to Ibis dtype name
-        if isinstance(dtype, str):
-            ibis_dtype = _IBIS_DTYPE_MAP.get(dtype, dtype)
-            return x.cast(ibis_dtype)
-
-        # Fallback: try to use as-is
-        return x.cast(dtype)
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return x
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+        if (
+            dtype is MountainashDtype.TIMESTAMP
+            or dtype is MountainashDtype.DURATION
+            or (
+                isinstance(dtype, PARAMETERIZED_DTYPES)
+                and dtype.native is None and not dtype_is_complete(dtype)
+            )
+        ):
+            from ibis.common.deferred import Deferred, deferrable
+            if isinstance(x, Deferred):
+                return deferrable(
+                    lambda bound: self.cast(bound, dtype=dtype, failure_behavior=failure_behavior)
+                )(x)
+            dtype = resolve_dtype_parameters(
+                dtype, registry.from_native(x.type(), self._TARGET),
+            )
+        native_target = registry.to_native_cast(dtype, self._TARGET)
+        if failure_behavior == "null":
+            return x.try_cast(native_target)
+        return x.cast(native_target)

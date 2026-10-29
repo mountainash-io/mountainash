@@ -1,0 +1,197 @@
+"""Outcome-model semantics, cross-backend (spec §6.2/§6.3, §14 fixtures)."""
+
+import pytest
+
+import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
+from ibis.common.exceptions import IbisTypeError
+from mountainash.validation import RowRule, ScalarRule, ValidationRunner
+
+
+def _summary(result, check_id):
+    frame = result.check_summaries.filter(result.check_summaries["check_id"] == check_id)
+    return frame.row(0, named=True)
+
+
+@pytest.mark.cross_backend
+class TestOutcomeModel:
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_boolean_rule_nulls_become_unknown_nothing_dropped(self, backend_name, backend_factory):
+        df = backend_factory.create({"age": [30, -1, None]}, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("pandas", "narwhals-pandas"),
+            errors=(AssertionError,),
+            reason=(
+                "validation outcome-model tests expecting an 'unknown' verdict from a null "
+                "comparison diverge on pandas/narwhals-pandas"
+            ),
+        ):
+            result = ValidationRunner().validate_relation(
+                ma.relation(df), [RowRule(id="age_ge_0", expr=ma.col("age").ge(0))]
+            )
+            row = _summary(result, "age_ge_0")
+            assert (row["pass_count"], row["fail_count"], row["unknown_count"]) == (1, 1, 1), f"[{backend_name}] {row}"
+            assert row["total_rows"] == 3
+            assert row["status"] == "failed"
+            outcomes = sorted(result.failure_cases["outcome"].to_list())
+            assert outcomes == ["fail", "unknown"]
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_ternary_rule_three_way_counts(self, backend_name, backend_factory):
+        df = backend_factory.create({"flag": [1, 2, None]}, backend_name)
+        result = ValidationRunner().validate_relation(
+            ma.relation(df), [RowRule(id="t_eq_1", expr=ma.col("flag").t_eq(1))]
+        )
+        row = _summary(result, "t_eq_1")
+        assert (row["pass_count"], row["fail_count"], row["unknown_count"]) == (1, 1, 1), f"[{backend_name}] {row}"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_terminal_ternary_is_boolean_context(self, backend_name, backend_factory):
+        """The author's own terminal collapsed the three-way split; respect it."""
+        df = backend_factory.create({"flag": [1, 2, None]}, backend_name)
+        result = ValidationRunner().validate_relation(
+            ma.relation(df),
+            [RowRule(id="term", expr=ma.col("flag").t_eq(1).t_is_true())],
+        )
+        row = _summary(result, "term")
+        assert row["unknown_count"] == 0, f"[{backend_name}] {row}"
+        assert (row["pass_count"], row["fail_count"]) == (1, 2)
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_mostly_denominator_counts_all_rows(self, backend_name, backend_factory):
+        df = backend_factory.create({"age": [1, 2, None, 3]}, backend_name)
+        checks = [
+            RowRule(id="m75", expr=ma.col("age").ge(0), mostly=0.75),
+            RowRule(id="m90", expr=ma.col("age").ge(0), mostly=0.9),
+        ]
+        result = ValidationRunner().validate_relation(ma.relation(df), checks)
+        assert _summary(result, "m75")["status"] == "passed"  # 3/4 >= 0.75
+        assert _summary(result, "m90")["status"] == "failed"  # 3/4 < 0.9
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_maybe_true_verdict_flip(self, backend_name, backend_factory):
+        df = backend_factory.create({"age": [1, None]}, backend_name)
+        checks = [
+            RowRule(id="strict", expr=ma.col("age").ge(0)),
+            RowRule(id="lenient", expr=ma.col("age").ge(0), booleanizer="t_maybe_true"),
+        ]
+        with expect_call_failure(
+            when=backend_name in ("pandas", "narwhals-pandas"),
+            errors=(AssertionError,),
+            reason=(
+                "validation outcome-model tests expecting an 'unknown' verdict from a null "
+                "comparison diverge on pandas/narwhals-pandas"
+            ),
+        ):
+            result = ValidationRunner().validate_relation(ma.relation(df), checks)
+            assert _summary(result, "strict")["status"] == "failed"
+            assert _summary(result, "lenient")["status"] == "passed"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_empty_input_passes_vacuously(self, backend_name, backend_factory):
+        df = backend_factory.create({"age": []}, backend_name)
+        result = ValidationRunner().validate_relation(
+            ma.relation(df),
+            [RowRule(id="r", expr=ma.col("age").ge(0), mostly=0.9)],
+        )
+        row = _summary(result, "r")
+        assert row["status"] == "passed"
+        assert row["total_rows"] == 0
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_empty_value_checks_pass(self, backend_name, backend_factory):
+        """Value diagnostics must not turn an empty typed input into an error."""
+        from mountainash.typespec import FieldDefinition, UniversalType
+        from mountainash.validation import ValueRule, ValueValidatorKey
+        from mountainash.validation.value import VALUE_RULE_REGISTRY
+
+        options = {
+            "TYPE_FORMAT": {"type": "boolean"},
+            "LENGTH": {"min_length": 1},
+            "RANGE": {"minimum": 0},
+            "XSD_PATTERN": {"pattern": "."},
+            "MEMBERSHIP": {"allowed": [True]},
+            "JSON_SCHEMA": {"schema": {}},
+            "NESTED": {
+                "definition": FieldDefinition(
+                    type=UniversalType.OBJECT,
+                    fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
+                )
+            },
+        }
+        checks = [
+            ValueRule(
+                id=key.name,
+                fields=["value"],
+                validator=key,
+                options=options.get(key.name, {}),
+            )
+            for key in VALUE_RULE_REGISTRY
+        ]
+        checks.append(ValueRule(
+            id="composite_unique",
+            fields=["value", "other"],
+            validator=ValueValidatorKey.UNIQUE,
+            options={},
+        ))
+        source = backend_factory.create({"value": [True], "other": [1]}, backend_name)
+        result = ValidationRunner().validate_relation(ma.relation(source).head(0), checks)
+        rows = result.check_summaries.select(
+            "check_id", "status", "total_rows", "pass_count", "fail_count",
+            "unknown_count", "error",
+        ).to_dicts()
+        assert {row["check_id"] for row in rows} == {check.id for check in checks}
+        for row in rows:
+            assert (
+                row["status"], row["total_rows"], row["pass_count"],
+                row["fail_count"], row["unknown_count"], row["error"],
+            ) == ("passed", 0, 0, 0, 0, None), (backend_name, row)
+        assert result.passes is True
+        assert result.failure_cases.to_dicts() == []
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_scalar_rule_verdict_and_diagnostic(self, backend_name, backend_factory):
+        df = backend_factory.create({"age": [10, 20, 30]}, backend_name)
+        checks = [
+            ScalarRule(id="mean_pos", expr=ma.col("age").mean().gt(0)),
+            ScalarRule(id="big", expr=ma.len().gt(10)),
+        ]
+        result = ValidationRunner().validate_relation(ma.relation(df), checks)
+        assert _summary(result, "mean_pos")["status"] == "passed"
+        assert _summary(result, "big")["status"] == "failed"
+        assert result.failure_cases.height == 0  # scalar rules emit no rows
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_scalar_null_result_is_unknown_verdict(self, backend_name, backend_factory):
+        with expect_call_failure(
+            when=backend_name == "ibis-duckdb",
+            errors=(IbisTypeError,),
+            reason="DuckDB does not support native Null-column table construction; this is native input construction, not ValidationRunner execution",
+        ):
+            df = backend_factory.create({"age": [None, None]}, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("ibis-sqlite",),
+            errors=(AssertionError,),
+            reason="a ScalarRule verdict over an all-null column diverges on ibis-sqlite; polars/narwhals compute the 'unknown' verdict",
+        ):
+            result = ValidationRunner().validate_relation(
+                ma.relation(df), [ScalarRule(id="mean", expr=ma.col("age").mean().gt(0))]
+            )
+            assert _summary(result, "mean")["status"] == "failed"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_multi_field_rule_populates_row_struct(self, backend_name, backend_factory):
+        """Spec §8: declared fields -> failing rows carry a `row` struct
+        (cross-column failures self-describing without a source join)."""
+        df = backend_factory.create({"start": [1, 5], "end": [2, 3]}, backend_name)
+        result = ValidationRunner().validate_relation(
+            ma.relation(df),
+            [RowRule(id="ordered", expr=ma.col("start").le(ma.col("end")), fields=["start", "end"])],
+        )
+        assert result.failure_cases.height == 1
+        assert result.failure_cases["row"][0] == {"start": 5, "end": 3}
+        # multi-field: no single offending column/value
+        assert result.failure_cases["column"][0] is None
+        assert result.failure_cases["value"][0] is None

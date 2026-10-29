@@ -1,0 +1,2392 @@
+issues:
+- id: IB-STR-01
+  project: ibis
+  category: string-ops
+  summary: trim/ltrim/rtrim ignore custom characters argument — only strips whitespace
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 6 xfails. characters param passed through visitor but Ibis strip/lstrip/rstrip
+    methods don't accept it.
+  last_verified: '2026-05-11'
+- id: IB-STR-02
+  project: ibis
+  category: string-ops
+  summary: No center (pad to width) function — StringValue has no equivalent
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: IB-STR-03
+  project: ibis
+  category: string-ops
+  summary: No replace_slice / overlay function — positional substring replacement
+    not available
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: SQL has OVERLAY() which maps to this.
+  last_verified: '2026-05-11'
+- id: IB-STR-04
+  project: ibis
+  category: string-ops
+  summary: ltrim strips both sides instead of left only on some backends
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: May be same root cause as IB-STR-01.
+  last_verified: '2026-05-11'
+- id: IB-STR-05
+  project: ibis
+  category: string-ops
+  summary: rtrim strips both sides instead of right only on some backends
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: May be same root cause as IB-STR-01.
+  last_verified: '2026-05-11'
+- id: IB-STR-06
+  project: ibis
+  category: string-ops
+  summary: LIKE pattern not supported on Ibis Polars backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: error_enrichment
+  notes: Polars has no LIKE operation, so Ibis Polars backend can't translate it —
+    gated as a dialect-scoped UNSUPPORTED CapabilityFact (whole-op, WILDCARD_PARAM)
+    for the Ibis backend (backlog item 83, 2026-08-12); a clean BackendCapabilityError
+    now replaces the raw OperationNotDefinedError leak, for both literal and dynamic
+    patterns.
+  last_verified: '2026-08-12'
+- id: IB-STR-07
+  project: ibis
+  category: string-ops
+  summary: str.repeat() raises BackendCapabilityError on Ibis backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Check if Ibis has repeat/replicate.
+  last_verified: '2026-05-11'
+- id: IB-MATH-01
+  project: ibis
+  category: math-ops
+  summary: No hyperbolic math functions (sinh, cosh, tanh, asinh, acosh, atanh) on
+    any backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: DuckDB and Postgres have these natively. Straightforward feature request.
+  last_verified: '2026-05-11'
+- id: IB-MATH-02
+  project: ibis
+  category: math-ops
+  summary: SQLite lacks hyperbolic functions entirely (engine limitation)
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: SQLite has minimal math. Permanent engine divergence.
+  last_verified: '2026-05-11'
+- id: IB-MATH-03
+  project: ibis
+  category: math-ops
+  summary: Ibis cot() fails with deferred type inference error in 1/tan(x) division
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: cot(x) is implemented as 1/tan(x). Ibis fails with type inference error on
+    the division since tan() returns a deferred type.
+  last_verified: '2026-05-17'
+- id: IB-AGG-01
+  project: ibis
+  category: aggregate-ops
+  summary: No native product aggregate function
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: 'Ibis has no native product aggregate. Do not recommend EXP(SUM(LN(x))):
+    it changes product semantics for zero, negative, null, and other edge cases.
+    Mountainash rejects PRODUCT for all Ibis dialects.'
+  last_verified: '2026-05-11'
+- id: IB-AGG-02
+  project: ibis
+  category: aggregate-ops
+  summary: No mode aggregate function (general)
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: https://github.com/ibis-project/ibis/issues/11254
+  upstream_issue_filed_by: other
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: ibis mode() verified working on ibis-duckdb/sqlite/polars 2026-08-01; stale imperative xfail removed.
+  last_verified: '2026-08-01'
+- id: IB-AGG-03
+  project: ibis
+  category: aggregate-ops
+  summary: All-NULL columns cause NullColumn attribute errors or DuckDB table creation
+    failure
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: ibis-duckdb rejects all-NULL column creation. ibis-polars/ibis-sqlite raise
+    NullColumn attribute errors for sum, mean, std, var, nunique, etc.
+  last_verified: '2026-05-17'
+- id: IB-WIN-01
+  project: ibis
+  category: window-ops
+  summary: 'ibis-polars: no translation rule for WindowFunction in Polars compiler'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: All window operations (rank, dense_rank, row_number, lead, lag, shift, cum_sum,
+    etc.) fail on ibis-polars with 'no translation rule for WindowFunction'.
+  last_verified: '2026-05-17'
+- id: IB-WIN-02
+  project: ibis
+  category: window-ops
+  summary: 'ibis-duckdb/sqlite: ranking functions return 0-based values instead of
+    1-based'
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'rank(), dense_rank(), row_number() return 0-based values on ibis-duckdb and
+    ibis-sqlite; SQL standard and other backends (polars/narwhals) use 1-based.
+    Re-verified 2026-08-13 (backlog item 87): this is deliberate Ibis design, not a
+    bug — Ibis''s own rank()/dense_rank() docstring examples document 0-based
+    output verbatim, and ibis.row_number() empirically confirmed 0-based too on
+    ibis-duckdb. Corrected from the prior needs_investigation/upstream_bug
+    classification (root_cause and status were speculative "possibly a mountainash
+    visitor offset issue" before this was checked against Ibis''s own docs).
+    Resolved 2026-10-22 (backlog 365): the Ibis lowering adds 1, so ranks are
+    1-based on every backend.'
+  last_verified: '2026-10-22'
+- id: IB-WIN-03
+  project: ibis
+  category: window-ops
+  summary: 'ibis-duckdb/sqlite: window functions (lead, lag, shift, cumulative, diff)
+    fail with no WindowFunction translation'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: All non-ranking window operations (lead, lag, shift, first_value, last_value,
+    ntile, cum_sum, cum_max, cum_min, cum_count, cum_prod, diff) fail on ibis-duckdb
+    and ibis-sqlite.
+  last_verified: '2026-05-17'
+- id: IB-WIN-05
+  project: ibis
+  category: window-ops
+  summary: rank(method='average'|'max') has no SQL equivalent on any Ibis dialect
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: xfail_strict
+  notes: 'SQL has no native RANK variant matching pandas/polars rank(method="average"|"max")
+    semantics (only RANK/DENSE_RANK/ROW_NUMBER exist); mountainash raises a clean
+    BackendCapabilityError for both methods on every Ibis dialect. Renamed from a
+    colliding DivergenceFact id (was "IB-WIN-03", which already named an unrelated
+    entry above — the non-ranking window-translation gap on ibis-duckdb/sqlite) when
+    backlog item 87''s id-collision detector caught the reuse; the DivergenceFact and
+    this entry now self-reference via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: IB-DT-01
+  project: ibis
+  category: datetime-ops
+  summary: Datetime offset ops require literal integers — column expressions rejected
+    (parameter-width)
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: error_enrichment
+  notes: Parameter-width issue. See d.cross-backend/expressions/arguments-vs-options.md.
+  last_verified: '2026-05-11'
+- id: IB-DT-02
+  project: ibis
+  category: datetime-ops
+  summary: Ibis Polars backend doesn't support calendar-based intervals (months, years)
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 5 xfails. Our local Ibis fork patches this.
+  last_verified: '2026-05-11'
+- id: IB-DT-03
+  project: ibis
+  category: datetime-ops
+  summary: SQLite has no native datetime type — all datetime operations fail
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: 24+ xfails. Permanent engine divergence.
+  last_verified: '2026-05-11'
+- id: IB-DT-04
+  project: ibis
+  category: datetime-ops
+  summary: DuckDB isnan() not working correctly via Ibis for fill_nan
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: DuckDB is_nan/is_not_nan returns NULL for non-float types.
+  last_verified: '2026-05-11'
+- id: IB-DT-05
+  project: ibis
+  category: datetime-ops
+  summary: Ibis Polars backend doesn't support TimestampDelta operation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: IB-DT-06
+  project: ibis
+  category: datetime-ops
+  summary: DuckDB XOR semantics differ for chained boolean parity
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: Semantic divergence.
+  last_verified: '2026-05-11'
+- id: IB-DT-07
+  project: ibis
+  category: datetime-ops
+  summary: 'ibis-sqlite: microsecond() returns seconds instead of microsecond component'
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: ibis-sqlite microsecond() extraction returns the full seconds value, not
+    the microsecond component of the timestamp.
+  last_verified: '2026-05-17'
+- id: IB-DT-08
+  project: ibis
+  category: datetime-ops
+  summary: 'ibis backends: nanosecond() returns 0 — no sub-microsecond precision from
+    Python datetime'
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: xfail_strict
+  notes: Python datetime has microsecond precision only. Ibis backends return 0 for
+    nanosecond component. This is expected behavior — not a bug.
+  last_verified: '2026-05-17'
+- id: IB-TYPE-01
+  project: ibis
+  category: type-inference
+  summary: Arithmetic operators fail with LHS numeric literals — InputTypeError on
+    nested/deferred expressions
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: https://github.com/ibis-project/ibis/issues/11742
+  upstream_issue_filed_by: us
+  status: resolved_in_mountainash
+  our_workaround: fallback_impl
+  notes: 'Resolved in mountainash 2026-07-17 (item 226b) via IbisBaseExpressionSystem._lift_deferred,
+    which lifts the concrete left operand into the Deferred world for the one crashing
+    ordering (concrete ∘ Deferred, e.g. lit + col / 5 + col). All 10 former xfails
+    now pass: 7 reverse-operator tests in test_expression_builder_api.py::TestReverseArithmeticOperators,
+    test_arithmetic.py::TestArithmeticEdgeCases::test_subtract_from_zero, and the
+    3 test_comparison_missing_close.py::TestIsClose ibis backends (the last were mislabeled
+    "nested abs()" but are the same literal-left arithmetic root cause — is_close
+    builds MULTIPLY(lit, abs(other)) / ADD(lit, …)). Kept OPEN upstream for monitoring:
+    remove BOTH local lifts when Ibis #11742 lands (equivalence guarded by the now-passing
+    tests). Sibling item 226c — literal string receiver + Deferred argument (lit.str.contains(col))
+    — also RESOLVED in PR #227 via _lift_deferred_receiver (method-call analog); when
+    retiring the workaround, remove that helper and its 15 string-method routes too.'
+  last_verified: '2026-07-17'
+- id: IB-TYPE-02
+  project: ibis
+  category: type-inference
+  summary: NaN handling differs from Python semantics on DuckDB and SQLite
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: Fundamental SQL vs Python semantics difference. Permanent divergence.
+  last_verified: '2026-05-11'
+- id: IB-TYPE-03
+  project: ibis
+  category: type-inference
+  summary: DuckDB type resolution issues with certain expression compositions
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: IB-REL-01
+  project: ibis
+  category: relation-ops
+  summary: Window functions not supported on Polars backend — no WindowFunction translator
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: https://github.com/ibis-project/ibis/issues/10513
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: error_enrichment
+  notes: CapabilityFact gates ibis-polars with_row_index before its raw WindowFunction translation error.
+  last_verified: '2026-08-01'
+- id: IB-REL-02
+  project: ibis
+  category: relation-ops
+  summary: melt/unpivot not working on Ibis backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Superseded by IB-REL-10 (backlog item 90, 2026-08-13). Re-verified
+    empirically: unpivot()/melt() work correctly on ibis-duckdb and ibis-polars;
+    only ibis-sqlite raises (OperationNotDefinedError - "Compilation rule for
+    ''Array'' operation is not defined"). The original claim that all three
+    backends fail is stale; see IB-REL-10 for the accurate, narrower
+    (ibis-sqlite-only) description.'
+  last_verified: '2026-08-13'
+- id: IB-REL-03
+  project: ibis
+  category: relation-ops
+  summary: top_k/bottom_k not supported on Ibis backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: May need ORDER BY + LIMIT.
+  last_verified: '2026-05-11'
+- id: IB-REL-04
+  project: ibis
+  category: relation-ops
+  summary: cross_join suffixes kwarg incompatibility on Ibis backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Disproven (backlog item 90, 2026-08-13): mountainash''s ibis join
+    implementation (relsys_ib_join.py) never passes a suffixes kwarg to
+    Table.join() - it always uses lname=/rname=. Re-verified empirically:
+    Relation.cross_join() works correctly on ibis-duckdb, ibis-polars, and
+    ibis-sqlite for ordinary distinctly-named tables. The only known cross_join
+    failure on Ibis SQL backends is the narrower, differently-caused IB-REL-12
+    (same-named tables from separate connections raise a column-binding error,
+    not a suffixes TypeError).'
+  last_verified: '2026-08-13'
+- id: IB-REL-05
+  project: ibis
+  category: relation-ops
+  summary: tail not supported on Ibis backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: SQL has no efficient tail.
+  last_verified: '2026-05-11'
+- id: IB-REL-06
+  project: ibis
+  category: relation-ops
+  summary: DuckDB does not support creating tables with all-NULL columns
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: Engine limitation.
+  last_verified: '2026-05-11'
+- id: IB-REL-07
+  project: ibis
+  category: relation-ops
+  summary: ArrayValue.sort() has no descending parameter
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ibis-project/ibis#11735 is tangential.
+  last_verified: '2026-05-11'
+- id: IB-REL-08
+  project: ibis
+  category: relation-ops
+  summary: 'Ibis backend rename mapping inverted — expects {new: old} not {old: new}'
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Likely mountainash visitor bug, not Ibis issue.
+  last_verified: '2026-05-11'
+- id: IB-REL-09
+  project: ibis
+  category: relation-ops
+  summary: Ibis backend passes unsupported suffixes kwarg to Table.join()
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Likely mountainash visitor bug, not Ibis issue.
+  last_verified: '2026-05-11'
+- id: IB-REL-10
+  project: ibis
+  category: relation-ops
+  summary: 'ibis-sqlite: drop_nans/unpivot/melt raise OperationNotDefinedError'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 'ibis-sqlite lacks array/pivot relational translations: Relation.drop_nans()/
+    unpivot()/melt() raise OperationNotDefinedError; ibis-duckdb/ibis-polars and
+    polars/narwhals compute them. Renamed from a colliding DivergenceFact id (was
+    "IB-REL-07", which already named an unrelated entry above — the ArrayValue.sort()
+    descending-parameter gap) when backlog item 87''s id-collision detector caught
+    the reuse; the DivergenceFact and this entry now self-reference via upstream_ref
+    (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: IB-REL-11
+  project: ibis
+  category: relation-ops
+  summary: 'RESOLVED: ibis-duckdb asof join returned nondeterministic row order'
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Originally described as "asof join is unreliable on Ibis SQL backends"
+    covering both ibis-duckdb and ibis-sqlite. Root-caused (2026-08-18, PR #297
+    CI investigation): Relation.join_asof() on the Ibis backend never applied an
+    explicit ORDER BY, and DuckDB gives no row-order guarantee for ASOF JOIN
+    output absent one — the query planner nondeterministically returned rows in
+    original or shuffled order run-to-run, flipping the strict-xfail test between
+    XFAIL and XPASS(strict) independent of any test-suite change. Not a value
+    divergence — the join values were always correct, only positional-assertion
+    row order flapped. Fixed by ordering the Ibis join_asof result by the join
+    key(s) (relsys_ib_ext_ma_util.py) to match polars/narwhals'' left-order
+    preservation. The distinct ibis-sqlite raise (SQLite has no ASOF JOIN
+    translation) was split off to IB-REL-13, which remains a genuine open gap.
+    Renamed from a colliding DivergenceFact id (was "IB-REL-08") 2026-08-13;
+    that history stands, this entry is now closed.'
+  last_verified: '2026-08-18'
+- id: IB-REL-13
+  project: ibis
+  category: relation-ops
+  summary: 'RESOLVED: ibis-sqlite asof join raised UnsupportedOperationError'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Split from IB-REL-11 (2026-08-18) after the ibis-duckdb portion (a
+    nondeterministic row-order bug, not a value divergence) was fixed in
+    mountainash by ordering the join_asof result deterministically. This entry
+    tracked the remaining genuine upstream gap: Ibis has no ASOF JOIN
+    translation for the SQLite backend. Resolved (2026-08-19, item 108): every
+    strategy on ibis-sqlite now routes through an Ibis-relational-expression
+    emulation (inner candidate join + windowed rank + left-keep join) instead
+    of native asof_join, matching Polars on every value (scripts/probes/
+    probe_asof_emulation.py). IB-REL-16 was retired on 2026-09-03 as an
+    incorrect declaration. The committed probe did not exercise duplicate-right
+    backward ties, and the ordinary all-backend regression now matches Polars.
+    IB-REL-17 remains active for grouped output order. This entry stays as the
+    historical record, per the IB-REL-11 precedent above.'
+  last_verified: '2026-08-19'
+- id: IB-REL-15
+  project: ibis
+  category: relation-ops
+  summary: ibis-polars rejects non-equality join predicates, blocking the join_asof
+    forward/nearest emulation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: error_enrichment
+  notes: 'item 108: Relation.join_asof(strategy="forward"|"nearest") lowers to an
+    Ibis-relational-expression emulation (inner candidate join on a non-equality
+    directional predicate, e.g. right.on >= left.on). The Ibis Polars backend
+    raises TypeError("Only equality join predicates supported with pandas")
+    for any non-equality join, so the emulation cannot run there (probe-
+    confirmed on ibis 12.0.0/polars 1.43.2). A CapabilityFact
+    (relations/backends/capabilities/ibis.py) gates this permanently via a
+    predicate on the `strategy` param, raising a clear BackendCapabilityError
+    before the raw TypeError would surface. `backward` is unaffected (native
+    asof_join, no candidate join needed).'
+  last_verified: '2026-08-19'
+- id: IB-REL-12
+  project: ibis
+  category: relation-ops
+  summary: cross_join between same-named tables on separate Ibis connections
+    previously raised a column-binding error on SQL backends
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Historical evidence (backlog item 87, 2026-08-13): Relation.cross_join()
+    raises duckdb BinderException / sqlite OperationalError ("no such column") when
+    the two input tables share a table name but originate from separate Ibis
+    connections (exactly the shape produced by the test suite''s
+    BackendDataFrameFactory, which names every table "test_table"); ibis-polars and
+    polars/narwhals are unaffected. Root cause not yet isolated to Ibis vs.
+    mountainash''s join visitor — likely a missing table-alias disambiguation when
+    two DatabaseTable operations share a name across connections. Renamed from a
+    colliding DivergenceFact id (was "IB-REL-09", whose yaml entry described a
+    different, no-longer-reproducible "suffixes kwarg" TypeError) when backlog item
+    87''s id-collision detector caught the reuse; the historical observation fixture
+    and this entry self-reference via upstream_ref. On 2026-09-27, public
+    tests/relations/test_relation_aliases.py::TestRelationAliases::test_cross_join
+    verified exact six-row payloads and left physical connection identity for
+    independently created, same-named Ibis tables on DuckDB and SQLite; both
+    .cross_join() and .join(how="cross") now succeed. The expectation was removed
+    only for this resolved case; SQLite melt/unpivot remains separately expected
+    to fail. This is a Mountainash connection-aware transport fix, not an
+    upstream Ibis release claim.'
+  last_verified: '2026-09-27'
+- id: IB-CTE-01
+  project: ibis
+  category: recursive-cte
+  summary: Ibis strips RECURSIVE keyword from generated CTE SQL — WITH RECURSIVE becomes
+    WITH
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: https://github.com/ibis-project/ibis/issues/11949
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: none
+  notes: Blocks future recursive relations work. SQLGlot fully supports recursive
+    CTEs — bug is in Ibis CTE generation layer.
+  last_verified: '2026-05-11'
+- id: IB-INT-01
+  project: ibis
+  category: interval-ops
+  summary: IntervalValue does not support comparison operators (<, >, ==, etc.)
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Ibis IntervalValue has a minimal API compared to Polars/Narwhals duration
+    types.
+  last_verified: '2026-05-11'
+- id: IB-INT-02
+  project: ibis
+  category: interval-ops
+  summary: IntervalValue has no total_seconds(), total_minutes() etc. methods
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Related to ibis-project/ibis#11302 (IntervalValue property annotation mismatches).
+  last_verified: '2026-05-11'
+- id: IB-CAST-01
+  project: ibis
+  category: cast-semantics
+  summary: DuckDB uses banker's rounding (round-half-to-even) for float-to-int cast,
+    not truncation
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: DuckDB engine decision. IEEE 754 rounding vs Python truncation. Permanent
+    divergence.
+  last_verified: '2026-05-11'
+- id: IB-CAST-02
+  project: ibis
+  category: cast-semantics
+  summary: Casting a date string to DATE materialises as datetime.datetime (midnight),
+    not datetime.date
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: RESOLVED 2026-07-30 (PR 245). Not an ibis limitation after all - it was ours.
+    Relation.to_polars() converted an ibis result via pl.from_pandas(result.to_pandas()),
+    and ibis's pandas conversion widens date to datetime64[s]; polars then read that as
+    Datetime(ms). Routing the ibis Table through to_pyarrow() preserves date32[day],
+    which polars reads as Date, so a DATE cast now materialises as datetime.date on
+    every ibis dialect. The 'pandas has no native date-only type' reasoning was correct
+    about pandas and wrong to conclude the divergence was permanent - Arrow was always
+    available as the interchange format. The conform temporal xfails this entry
+    justified are drained; tests/conform/cross_backend/test_temporal_format.py and
+    tests/relations/cross_backend/test_rel_egress_dtype_fidelity.py now assert the
+    date-typed output directly.
+  last_verified: '2026-07-30'
+- id: IB-LIST-01
+  project: ibis
+  category: list-ops
+  summary: Ibis array namespace missing 26 of 32 new list operations
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Ibis supports: alls(), anys(), concat(), union(), intersect(), filter().
+    All other list ops raise BackendCapabilityError.'
+  last_verified: '2026-05-11'
+- id: IB-LIST-02
+  project: ibis
+  category: list-ops
+  summary: 'ibis-duckdb: list.reverse(), list.slice(), list.head(), list.tail() not
+    supported'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Subset of IB-LIST-01. These specific operations verified in cross-backend
+    result tests.
+  last_verified: '2026-05-17'
+- id: NW-STR-01
+  project: narwhals
+  category: string-ops
+  summary: str.starts_with / str.ends_with / str.contains / str.like require literal
+    values on pandas — expression arguments rejected
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3581
+  upstream_issue_filed_by: other
+  status: closed
+  our_workaround: error_enrichment
+  notes: 'Reconciliation 2026-05-11: GitHub #3581 is now CLOSED. narwhals-polars expression
+    args confirmed working 2026-05-11 — added to _NW_POLARS_FIXED allow-list. narwhals-pandas
+    still requires literals.'
+  last_verified: '2026-05-11'
+- id: NW-STR-02
+  project: narwhals
+  category: string-ops
+  summary: str.contains with expression arguments — previously broken
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3459
+  upstream_issue_filed_by: other
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: 'GH #3459 closed upstream, but narwhals 2.24.0 still rejects an expression
+    pattern on the pandas backend (TypeError: `.str.contains` only supports str pattern
+    values for pandas backend) — parameter-width class. Verified 2026-08-01; xfail/error-enrichment
+    retained. Re-check whether this is fixed in a later narwhals or is by-design parameter-width.'
+  last_verified: '2026-08-01'
+- id: NW-STR-03
+  project: narwhals
+  category: string-ops
+  summary: str.replace requires literal values for substring and replacement on pandas
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: 'Check if covered by #3581.'
+  last_verified: '2026-05-11'
+- id: NW-STR-04
+  project: narwhals
+  category: string-ops
+  summary: str.like requires literal match pattern on pandas
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: KEL key is FK_STR.LIKE param='match'.
+  last_verified: '2026-05-11'
+- id: NW-STR-05
+  project: narwhals
+  category: string-ops
+  summary: str.regexp_replace requires literal pattern and replacement on pandas
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Likely inherent to pandas.
+  last_verified: '2026-05-11'
+- id: NW-STR-06
+  project: narwhals
+  category: string-ops
+  summary: str.substring/lpad/rpad/left/right require literal length/count on pandas
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: 'Check expressification plans. KEL keys: FK_STR.SUBSTRING (start, length),
+    FK_STR.LPAD (length, characters), FK_STR.RPAD (length, characters), FK_STR.LEFT
+    (count), FK_STR.RIGHT (count).'
+  last_verified: '2026-05-11'
+- id: NW-STR-07
+  project: narwhals
+  category: string-ops
+  summary: str.trim/ltrim/rtrim require literal characters on pandas
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Likely pandas limitation.
+  last_verified: '2026-05-11'
+- id: NW-STR-08
+  project: narwhals
+  category: string-ops
+  summary: regex_contains requires a literal pattern on Narwhals pandas and PyArrow
+  root_cause: by_design
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: none
+  notes: >-
+    Backlog 313 qualified Narwhals 2.27.1 with pandas 3.0.6 and PyArrow 26.0.0.
+    Declared literal-only gates protect dynamic patterns on those stacks;
+    Python strings and expression literals remain supported. Narwhals Polars and DuckDB
+    support dynamic patterns and are not covered by this restriction.
+    Other dependency versions remain unqualified, not automatically blocked.
+  last_verified: '2026-10-15'
+- id: NW-STR-09
+  project: narwhals
+  category: string-ops
+  summary: str.repeat() not available — raises BackendCapabilityError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: NW-STR-10
+  project: narwhals
+  category: string-ops
+  summary: Narwhals columnar str.contains (narwhals-polars) — nw.lit() cannot wrap
+    a Polars Expr as literal
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: NW-STR-11
+  project: narwhals
+  category: string-ops
+  summary: Various string operations limited or raise NotImplementedError on pandas
+    backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Narwhals pandas backend has limited string op support vs narwhals-polars.
+  last_verified: '2026-05-11'
+- id: NW-DT-01
+  project: narwhals
+  category: datetime-ops
+  summary: Datetime offset ops require literal integers — column expressions rejected
+    (parameter-width)
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/2799
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: error_enrichment
+  notes: 'Mirrors IB-DT-01. Upstream #2799 tracks expressifying offset_by.'
+  last_verified: '2026-05-11'
+- id: NW-DT-02
+  project: narwhals
+  category: datetime-ops
+  summary: week_of_year not supported on pandas backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Check pandas dt.isocalendar().week.
+  last_verified: '2026-05-11'
+- id: NW-DT-03
+  project: narwhals
+  category: datetime-ops
+  summary: dt.time() is not supported on any Narwhals dialect — NotImplementedError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Specific method identified for the originally vague "various datetime
+    enrichment ops... need to identify specific methods" note (backlog item 87,
+    2026-08-13): dt.time() raises on narwhals-pandas, narwhals-polars, and
+    narwhals-lazy alike (verified empirically), not narwhals-pandas only.
+    affected_backends widened accordingly; mountainash DivergenceFact NW-DT-03
+    self-references this entry via upstream_ref.'
+  last_verified: '2026-08-13'
+- id: NW-DT-06
+  project: narwhals
+  category: datetime-ops
+  summary: week_of_year (ISO) is not supported on pandas or any Narwhals dialect
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'dt.week_of_year() raises BackendCapabilityError on pandas and all Narwhals
+    dialects; Polars and Ibis compute it. Renamed from a colliding DivergenceFact id
+    (was "NW-DT-01", which already named an unrelated entry above — the
+    literal-integer-only datetime-offset gap) when backlog item 87''s id-collision
+    detector caught the reuse; the DivergenceFact and this entry now self-reference
+    via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-DT-07
+  project: narwhals
+  category: datetime-ops
+  summary: 'narwhals-pandas: dt.date() raises NotImplementedError'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'dt.date() raises on narwhals-pandas only; narwhals-polars, polars, and
+    Ibis compute it. Renamed from a colliding DivergenceFact id (was "NW-DT-02",
+    which already named an unrelated entry above — week_of_year not supported on
+    pandas) when backlog item 87''s id-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-MATH-01
+  project: narwhals
+  category: math-ops
+  summary: No trigonometric functions (sin, cos, tan, asin, acos, atan, atan2)
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 'Covers atan2() as well — raises NotImplementedError. Widened
+    affected_backends 2026-08-13 (backlog item 87, re-verified live against the
+    self-linked DivergenceFact NW-MATH-01 whose scope is the whole narwhals family
+    plus bare pandas): sin()/tan() raise on bare pandas and narwhals-lazy too, not
+    only narwhals-pandas/narwhals-polars as originally recorded.'
+  last_verified: '2026-08-13'
+- id: NW-MATH-02
+  project: narwhals
+  category: math-ops
+  summary: No hyperbolic functions (sinh, cosh, tanh, asinh, acosh, atanh)
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: NW-MATH-10
+  project: narwhals
+  category: math-ops
+  summary: No trigonometric, angular-conversion, or hyperbolic math functions on
+    pandas or Narwhals
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: 'mountainash consolidates trig (sin/cos/tan/asin/acos/atan/atan2), angular
+    (radians/degrees), and hyperbolic (sinh/cosh/tanh/asinh/acosh/atanh) into a
+    single DivergenceFact tested together (test_trig_hyperbolic.py), all raising
+    NotImplementedError on pandas and every Narwhals dialect. This entry is broader
+    than the narrower NW-MATH-01 (trig only) and NW-MATH-02 (hyperbolic only)
+    entries above, which remain independently accurate but do not cover the
+    angular-conversion functions. Renamed from a colliding DivergenceFact id (was
+    "NW-MATH-02", which duplicated this yaml id while describing the broader
+    combined scope) when backlog item 87''s id-collision detector caught the reuse;
+    the DivergenceFact and this entry now self-reference via upstream_ref (backlog
+    item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-MATH-03
+  project: narwhals
+  category: math-ops
+  summary: is_finite / is_infinite — core added but remaining is_* gaps
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3028
+  upstream_issue_filed_by: other
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: is_finite/is_infinite verified working on narwhals-polars/narwhals-pandas 2026-08-01.
+  last_verified: '2026-08-01'
+- id: NW-MATH-04
+  project: narwhals
+  category: math-ops
+  summary: nullif method not fully supported on pandas/ibis backends
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pandas
+  - ibis-polars
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: May be mountainash wiring.
+  last_verified: '2026-05-11'
+- id: NW-MATH-05
+  project: narwhals
+  category: math-ops
+  summary: sqrt(), sign(), exp() not supported by Narwhals backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Check current Narwhals version.
+  last_verified: '2026-05-11'
+- id: NW-MATH-06
+  project: narwhals
+  category: math-ops
+  summary: greatest()/least() with literal scalar — nw.max_horizontal/min_horizontal
+    returns original values unchanged on pandas
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Narwhals horizontal function issue. Fixed upstream in narwhals 2.27.0 (yanked for an
+    unrelated Pointblank breakage) and 2.27.1: verified 2026-10-10 that greatest()/least()
+    on pandas/narwhals-pandas return the correct values there and wrong ones on 2.26.0. The
+    project now requires narwhals>=2.27.1 (#391), so the older-version expected-failure
+    in tests/relations/cross_backend/test_rel_expression_integration.py no longer applies.'
+  last_verified: '2026-10-10'
+- id: NW-MATH-07
+  project: narwhals
+  category: math-ops
+  summary: nw.min_horizontal materialises arguments as intermediate columns on pandas
+    — name collision
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Narwhals pandas intermediate naming. Fixed upstream in narwhals 2.27.0 (yanked) and
+    2.27.1: verified 2026-10-10 that nw.min_horizontal(nw.lit(1), nw.lit(2)) works on pandas there
+    and raises DuplicateError on 2.26.0. The pin in
+    tests/expressions/cross_backend/test_narwhals_duplicate_literal.py is version-gated.'
+  last_verified: '2026-10-10'
+- id: NW-MATH-08
+  project: narwhals
+  category: math-ops
+  summary: Narwhals backend lacks sign(), sqrt(), exp(), tan() — BackendCapabilityError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Narwhals Expr has no sign, sqrt, exp, or tan methods. cot() also fails since
+    it's implemented as 1/tan(x).
+  last_verified: '2026-05-17'
+- id: NW-MATH-09
+  project: narwhals
+  category: math-ops
+  summary: Narwhals strip_chars_start/end strip both sides instead of only requested
+    side
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: strip_chars_start() and strip_chars_end() both strip from both sides on Narwhals
+    backends, behaving identically to strip_chars().
+  last_verified: '2026-05-17'
+- id: NW-AGG-01
+  project: narwhals
+  category: aggregate-ops
+  summary: variance() fails — implementation uses x.std().pow() but nw.Expr had no
+    .pow()
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3153
+  upstream_issue_filed_by: other
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'RESOLVED. narwhals added Expr.var() (#3153); mountainash variance() now lowers
+    to x.var() (not std().pow()). Verified passing on narwhals-polars/narwhals-pandas/narwhals-lazy
+    at narwhals 2.24.0 (2026-08-01); strict xfail already removed from test_aggregate_fluent_reducers.'
+  last_verified: '2026-08-01'
+- id: NW-AGG-02
+  project: narwhals
+  category: aggregate-ops
+  summary: mode() not implemented
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/981
+  upstream_issue_filed_by: other
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'RESOLVED. narwhals implemented mode() (#981); mountainash mode() lowers to
+    x.mode().first(). Verified passing on narwhals-polars/narwhals-pandas at narwhals 2.24.0
+    (2026-08-01); strict xfail already removed. narwhals-lazy still xfails for a separate
+    reason (mode() is length-changing/order-dependent, rejected on a LazyFrame).'
+  last_verified: '2026-08-01'
+- id: NW-AGG-03
+  project: narwhals
+  category: aggregate-ops
+  summary: mode()/any_value() are rejected on a narwhals-lazy LazyFrame
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'mode() and any_value() raise InvalidOperationError on narwhals-lazy —
+    order-dependent/length-changing aggregates are not permitted on a LazyFrame;
+    eager Narwhals and every other backend compute them. NW-AGG-02''s own notes
+    above already flag this as "a separate reason" for narwhals-lazy once mode()
+    itself was implemented for the eager dialects. Renamed from a colliding
+    DivergenceFact id (was "NW-AGG-01", which already named an unrelated,
+    already-resolved entry above — the variance()/.pow() bug) when backlog item
+    87''s id-collision detector caught the reuse; the DivergenceFact and this entry
+    now self-reference via upstream_ref (backlog item 87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-WIN-01
+  project: narwhals
+  category: window-ops
+  summary: ntile() not supported by Narwhals backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Narwhals Expr has no ntile() method. Raises NotImplementedError.
+  last_verified: '2026-05-17'
+- id: NW-WIN-02
+  project: narwhals
+  category: window-ops
+  summary: diff(n>1) only supports n=1 on Narwhals backends
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: diff(n=2) fails on all Narwhals backends. Only n=1 (the default) is supported.
+  last_verified: '2026-05-17'
+- id: NW-WIN-03
+  project: narwhals
+  category: window-ops
+  summary: order-dependent window ops are rejected on a narwhals-lazy LazyFrame
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'narwhals-lazy rejects diff/cum_sum/cum_max/cum_min/cum_count/cum_prod/
+    lead/lag/first_value/last_value with InvalidOperationError — order-dependent
+    window expressions are not permitted on a LazyFrame without an explicit order;
+    eager Narwhals and Polars compute them. Renamed from a colliding DivergenceFact
+    id (was "NW-WIN-01", which already named an unrelated entry above — ntile() not
+    supported) when backlog item 87''s id-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    87, 2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-WIN-04
+  project: narwhals
+  category: window-ops
+  summary: percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas and Narwhals
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'percent_rank()/cume_dist()/nth_value() and multi-step diff(n>1) all raise
+    NotImplementedError on pandas and Narwhals; ibis-duckdb/sqlite compute them
+    (Polars too, except nth_value — see PL-WIN-01). This entry is broader than the
+    narrower NW-WIN-02 (diff(n>1) only) entry above, which remains independently
+    accurate. Renamed from a colliding DivergenceFact id (was "NW-WIN-02", which
+    duplicated this yaml id while describing the broader combined scope) when
+    backlog item 87''s id-collision detector caught the reuse; the DivergenceFact
+    and this entry now self-reference via upstream_ref (backlog item 87,
+    2026-08-13).'
+  last_verified: '2026-08-13'
+- id: NW-WIN-05
+  project: narwhals
+  category: window-ops
+  summary: pandas-like .over(order_by=[...]) orders by the last key only
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: 'Backlog 368. Refused by a declared capability fact on Narwhals 2.27.1 with
+    pandas 3.0.6 or 3.1.0 (exact verified versions, not a continuous range).
+    Native wrong ordering reverified on pandas 3.1.0; public refusals and working
+    neighbors verified on both pandas versions. The strict expected-failure filter
+    remains BackendCapabilityError only. No upstream repair; not filed (owner
+    decision 2026-10-22).'
+  last_verified: '2026-10-25'
+- id: NW-LIST-01
+  project: narwhals
+  category: list-ops
+  summary: list.contains() does not accept expression arguments — literal values only
+    (parameter-width)
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: error_enrichment
+  notes: Parameter-width issue, same class as NW-STR-*. Not a bug to file.
+  last_verified: '2026-05-11'
+- id: NW-LIST-02
+  project: narwhals
+  category: list-ops
+  summary: list.explode() missing
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/1632
+  upstream_issue_filed_by: other
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'GH #1632 closed upstream, but narwhals 2.24.0 has no Expr.explode() (AttributeError).
+    Verified 2026-08-01; strict xfail retained (test_list_operations.py TestListExplode).
+    Re-check the narwhals list/explode API surface and target version.'
+  last_verified: '2026-08-01'
+- id: NW-LIST-03
+  project: narwhals
+  category: list-ops
+  summary: list.join() missing
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: NW-LIST-04
+  project: narwhals
+  category: list-ops
+  summary: list.get() does not support negative indices
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/2905
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: error_enrichment
+  notes: CapabilityFact enriches narwhals-polars negative-index failures at materialization.
+  last_verified: '2026-08-01'
+- id: NW-LIST-05
+  project: narwhals
+  category: list-ops
+  summary: Narwhals list namespace missing 31 operations — only 10 methods available
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  - narwhals-lazy
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: 'Narwhals v2.21 list namespace has only: len, unique, contains, get, min,
+    max, mean, median, sum, sort. All other list ops raise BackendCapabilityError.
+    Polars backend also has xfails for expression handling issues in
+    test_arg_types_list.py. Widened affected_backends 2026-08-13 (backlog item 87,
+    re-verified live against the self-linked DivergenceFact NW-LIST-05 whose scope
+    is the whole narwhals family): reverse()/head()/gather_every() (and by
+    extension the rest of the missing-op set) raise on narwhals-lazy too, not only
+    narwhals-polars/narwhals-pandas as originally recorded.'
+  last_verified: '2026-08-13'
+- id: NW-LIST-06
+  project: narwhals
+  category: list-ops
+  summary: 'narwhals: list.last() fails — list.get(-1) rejects negative indices'
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-polars
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/2905
+  upstream_issue_filed_by: other
+  status: resolved_in_mountainash
+  our_workaround: error_enrichment
+  notes: Same gap as NW-LIST-04; list.last aliases list.get(-1) and is covered by the NW-LIST-04 MATERIALIZE fact, so no separate registry-keyed fact is possible.
+  last_verified: '2026-08-01'
+- id: NW-LIST-07
+  project: narwhals
+  category: list-ops
+  summary: 'narwhals: list.reverse(), list.join(), list.slice(), list.head(), list.tail()
+    not supported'
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: Subset of NW-LIST-05. These specific operations verified in cross-backend
+    result tests.
+  last_verified: '2026-05-17'
+- id: NW-LIST-08
+  project: narwhals
+  category: list-ops
+  summary: 'narwhals: list.contains() fails with expression literal — TypeError on
+    argument'
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: list.contains() accepts literal values in Narwhals, but mountainash passes
+    an expression literal which Narwhals rejects with TypeError.
+  last_verified: '2026-05-17'
+- id: PL-STR-01
+  project: polars
+  category: string-ops
+  summary: str.replace does not support dynamic column patterns — substring must be
+    literal
+  root_cause: parameter_width
+  affected_backends:
+  - polars
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Check newer Polars versions. Only 2 KNOWN_EXPR_LIMITATIONS for Polars total.
+    Also surfaces transitively on ibis-polars (count_substring's dynamic branch
+    lowers to this same native path via Ibis's non-regex .replace()) — gated as a
+    dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog item
+    81, 2026-08-12).
+  last_verified: '2026-08-12'
+- id: PL-STR-02
+  project: polars
+  category: string-ops
+  summary: str.replace_all / str.replace with regex does not support dynamic column
+    patterns
+  root_cause: parameter_width
+  affected_backends:
+  - polars
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Same class as PL-STR-01. Also surfaces transitively on ibis-polars
+    (replace's and regexp_replace's dynamic-pattern fallback branches both lower
+    to this same native path via Ibis's regex .re_replace()) — gated as a
+    dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog item
+    81, 2026-08-12).
+  last_verified: '2026-08-12'
+- id: PL-STR-03
+  project: polars
+  category: string-ops
+  summary: str.repeat/center/replace_slice/lpad/rpad require literal integers or single-char
+    literals — expressions rejected
+  root_cause: parameter_width
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: 'Polars str.repeat/center/replace_slice require literal integers; center/lpad/rpad
+    require a single literal fill character (multi-char string rejected). KEL keys:
+    FK_STR.REPEAT (count), FK_STR.CENTER (length, character), FK_STR.REPLACE_SLICE
+    (start, length), FK_STR.LPAD (characters), FK_STR.RPAD (characters).'
+  last_verified: '2026-05-11'
+- id: PL-STR-04
+  project: polars
+  category: string-ops
+  summary: regexp_string_split requires a literal pattern — expressions rejected
+  root_cause: parameter_width
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Polars has no native regex-split primitive, so mountainash falls back
+    to map_elements with a Python re.finditer-based split (backlog item 85); the
+    lambda binds pattern as a Python closure value at expression-build time, so
+    a dynamic (column-valued) pattern cannot work — gated as a LITERAL_ONLY
+    CapabilityFact for the Polars backend.
+  last_verified: '2026-08-13'
+- id: PL-TYPE-01
+  project: polars
+  category: type-system
+  summary: fill_null on nullable i64 produces i64, but ternary comparison intermediate
+    expects Boolean — type mismatch
+  root_cause: upstream_bug
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: May be mountainash ternary compilation issue, not Polars bug. Needs investigation.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-01
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: Bitwise operations are protocol stubs — bitwise_not, bitwise_and, bitwise_or,
+    bitwise_xor
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Implement in all backends.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-02
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: Shift operations are protocol stubs — shift_left, shift_right, shift_right_unsigned
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Implement in all backends.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-03
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: SubstraitConditionalAPIBuilder not in _FLAT_NAMESPACES — col('x').when(...)
+    doesn't work
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Fix namespace registration.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-04
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: is_dst passes options=None to ScalarFunctionNode, pydantic rejects it
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Fixed: is_dst builder now passes options={} instead of None (see
+    api_bldr_ext_ma_scalar_datetime.py). Verified empirically 2026-08-11 —
+    ma.col("ts").dt.is_dst() constructs cleanly; no xfail remains on
+    tests/expressions/ast/test_ast_scalar_datetime.py::test_is_dst.'
+  last_verified: '2026-08-11'
+- id: MA-WIRE-05
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: String enum mismatches — STRING_SPLIT/SPLIT, REGEXP_MATCH_SUBSTRING/REGEXP_MATCH,
+    REGEXP_STRING_SPLIT/REGEXP_SPLIT
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Fixed: builder now uses correct enum values (SPLIT, REGEXP_MATCH, REGEXP_SPLIT).
+    Three xfail markers removed 2026-05-11 (PR #134).'
+  last_verified: '2026-05-11'
+- id: MA-WIRE-06
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: Aggregate signature mismatches — corr(x,y) struct context, median(precision,x)
+    positional count, quantile(boundaries,precision,n,distribution)
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Design tension between Substrait signatures and Polars API.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-07
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: nth_value may not work in Polars .over() context
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: ''
+  last_verified: '2026-05-11'
+- id: MA-WIRE-08
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: Aspirational protocol methods not yet fully wired
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Track with wiring matrix.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-09
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: String tier3 ops — Polars-only, BackendCapabilityError on Narwhals/Ibis
+    (to_integer(base=16), strip_suffix, etc.)
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  - narwhals-pandas
+  - narwhals-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: Implement in other backends or accept as Polars-only.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-10
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: forward_fill/backward_fill not wired for Ibis backends — raises BackendCapabilityError
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: Ibis has no expression-level forward_fill/backward_fill. Would need window
+    function (LAG/LEAD) based implementation. Currently raises BackendCapabilityError
+    on all Ibis backends.
+  last_verified: '2026-05-11'
+- id: MA-WIRE-11
+  project: mountainash-internal
+  category: wiring-gaps
+  summary: median() not available as col().median() — Substrait signature passes (precision,
+    x) but backends expect (x)
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  - pandas
+  - narwhals-polars
+  - narwhals-pandas
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: Substrait median(precision, x) passes 2 positional args but Polars backend
+    protocol is median(x). The AST node and free-function wiring are correct; backend
+    alignment is the gap. Not available as col().median().
+  last_verified: '2026-05-17'
+- id: NW-STR-13
+  project: narwhals
+  category: string-ops
+  summary: Narwhals lacks extract_all, count_matches, and regex find/position methods
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Narwhals str namespace has no extract_all, count_matches, or regex-aware
+    find. All 3 regex ops raise BackendCapabilityError.
+  last_verified: '2026-05-11'
+- id: IB-STR-08
+  project: ibis
+  category: string-ops
+  summary: Ibis lacks re_extract_all, re_count, and re_find/re_strpos methods
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Ibis StringValue has re_search, re_extract, re_replace, re_split but no re_extract_all,
+    re_count, or re_find. All 3 extended regex ops raise BackendCapabilityError.
+  last_verified: '2026-05-11'
+- id: IB-STR-09
+  project: ibis
+  category: string-ops
+  summary: regexp_match_substring requires a literal pattern on Ibis Polars backend
+    — dynamic column argument raises UnsupportedArgumentError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: ibis-polars compiles regexp_match_substring to Polars' native columnar-argument
+    path via .re_extract(); Ibis itself detects and rejects a dynamic (column-valued)
+    pattern with its own UnsupportedArgumentError before reaching Polars (a different
+    exception class than the raw polars.exceptions.ComputeError PL-STR-01/02 leak
+    through — Ibis's own validation catches this one earlier). A literal pattern works
+    fine. Gated as a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend
+    (backlog item 83, 2026-08-12).
+  last_verified: '2026-08-12'
+- id: IB-STR-10
+  project: ibis
+  category: string-ops
+  summary: string_split requires a literal separator on Ibis Polars backend —
+    dynamic column argument raises UnsupportedArgumentError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Same shape as IB-STR-09 — ibis-polars compiles string_split to Polars' native
+    columnar-argument path via .split(); Ibis's own UnsupportedArgumentError catches a
+    dynamic (column-valued) separator before reaching Polars. A literal separator works
+    fine. Gated as a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend
+    (backlog item 83, 2026-08-12).
+  last_verified: '2026-08-12'
+- id: IB-STR-11
+  project: ibis
+  category: string-ops
+  summary: Case-insensitive string matching (contains/starts_with/ends_with with
+    case_sensitive=False) is unsupported on Ibis Polars backend — UnsupportedArgumentError
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ibis-polars raises UnsupportedArgumentError for case_sensitive=False on
+    contains/starts_with/ends_with; ibis-duckdb/ibis-sqlite and polars/narwhals compute
+    it. Renamed from a colliding DivergenceFact id (was "IB-STR-02", which already
+    named an unrelated entry in this registry — the "no center function" gap below)
+    when backlog item 84's id-namespace-collision detector caught the reuse; the
+    DivergenceFact and this entry now self-reference via upstream_ref (backlog item
+    84, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-MATH-04
+  project: ibis
+  category: math-ops
+  summary: SQLite performs integer division on two integer operands
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-MATH-05
+  project: ibis
+  category: math-ops
+  summary: SQL modulo takes the sign of the dividend rather than the divisor
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  - ibis-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-TYPE-04
+  project: ibis
+  category: type-inference
+  summary: Ibis defers type resolution to its backend, unlike eager Polars
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: https://github.com/ibis-project/ibis/issues/11742
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-MATH-01
+  project: mountainash-internal
+  category: math-ops
+  summary: Intermediate float precision and rounding differ across backends
+  root_cause: by_design
+  affected_backends:
+  - polars
+  - narwhals
+  - ibis
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: IB-DT-09
+  project: ibis
+  category: datetime-ops
+  summary: now() returns naive UTC query-time timestamps on ibis-duckdb and ibis-sqlite
+  root_cause: by_design
+  affected_backends:
+  - ibis-duckdb
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: 'Narrowed on 2026-09-17 with Ibis 12.0.0: NOW agrees with local snapshots under UTC but differs under non-UTC timezones on DuckDB and SQLite. ibis-polars follows local snapshot semantics. TODAY compiles to native Date on all three Ibis backends and is no longer part of this declaration. The NOW regression uses a fixed non-UTC timezone with strict expected failures; native-Date TODAY coverage remains unmarked.'
+  last_verified: '2026-09-17'
+- id: IB-CAST-03
+  project: ibis
+  category: cast-semantics
+  summary: SQLite CAST is lenient and strict casts do not raise on malformed input
+  root_cause: by_design
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: by_design
+  our_workaround: accepted_divergence
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-TYPE-01
+  project: mountainash-internal
+  category: type-system
+  summary: Typed all-NULL columns lose declared dtype through to_polars()'s pandas bridge
+  root_cause: mountainash_internal
+  affected_backends:
+  - ibis-duckdb
+  - ibis-polars
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'RESOLVED (pandas-transit-elimination migration, Task 3/4, 2026-08-27):
+    explicit_polars_egress() no longer routes an Ibis result through
+    to_pandas()/pl.from_pandas(); it converts via to_pyarrow() -> pl.from_arrow(),
+    which preserves the declared dtype for a typed all-NULL column. Verified
+    empirically 2026-08-27 via
+    tests/conform/cross_backend/test_null_fill_mode.py::TestTypedNullEmission::test_missing_field_emits_typed_all_null_column
+    passing on all three affected backends (ibis-duckdb, ibis-polars, ibis-sqlite)
+    across all four type variants. DivergenceFact removed from divergences.py.'
+  last_verified: '2026-08-27'
+- id: MA-TYPE-02
+  project: mountainash-internal
+  category: type-system
+  summary: All-NULL cast to non-nullable numpy int64/bool dtype raises or corrupts
+  root_cause: mountainash_internal
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: none
+  notes: ''
+  last_verified: '2026-07-05'
+- id: MA-STR-01
+  project: mountainash-internal
+  category: string-ops
+  summary: str.contains with a columnar (per-row) literal pattern is unsupported
+    on pandas and Ibis Polars backend
+  root_cause: mountainash_internal
+  affected_backends:
+  - pandas
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: col.str.contains(other_col) raises on pandas (enriched BackendCapabilityError,
+    not registry-resolvable) and ibis-polars (UnsupportedArgumentError); polars and
+    ibis-duckdb/ibis-sqlite compute the per-row substring test. Spans two unrelated
+    backend families for related-but-distinct reasons, so classified as an internal
+    wiring gap rather than a single upstream tracker. Linked to the pre-existing
+    DivergenceFact(id="MA-STR-01") via upstream_ref, which was previously null
+    (backlog item 84, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: MA-STR-03
+  project: mountainash-internal
+  category: string-ops
+  summary: regexp_string_split on an empty or zero-width-capable regex pattern
+    diverges from the ibis-duckdb oracle on the Polars backend
+  root_cause: mountainash_internal
+  affected_backends:
+  - polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: open
+  our_workaround: xfail_strict
+  notes: Polars has no native regex-split primitive, so mountainash falls back
+    to a Python re.finditer-based split (backlog item 85); this correctly excludes
+    captured-group text from the output (matching the ibis-duckdb oracle) but
+    consolidates zero-width matches differently than DuckDB's regex engine for
+    an empty ('') or zero-width-capable ('a*') pattern. Ordinary (non-degenerate)
+    patterns are unaffected. Linked to DivergenceFact(id="MA-STR-03") via
+    upstream_ref (backlog item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-STR-12
+  project: ibis
+  category: string-ops
+  summary: regexp_string_split has no compilation rule on Ibis SQLite backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: ibis-sqlite raises OperationNotDefinedError ("Compilation rule for
+    'RegexSplit' operation is not defined") for any pattern, literal or dynamic;
+    ibis-duckdb translates it to native SQL correctly and ibis-polars supports
+    a literal pattern. Gated as a dialect-scoped UNSUPPORTED CapabilityFact
+    (whole-op, WILDCARD_PARAM) for the Ibis backend (backlog item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-STR-13
+  project: ibis
+  category: string-ops
+  summary: regexp_string_split requires a literal pattern on Ibis Polars backend
+    — dynamic column argument raises IbisError
+  root_cause: parameter_width
+  affected_backends:
+  - ibis-polars
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: ibis-polars compiles regexp_string_split to Polars' native re_split;
+    Ibis itself detects and rejects a dynamic (column-valued) pattern with its
+    own IbisError ("Only a single scalar pattern is supported for Polars
+    re_split") before reaching Polars. A literal pattern works fine. Gated as
+    a dialect-scoped LITERAL_ONLY CapabilityFact for the Ibis backend (backlog
+    item 85, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-20
+  project: narwhals
+  category: string-ops
+  summary: Narwhals has no regex-split primitive at all — regexp_string_split
+    is unsupported on every dialect
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: Narwhals 2.24.0's ExprStringNamespace has no regex-split primitive —
+    split(by) is literal-substring-only, no other method performs regex
+    splitting. Gated as a family-wide UNSUPPORTED CapabilityFact (whole-op,
+    WILDCARD_PARAM, dialect=None) for the Narwhals backend (backlog item 85,
+    2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-21
+  project: narwhals
+  category: string-ops
+  summary: string_split requires a literal separator — Narwhals str.split()
+    cannot accept an Expr at all
+  root_cause: parameter_width
+  affected_backends:
+  - narwhals-polars
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: error_enrichment
+  notes: Narwhals's str.split(by) is typed to accept only a raw str, not an
+    Expr — raises TypeError even for an Expr-wrapped literal, not just a
+    dynamic column reference. Gated as a family-wide LITERAL_ONLY
+    CapabilityFact for the Narwhals backend (backlog item 86, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: NW-STR-22
+  project: narwhals
+  category: string-ops
+  summary: string_split is unsupported on narwhals-pandas — requires a
+    pyarrow-backed pandas series
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: narwhals-pandas's str.split() raises TypeError ("This operation
+    requires a pyarrow-backed series") for any separator, literal or dynamic,
+    against the plain numpy-backed pandas DataFrame mountainash's
+    narwhals-pandas backend is constructed from; narwhals-polars works
+    correctly for a literal separator. Gated as a dialect-scoped UNSUPPORTED
+    CapabilityFact (whole-op, WILDCARD_PARAM) for the Narwhals backend
+    (backlog item 86, 2026-08-13).
+  last_verified: '2026-08-13'
+- id: IB-DT-19
+  project: ibis
+  category: datetime-ops
+  summary: SQLite backend memtable registration crashes on null date/timestamp
+    values (NaT binding)
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-sqlite
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: fallback_impl
+  notes: '_register_in_memory_table (ibis/backends/sqlite/__init__.py) stages
+    memtables via op.data.to_frame() (a pandas roundtrip). A null date32 or
+    timestamp value becomes pandas NaT, which sqlite3 cannot bind — crashes
+    create_table/insert for any frame containing a null temporal value.
+    Verified empirically 2026-08-18 against ibis 12.0.0 — raw pyarrow.Table
+    sources are incidentally safe for date columns only (PyArrow''s
+    Table.to_pandas() defaults date_as_object=True, so a null date32 becomes
+    Python None, not NaT) but not for timestamp columns; polars/pandas
+    DataFrame sources crash for both date and timestamp columns (their own
+    to_pandas() maps Date to datetime64 directly). Discovered downstream in
+    mountainash-data (DEBT-13), not via mountainash''s own cross-backend probe
+    suite. Worked around 2026-08-19 (backlog item 112, PR #303): a single
+    idempotent sqlite3.register_adapter(NaTType, lambda _: None) call
+    (relations/backends/relation_systems/ibis/_sqlite_compat.py::ensure_sqlite_nat_adapter),
+    invoked lazily at every mountainash call site that builds an
+    ibis.memtable()/create_table() from data that could contain a null
+    temporal value (cross-type join coercion, resource ingestion, and the
+    cross-backend test-fixture factory). Confirmed no PyArrow/schema-level
+    input shape avoids the crash — ibis re-normalises internally before its
+    own pandas roundtrip regardless of input. A subprocess-isolated
+    xfail(strict=True) monitor (test_backend_registry.py) reproduces the raw
+    upstream crash outside mountainash''s own adapter patch and will XPASS
+    when ibis fixes this natively. mountainash-data''s own DEBT-13 (a
+    separate, still-unshipped fix in that repo''s IbisBackend.create_table
+    write path) remains independent — this workaround only covers
+    mountainash''s own memtable-construction call sites, not connections
+    created directly via mountainash-data.'
+  last_verified: '2026-08-19'
+- id: NW-MATH-11
+  project: narwhals
+  category: math-ops
+  summary: Expr.round has no rounding mode; tie behaviour differs by backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3698
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: xfail_strict
+  notes: >-
+    Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
+    backlog item 282. Backlog 313 adds public adapter-refusal gates for
+    Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. The adapter still
+    raises NotImplementedError when protection is disabled; this is not a
+    native-provider Decimal execution witness or an upstream fix.
+  last_verified: '2026-10-15'
+- id: NW-CAST-01
+  project: narwhals
+  category: cast-semantics
+  summary: Expr.cast has no strict/non-strict option
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3702
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: xfail_strict
+  notes: >-
+    Blocks DECIMAL_CAST null mode (item 241 R13); see central backlog items
+    282 and 283. Backlog 313's additional PyArrow/DuckDB gates describe the
+    unavailable public adapter, with exact dependency bounds; underlying
+    provider Decimal primitives are not classified as unsupported.
+  last_verified: '2026-10-15'
+- id: IB-STR-14
+  project: ibis
+  category: string-ops
+  summary: Ibis MySQL, SingleStoreDB and Exasol lack RegexReplace translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-mysql
+  - ibis-singlestoredb
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 323 records native Ibis 12.0.0 OperationNotDefinedError for
+    RegexReplace. Public Decimal conversion always uses this operation for
+    underscore normalization, so its canonical DECIMAL_CAST node is gated
+    for that Ibis version. Native database Decimal support is not denied.
+    MariaDB qualification used an adapted client, not the standard driver.
+    No external issue or upstream patch is claimed.
+  last_verified: '2026-10-15'
+- id: IB-STR-15
+  project: ibis
+  category: string-ops
+  summary: Ibis Exasol lacks RegexSearch translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 330 records native and public literal/dynamic regex compilation
+    failures in Ibis 12.0.0. The canonical REGEX_CONTAINS node is gated for
+    that version, including the literal regex_match wrapper. This does not
+    claim the Exasol database lacks regex facilities. No external issue or
+    upstream patch is claimed.
+  last_verified: '2026-10-15'
+- id: IB-STR-16
+  project: ibis
+  category: string-ops
+  summary: PostgreSQL dynamic insensitive regex loses pattern concatenation grouping
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-postgres
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 321 owns the unrepaired translator defect. The canonical
+    REGEX_CONTAINS node gates dynamic case-insensitive patterns, including
+    native expressions, only for Ibis 12.0.0 with SQLGlot 29.0.1 and PostgreSQL
+    16.15. Native literals and sensitive plain-column matching remain allowed.
+    Case-sensitive concatenated patterns remain unresolved and are not gated
+    by this rule. Unknown forms and environments retain native execution,
+    not a support claim. No external issue or upstream patch is claimed.
+  last_verified: '2026-10-16'
+- id: IB-CAST-04
+  project: ibis
+  category: cast-semantics
+  summary: PostgreSQL TryCast lowers to strict CAST and raises on invalid Decimal text
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-postgres
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 322 owns the unrepaired native lowering limitation. The canonical
+    DECIMAL_CAST node gates failure_behavior='null' for Ibis 12.0.0 with
+    SQLGlot 29.0.1 and PostgreSQL 16.15 under selected semantics protection.
+    The owner approved refusing this mode even for valid/null inputs.
+    Explicit strict conversion remains available. Conform conversions requesting
+    the same mode share the gate. Unknown/newer environments and policy bypass
+    retain native behavior, not a support claim. No SQL workaround, external
+    issue or upstream patch is claimed. Exasol's separate native TryCast witness
+    is not this gate's scope; its public Decimal path is already gated by IB-STR-14.
+  last_verified: '2026-10-16'
+- id: NW-REL-01
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals/Dask positive-offset FETCH may evaluate partitions during construction
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-dask
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: accepted_divergence
+  notes: >-
+    Backlog item 351 records Narwhals 2.27.1 with Dask 2026.8.0 evaluating source
+    rows during native positive-offset FETCH construction. Mountainash declares
+    positive-offset FETCH unsupported; zero-offset/head and tail remain supported.
+    No partition-slicing bypass or external issue is claimed. Re-test the strict
+    GATE-off source-read probe when upstream repairs the native behavior.
+  last_verified: '2026-10-18'
+- id: NW-REL-02
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals DuckDB projections parse literal column names as expressions
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Reproduced without Mountainash on Narwhals 2.27.1 and DuckDB 1.5.6:
+    drop, rename and with_columns mishandle retained literal identifiers.
+    '*' expands a wildcard and produces duplicate fields, 'a.b' is interpreted
+    as a qualified reference, and an embedded double quote causes a parser error.
+    The adapter passes raw names to DuckDB ColumnExpression rather than quoting
+    them as literal identifiers. Regex-like '^id$' is a passing neighbor.
+    Owner deferred this issue to backlog item 355 on 2026-10-19, explicitly
+    removing it as an item 351 delivery gate. No named consumer was identified;
+    broader Narwhals-backend qualification is not required by this finding.
+    No workaround, unsupported declaration, or external issue is claimed.
+  last_verified: '2026-10-19'
+- id: NW-CAST-02
+  project: narwhals
+  category: cast-semantics
+  summary: pandas Arrow struct Series.where routes nullable UInt64 children through floating values
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 374, owner-accepted non-blocking debt. The defect is native pandas,
+    reproduced without Mountainash or Narwhals on pandas 3.0.6 with PyArrow
+    26.0.0: Series.where on an ArrowDtype struct with a nullable UInt64 child
+    rounds retained 9007199254740993 to 9007199254740992 while keeping the
+    struct dtype; the same masking with UInt64 maximum raises ArrowInvalid
+    (Narwhals 2.27.1 struct conditional observed 1.8446744073709552e+19 to uint64).
+    pandas' Arrow _replace_with_mask falls back from pc.replace_with_mask to an
+    object array (pandas/core/arrays/arrow/array.py:2695-2706). The project is
+    narwhals only because the registry has no pandas project; no pandas or
+    Narwhals issue has been filed or identified. Strict native witnesses with
+    correct retained-value oracles live in
+    tests/relations/cross_backend/test_lazy_provider_execution.py. No runtime
+    guard, provider unwrapping, Float64 substitution, release or 373 gate is
+    added; existing Narwhals refusals are unchanged and the native witness is
+    not public support. Requalify native masking and the public composed struct
+    conversion, retaining nullable-child, null-container, masked-row and UInt64
+    boundary controls, after an upstream repair.
+  last_verified: '2026-10-24'

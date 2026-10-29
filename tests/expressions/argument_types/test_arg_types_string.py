@@ -1,0 +1,1910 @@
+"""Argument channel tests for string operations."""
+from __future__ import annotations
+
+from importlib.metadata import version
+
+
+
+import pytest
+
+import mountainash as ma
+from fixtures.call_expectations import expect_call_failure
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types._option_helpers import OptionSpec, option_result
+from expressions.argument_types.option_disposition import (
+    INVALID_OPTION_VALUE,
+    OPTION_DISPOSITIONS,
+    InvalidOptionRejection,
+    OptionCell,
+    param_taxonomy,
+)
+from mountainash.core.errors import InvalidOptionValueError
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
+from expressions.argument_types._test_template import (
+    INPUT_TYPES,
+    OpSpec,
+    run_argument_matrix,
+)
+
+
+_STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
+
+
+def _known_unavailable(operation_key, backend: str) -> bool:
+    """Concrete whole-operation refusals exercised by the char-set cases."""
+    return (
+        operation_key == FK_STR.SWAPCASE
+        and backend in {"ibis", "narwhals-polars", "narwhals-pandas"}
+        or operation_key in {FK_STR.TITLE, FK_STR.INITCAP} and backend == "ibis"
+        or operation_key == FK_STR.CAPITALIZE
+        and backend in {"narwhals-polars", "narwhals-pandas"}
+    )
+
+_CASE_SENSITIVITY_FKEYS = {
+    "contains": FK_STR.CONTAINS,
+    "count_substring": FK_STR.COUNT_SUBSTRING,
+    "ends_with": FK_STR.ENDS_WITH,
+    "like": FK_STR.LIKE,
+    "replace": FK_STR.REPLACE,
+    "starts_with": FK_STR.STARTS_WITH,
+    "strpos": FK_STR.STRPOS,
+}
+_CASE_SENSITIVITY_DATA = {
+    "contains": {"text": ["Hello", "other"]},
+    "count_substring": {"text": ["Hello hello", "other"]},
+    "ends_with": {"text": ["say Hello", "other"]},
+    "like": {"text": ["say Hello", "other"]},
+    "replace": {"text": ["Hello hello", "other"]},
+    "starts_with": {"text": ["Hello there", "other"]},
+    "strpos": {"text": ["say Hello", "other"]},
+}
+_CASE_INSENSITIVE_HONORED_OPS = frozenset(
+    {"contains", "ends_with", "starts_with"}
+)
+_CASE_INSENSITIVE_DECLARED_OPS = (
+    frozenset(_CASE_SENSITIVITY_FKEYS) - _CASE_INSENSITIVE_HONORED_OPS
+)
+
+
+def _case_sensitivity_expr(op: str, case_sensitive: bool | str | None = None):
+    kwargs = {} if case_sensitive is None else {"case_sensitive": case_sensitive}
+    string = ma.col("text").str
+    if op == "contains":
+        return string.contains("hello", **kwargs)
+    if op == "count_substring":
+        return string.count_substring("hello", **kwargs)
+    if op == "ends_with":
+        return string.ends_with("hello", **kwargs)
+    if op == "like":
+        return string.like("%hello%", **kwargs)
+    if op == "replace":
+        return string.replace("hello", "X", **kwargs)
+    if op == "starts_with":
+        return string.starts_with("hello", **kwargs)
+    if op == "strpos":
+        return string.strpos("hello", **kwargs)
+    raise AssertionError(f"no case-sensitivity expression for {op}")
+
+
+def _case_sensitivity_probe(op: str, value: str) -> OptionSpec:
+    return OptionSpec(
+        _CASE_SENSITIVITY_FKEYS[op],
+        "case_sensitivity",
+        value,
+        "str",
+        # Pass the literal enum string directly rather than routing through
+        # the case_sensitive=True/False boolean shortcut -- CASE_INSENSITIVE
+        # and CASE_INSENSITIVE_ASCII are two distinct non-default values and
+        # the boolean shortcut can only ever represent one (round-1 review
+        # finding; backlog item 75). _case_sensitivity_expr's isinstance(str)
+        # passthrough (api_bldr_scalar_string.py) already supports this.
+        lambda: _case_sensitivity_expr(op, value),
+        lambda: _case_sensitivity_expr(op),
+        _CASE_SENSITIVITY_DATA[op],
+        expected_discriminates=value != "CASE_SENSITIVE",
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_HONORED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_discriminates(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    df = make_df(spec.data, backend)
+
+    assert option_result(df, spec.build_expr(), backend) != option_result(
+        df, spec.reference_expr(), backend
+    )
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_DECLARED_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_insensitive_string_option_declared_unsupported(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
+    with pytest.raises(BackendCapabilityError):
+        option_result(make_df(spec.data, backend), spec.build_expr(), backend)
+
+
+@pytest.mark.parametrize("op", sorted(_CASE_SENSITIVITY_FKEYS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_case_sensitive_string_option_matches_omission(op, backend):
+    spec = _case_sensitivity_probe(op, "CASE_SENSITIVE")
+    if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}:
+        _assert_backend_refusal(
+            lambda: option_result(make_df(spec.data, backend), spec.build_expr(), backend),
+            FK_STR.STRPOS,
+        )
+    else:
+        df = make_df(spec.data, backend)
+        assert option_result(df, spec.build_expr(), backend) == option_result(
+            df, spec.reference_expr(), backend
+        )
+
+
+_CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII")
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        backend,
+        value,
+        "str",
+        (
+            "declared_unsupported"
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            else "probe_exempt"
+            if value == "CASE_SENSITIVE"
+            else "honored"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "declared_unsupported"
+        ),
+        (
+            "operation has no native Narwhals implementation"
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            else "builder-default CASE_SENSITIVE is indistinguishable from omission"
+            if value == "CASE_SENSITIVE"
+            else "native backend implements CASE_INSENSITIVE semantics"
+            if op in _CASE_INSENSITIVE_HONORED_OPS
+            else "native backend does not implement CASE_INSENSITIVE semantics"
+        ),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+    for backend in ALL_BACKENDS
+    for value in _CASE_SENSITIVITY_VALUES
+)
+
+
+
+_INVALID_CASE_SENSITIVITY_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _case_sensitivity_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CASE_SENSITIVITY_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CASE_SENSITIVITY_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_string_canonical_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS = [
+    (
+        _STRING_PROTOCOL,
+        op,
+        "case_sensitivity",
+        param_taxonomy(_STRING_PROTOCOL, op, "case_sensitivity"),
+    )
+    for op in _CASE_SENSITIVITY_FKEYS
+]
+
+
+_CHAR_SET_OPS = {
+    "lower": FK_STR.LOWER,
+    "upper": FK_STR.UPPER,
+    "swapcase": FK_STR.SWAPCASE,
+    "capitalize": FK_STR.CAPITALIZE,
+    "title": FK_STR.TITLE,
+    "initcap": FK_STR.INITCAP,
+}
+_CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
+_CHAR_SET_DATA = {"t": ["ÄBC"]}
+# A whole-operation gate means no char_set value can be honored.
+
+
+def _char_set_broken(op: str, backend: str) -> bool:
+    return _known_unavailable(_CHAR_SET_OPS[op], backend)
+
+
+def _char_set_disposition(op: str, value: str, backend: str) -> str:
+    if _char_set_broken(op, backend):
+        return "declared_unsupported"
+    return "probe_exempt" if value == "UTF8" else "declared_unsupported"
+
+
+def _char_set_expr(op: str, char_set: str | None = None):
+    kwargs = {} if char_set is None else {"char_set": char_set}
+    return getattr(ma.col("t").str, op)(**kwargs)
+
+
+
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        backend,
+        value,
+        "str",
+        _char_set_disposition(op, value, backend),
+        (
+            "op is broken on this backend; char_set cannot be honored"
+            if _char_set_broken(op, backend)
+            else "builder-default UTF8 is indistinguishable from omission"
+            if value == "UTF8"
+            else "native backend does not implement ASCII_ONLY char_set semantics"
+        ),
+    )
+    for op in _CHAR_SET_OPS
+    for backend in ALL_BACKENDS
+    for value in _CHAR_SET_VALUES
+)
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_ascii_only_declared_unsupported(op, backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_CHAR_SET_DATA, backend), _char_set_expr(op, "ASCII_ONLY"), backend
+        )
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_utf8_equivalent_to_omission(op, backend):
+    if _char_set_broken(op, backend):
+        _assert_backend_refusal(
+            lambda: option_result(
+                make_df(_CHAR_SET_DATA, backend), _char_set_expr(op, "UTF8"), backend
+            ),
+            _CHAR_SET_OPS[op],
+        )
+    else:
+        df = make_df(_CHAR_SET_DATA, backend)
+        assert option_result(df, _char_set_expr(op, "UTF8"), backend) == option_result(
+            df, _char_set_expr(op), backend
+        )
+
+
+_INVALID_CHAR_SET_REJECTIONS = [
+    InvalidOptionRejection(
+        _CHAR_SET_OPS[op],
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op: _char_set_expr(op, INVALID_OPTION_VALUE),
+    )
+    for op in _CHAR_SET_OPS
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_CHAR_SET_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_CHAR_SET_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_char_set_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        "char_set",
+        param_taxonomy(_STRING_PROTOCOL, op, "char_set"),
+    )
+    for op in _CHAR_SET_OPS
+)
+
+
+_PADDING_FKEY = FK_STR.CENTER
+_PADDING_DATA = {"t": ["hi", "abc", None]}
+
+
+def _padding_expr(padding: str | None = None):
+    kwargs = {} if padding is None else {"padding": padding}
+    return ma.col("t").str.center(5, "*", **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_left_is_rejected(backend):
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(_PADDING_DATA, backend), _padding_expr("LEFT"), backend
+        ),
+        FK_STR.CENTER,
+    )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_right_contract(backend):
+    if backend == "ibis":
+        assert option_result(make_df(_PADDING_DATA, backend), _padding_expr("RIGHT"), backend) == [
+            "*hi**", "*abc*", None,
+        ]
+        return
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(_PADDING_DATA, backend), _padding_expr("RIGHT"), backend
+        ),
+        FK_STR.CENTER,
+    )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_omission_retains_native_default(backend):
+    if backend.startswith("narwhals"):
+        _assert_backend_refusal(
+            lambda: option_result(make_df(_PADDING_DATA, backend), _padding_expr(), backend),
+            FK_STR.CENTER,
+        )
+        return
+    expected = (
+        ["*hi**", "*abc*", None] if backend == "ibis"
+        else ["hi".center(5, "*"), "abc".center(5, "*"), None]
+    )
+    assert option_result(make_df(_PADDING_DATA, backend), _padding_expr(), backend) == expected
+
+
+def test_center_padding_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.center(5, "*", padding="BOTH")
+
+
+_PADDING_VALUES = ("RIGHT", "LEFT")
+
+
+def _padding_disposition(value: str, backend: str) -> str:
+    return "honored" if backend == "ibis" and value == "RIGHT" else "declared_unsupported"
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        backend,
+        value,
+        "str",
+        _padding_disposition(value, backend),
+        "Ibis honors RIGHT; other explicit padding modes are intrinsically refused",
+    )
+    for backend in ALL_BACKENDS
+    for value in _PADDING_VALUES
+)
+
+
+
+
+_PADDING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        _PADDING_FKEY,
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _padding_expr(INVALID_OPTION_VALUE),
+    )
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _PADDING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "center",
+        "padding",
+        param_taxonomy(_STRING_PROTOCOL, "center", "padding"),
+    )
+)
+
+
+_NEGATIVE_START_FKEY = FK_STR.SUBSTRING
+_NEGATIVE_START_DATA = {"t": ["hello"]}
+
+
+def _negative_start_expr(negative_start: str | None = None):
+    kwargs = {} if negative_start is None else {"negative_start": negative_start}
+    return ma.col("t").str.substring(2, 3, **kwargs)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_left_of_beginning_declared_unsupported(backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_NEGATIVE_START_DATA, backend),
+            _negative_start_expr("LEFT_OF_BEGINNING"),
+            backend,
+        )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_error_declared_unsupported(backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_NEGATIVE_START_DATA, backend),
+            _negative_start_expr("ERROR"),
+            backend,
+        )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_substring_negative_start_wrap_from_end_equivalent_to_omission(backend):
+    df = make_df(_NEGATIVE_START_DATA, backend)
+    assert option_result(df, _negative_start_expr("WRAP_FROM_END"), backend) == option_result(
+        df, _negative_start_expr(), backend
+    )
+
+
+def test_substring_negative_start_rejects_invalid_value():
+    with pytest.raises(InvalidOptionValueError):
+        ma.col("t").str.substring(2, 3, negative_start="ALLOW")
+
+
+_NEGATIVE_START_VALUES = ("WRAP_FROM_END", "LEFT_OF_BEGINNING", "ERROR")
+
+
+def _negative_start_disposition(value: str, backend: str) -> str:
+    return "probe_exempt" if value == "WRAP_FROM_END" else "declared_unsupported"
+
+
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        backend,
+        value,
+        "str",
+        _negative_start_disposition(value, backend),
+        (
+            "builder-default WRAP_FROM_END is indistinguishable from omission"
+            if value == "WRAP_FROM_END"
+            else "native backend does not implement non-default negative_start semantics"
+        ),
+    )
+    for backend in ALL_BACKENDS
+    for value in _NEGATIVE_START_VALUES
+)
+
+
+
+_INVALID_NEGATIVE_START_REJECTIONS = [
+    InvalidOptionRejection(
+        _NEGATIVE_START_FKEY,
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _negative_start_expr(INVALID_OPTION_VALUE),
+    )
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_NEGATIVE_START_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "substring",
+        "negative_start",
+        param_taxonomy(_STRING_PROTOCOL, "substring", "negative_start"),
+    )
+)
+
+
+_REGEXP_FLAG_FKEYS = {
+    "case_sensitivity": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "multiline": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+    "dotall": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+        "regexp_string_split": FK_STR.REGEXP_SPLIT,
+    },
+}
+_REGEXP_FLAG_VALUES = {
+    "case_sensitivity": ("CASE_SENSITIVE", "CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII"),
+    "multiline": ("MULTILINE_DISABLED", "MULTILINE_ENABLED"),
+    "dotall": ("DOTALL_DISABLED", "DOTALL_ENABLED"),
+}
+_REGEXP_FLAG_DEFAULTS = {
+    "case_sensitivity": "CASE_SENSITIVE",
+    "multiline": "MULTILINE_DISABLED",
+    "dotall": "DOTALL_DISABLED",
+}
+_REGEXP_FLAG_DATA = {
+    "case_sensitivity": ({"text": ["Hello"]}, "hello"),
+    "multiline": ({"text": ["a\nb"]}, "^b"),
+    "dotall": ({"text": ["a\nb"]}, "a.b"),
+}
+def _regexp_operation_unsupported(op: str, backend: str) -> bool:
+    """Public regexp operations that lack a native implementation."""
+    return (
+        backend == "ibis"
+        and op
+        in {
+            "regexp_match_substring_all",
+            "regexp_strpos",
+            "regexp_count_substring",
+        }
+        or backend in {"narwhals-polars", "narwhals-pandas"}
+        and op
+        in {
+            "regexp_match_substring",
+            "regexp_match_substring_all",
+            "regexp_strpos",
+            "regexp_count_substring",
+            "regexp_string_split",
+        }
+    )
+
+
+def _regexp_flag_disposition(op: str, param: str, value: str, backend: str) -> str:
+    if _regexp_operation_unsupported(op, backend):
+        return "declared_unsupported"
+    return (
+        "probe_exempt"
+        if value == _REGEXP_FLAG_DEFAULTS[param]
+        else "declared_unsupported"
+    )
+
+
+def _regexp_flag_expr(op: str, param: str, value: str | None = None):
+    """Build a regexp flag expression, omitting the flag when value is None."""
+    kwargs = {}
+    if value is not None:
+        kwargs = {
+            {
+                "case_sensitivity": "case_sensitive",
+                "multiline": "multiline",
+                "dotall": "dotall",
+            }[param]: (
+                # Pass the literal enum string directly for case_sensitivity
+                # rather than routing through a True/False boolean shortcut --
+                # CASE_INSENSITIVE and CASE_INSENSITIVE_ASCII are two distinct
+                # non-default values a boolean can't represent (round-1 review
+                # finding; backlog item 75). _regexp_flag_options's
+                # isinstance(str) passthrough already supports this.
+                # multiline/dotall have only 2 legal values, so the existing
+                # boolean shape is unambiguous and stays as-is.
+                value
+                if param == "case_sensitivity"
+                else value == _REGEXP_FLAG_VALUES[param][1]
+            )
+        }
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+def _assert_backend_refusal(call, function_key) -> None:
+    with pytest.raises(BackendCapabilityError) as raised:
+        call()
+    assert raised.value.function_key == function_key
+
+
+@pytest.mark.parametrize(
+    "param,op",
+    [
+        (param, op)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_default_regexp_flag_matches_omission(param, op, backend):
+    data, _ = _REGEXP_FLAG_DATA[param]
+    explicit = _regexp_flag_expr(op, param, _REGEXP_FLAG_DEFAULTS[param])
+    if _regexp_operation_unsupported(op, backend):
+        _assert_backend_refusal(
+            lambda: option_result(make_df(data, backend), explicit, backend),
+            _REGEXP_FLAG_FKEYS[param][op],
+        )
+    else:
+        df = make_df(data, backend)
+        assert option_result(df, explicit, backend) == option_result(
+            df, _regexp_flag_expr(op, param), backend
+        )
+
+
+@pytest.mark.parametrize(
+    "param,op,enabled",
+    [
+        (param, op, value)
+        for param, operations in _REGEXP_FLAG_FKEYS.items()
+        for op in operations
+        for value in _REGEXP_FLAG_VALUES[param][1:]
+    ],
+)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_enabled_regexp_flag_is_rejected(param, op, enabled, backend):
+    data, _ = _REGEXP_FLAG_DATA[param]
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(data, backend), _regexp_flag_expr(op, param, enabled), backend
+        ),
+        _REGEXP_FLAG_FKEYS[param][op],
+    )
+
+
+def _regexp_flag_invalid_expr(op: str, param: str):
+    keyword = {
+        "case_sensitivity": "case_sensitive",
+        "multiline": "multiline",
+        "dotall": "dotall",
+    }[param]
+    _, pattern = _REGEXP_FLAG_DATA[param]
+    string = ma.col("text").str
+    kwargs = {keyword: INVALID_OPTION_VALUE}
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    if op == "regexp_string_split":
+        return string.regexp_string_split(pattern, **kwargs)
+    raise AssertionError(f"no regexp flag expression for {op}")
+
+
+_INVALID_REGEXP_FLAG_REJECTIONS = [
+    InvalidOptionRejection(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _regexp_flag_invalid_expr(op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_REGEXP_FLAG_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_REGEXP_FLAG_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_regexp_flag_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    with pytest.raises(InvalidOptionValueError):
+        rejection.build_expr()
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        fkey,
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        value,
+        "str",
+        _regexp_flag_disposition(op, param, value, backend),
+        (
+            "operation has no native backend implementation"
+            if _regexp_operation_unsupported(op, backend)
+            else f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is "
+            "indistinguishable from omission"
+            if value == _REGEXP_FLAG_DEFAULTS[param]
+            else f"ordinary backend implementation rejects {value}"
+        ),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op, fkey in operations.items()
+    for backend in ALL_BACKENDS
+    for value in _REGEXP_FLAG_VALUES[param]
+)
+
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _REGEXP_FLAG_FKEYS.items()
+    for op in operations
+)
+
+
+# ============================================================================
+# Regexp positional int options (position / occurrence / group)
+# ----------------------------------------------------------------------------
+# arguments-vs-options.md unified these universally-literal knobs onto the
+# option channel (see the channel-unification bugfix). They carry open integer
+# values rather than an enum domain, so the disposition matrix gates a single
+# representative value ("2"), mirroring how enum options enumerate their finite
+# domain (see OPTION_VALUE_DOMAINS in option_disposition.py). Empirically only
+# regexp_match_substring.group (polars + ibis) and regexp_replace.occurrence
+# (polars) are honored; every other (op, param, backend) is silently ignored or
+# rides an operation that is itself unavailable, so it is declared_unsupported.
+# ============================================================================
+_POSITIONAL_FKEYS = {
+    "position": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_count_substring": FK_STR.REGEXP_COUNT,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "occurrence": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_strpos": FK_STR.REGEXP_STRPOS,
+        "regexp_replace": FK_STR.REGEXP_REPLACE,
+    },
+    "group": {
+        "regexp_match_substring": FK_STR.REGEXP_MATCH,
+        "regexp_match_substring_all": FK_STR.REGEXP_MATCH_ALL,
+    },
+}
+_POSITIONAL_VALUE = "2"
+# Data + pattern chosen so the honored (op, param) cells actually discriminate:
+# group needs capture groups; occurrence needs a repeated match.
+_POSITIONAL_DATA = {
+    "position": ({"text": ["abcABCabc"]}, "abc"),
+    "occurrence": ({"text": ["abcABCabc"]}, "abc"),
+    "group": ({"text": ["abcABCabc"]}, "(a)(b)(c)"),
+}
+# (op, param, fixture) triples honored on the native path (probe-determined).
+_POSITIONAL_HONORED = {
+    ("regexp_match_substring", "group", "polars"),
+    ("regexp_match_substring", "group", "ibis"),
+}
+_POSITIONAL_CASES = [
+    (param, op)
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+
+
+def _positional_expr(op: str, param: str, value: str | None):
+    """Build a regexp positional-option expression, omitting when value is None.
+
+    The cell/fact value is the string ``"2"``; the builder consumes a literal
+    int, so a legal value is coerced with ``int`` while the INVALID sentinel is
+    passed through verbatim to exercise ``_require_int_option``'s rejection.
+    """
+    if value is None:
+        kwargs = {}
+    elif value == INVALID_OPTION_VALUE:
+        kwargs = {param: value}
+    else:
+        kwargs = {param: int(value)}
+    _, pattern = _POSITIONAL_DATA[param]
+    string = ma.col("text").str
+    if op == "regexp_match_substring":
+        return string.regexp_match_substring(pattern, **kwargs)
+    if op == "regexp_match_substring_all":
+        return string.regexp_match_substring_all(pattern, **kwargs)
+    if op == "regexp_strpos":
+        return string.regexp_strpos(pattern, **kwargs)
+    if op == "regexp_count_substring":
+        return string.regexp_count_substring(pattern, **kwargs)
+    if op == "regexp_replace":
+        return string.regexp_replace(pattern, "X", **kwargs)
+    raise AssertionError(f"no regexp positional expression for {op}")
+
+
+def _positional_disposition(op: str, param: str, backend: str) -> str:
+    if (op, param, backend) in _POSITIONAL_HONORED:
+        return "honored"
+    return "declared_unsupported"
+
+
+
+
+def _positional_probe(op: str, param: str, value: str) -> OptionSpec:
+    data, _ = _POSITIONAL_DATA[param]
+    return OptionSpec(
+        _POSITIONAL_FKEYS[param][op],
+        param,
+        value,
+        "str",
+        lambda: _positional_expr(op, param, value),
+        lambda: _positional_expr(op, param, None),
+        data,
+        expected_discriminates=True,
+    )
+
+
+@pytest.mark.parametrize("param,op", _POSITIONAL_CASES)
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_positional_option_disposition(param, op, backend):
+    spec = _positional_probe(op, param, _POSITIONAL_VALUE)
+    df = make_df(spec.data, backend)
+    if _positional_disposition(op, param, backend) == "honored":
+        assert option_result(df, spec.build_expr(), backend) == ["b"]
+    else:
+        with pytest.raises(BackendCapabilityError):
+            option_result(df, spec.build_expr(), backend)
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        backend,
+        _POSITIONAL_VALUE,
+        "str",
+        _positional_disposition(op, param, backend),
+        (
+            "native backend honors the regexp positional option"
+            if _positional_disposition(op, param, backend) == "honored"
+            else "operation is unsupported on this backend; the option cannot "
+            "be honored"
+            if _regexp_operation_unsupported(op, backend)
+            else "the backend implementation rejects this positional option"
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+    for backend in ALL_BACKENDS
+)
+
+
+
+_INVALID_POSITIONAL_REJECTIONS = [
+    InvalidOptionRejection(
+        _POSITIONAL_FKEYS[param][op],
+        _STRING_PROTOCOL,
+        op,
+        param,
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda op=op, param=param: _positional_expr(
+            op, param, INVALID_OPTION_VALUE
+        ),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _INVALID_POSITIONAL_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize(
+    "rejection",
+    _INVALID_POSITIONAL_REJECTIONS,
+    ids=lambda rejection: f"{rejection.op}-{rejection.param}-{rejection.dtype}",
+)
+def test_positional_invalid_option_rejected_at_build_time(
+    rejection: InvalidOptionRejection,
+) -> None:
+    # position/occurrence/group route through _require_int_option, which raises
+    # TypeError for a non-int literal (the enum flags use validate_option and
+    # raise InvalidOptionValueError instead).
+    with pytest.raises(TypeError):
+        rejection.build_expr()
+
+
+TESTED_OPTION_PARAMS.extend(
+    (
+        _STRING_PROTOCOL,
+        op,
+        param,
+        param_taxonomy(_STRING_PROTOCOL, op, param),
+    )
+    for param, operations in _POSITIONAL_FKEYS.items()
+    for op in operations
+)
+
+_CONCAT_NULL_HANDLING_DATA = {"a": ["x", None], "b": ["1", "2"]}
+
+
+def _concat_null_handling_expr(value: str | None = None):
+    kwargs = {} if value is None else {"null_handling": value}
+    return ma.col("a").str.concat(ma.col("b"), **kwargs)
+
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        FK_STR.CONCAT,
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        backend,
+        value,
+        "str",
+        "honored",
+        "concat's null_handling is honored identically on every backend — "
+        "the portable fold (IGNORE_NULLS) / native + chain (ACCEPT_NULLS) "
+        "never routes through a backend-divergent native primitive",
+    )
+    for backend in ALL_BACKENDS
+    for value in ("IGNORE_NULLS", "ACCEPT_NULLS")
+)
+
+
+TESTED_OPTION_PARAMS.append(
+    (
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        param_taxonomy(_STRING_PROTOCOL, "concat", "null_handling"),
+    )
+)
+
+_CONCAT_NULL_HANDLING_INVALID_REJECTIONS = [
+    InvalidOptionRejection(
+        FK_STR.CONCAT,
+        _STRING_PROTOCOL,
+        "concat",
+        "null_handling",
+        INVALID_OPTION_VALUE,
+        "str",
+        lambda: _concat_null_handling_expr(INVALID_OPTION_VALUE),
+    )
+]
+
+OPTION_DISPOSITIONS.extend(
+    OptionCell(
+        rejection.fkey,
+        rejection.protocol,
+        rejection.op,
+        rejection.param,
+        backend,
+        rejection.value,
+        rejection.dtype,
+        "invalid",
+        "canonical build-time rejection sentinel; invalid strings are unbounded",
+    )
+    for rejection in _CONCAT_NULL_HANDLING_INVALID_REJECTIONS
+    for backend in ALL_BACKENDS
+)
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_concat_null_handling_ignore_nulls_is_default(backend, request):
+    df = make_df(_CONCAT_NULL_HANDLING_DATA, backend)
+    explicit = option_result(df, _concat_null_handling_expr("IGNORE_NULLS"), backend)
+    omitted = option_result(df, _concat_null_handling_expr(), backend)
+    assert explicit == omitted == ["x1", "2"], (
+        f"[{backend}] explicit={explicit} omitted={omitted}"
+    )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_concat_null_handling_accept_nulls_propagates(backend, request):
+    df = make_df(_CONCAT_NULL_HANDLING_DATA, backend)
+    got = option_result(df, _concat_null_handling_expr("ACCEPT_NULLS"), backend)
+    assert got == ["x1", None], f"[{backend}] got {got}"
+
+
+
+# Full set of (function_key_or_op_name, param_name) pairs covered by this category.
+# String fallbacks are used for ops that lack a matching FKEY enum member yet.
+TESTED_PARAMS: list[tuple] = [
+    # Substrait string ops — all have OP_SPECS in this file
+    (FK_STR.CENTER, "character"),
+    (FK_STR.CENTER, "length"),
+    (FK_STR.CONCAT_WS, "separator"),
+    (FK_STR.CONTAINS, "substring"),
+    # Mountainash string extensions — 8 ops (json_decode has no OP_SPEC; others have one)
+    (FK_MA_STR.REGEX_CONTAINS, "pattern"),
+    (FK_MA_STR.STRIP_SUFFIX, "x"),
+    ("to_integer", "x"),
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
+    (FK_STR.COUNT_SUBSTRING, "substring"),
+    (FK_STR.ENDS_WITH, "substring"),
+    (FK_STR.LEFT, "count"),
+    (FK_STR.LIKE, "match"),
+    (FK_STR.LPAD, "characters"),
+    (FK_STR.LPAD, "length"),
+    (FK_STR.LTRIM, "characters"),
+    (FK_STR.REGEXP_REPLACE, "pattern"),
+    (FK_STR.REGEXP_REPLACE, "replacement"),
+    (FK_STR.REPEAT, "count"),
+    (FK_STR.REPLACE, "replacement"),
+    (FK_STR.REPLACE, "substring"),
+    (FK_STR.REPLACE_SLICE, "length"),
+    (FK_STR.REPLACE_SLICE, "replacement"),
+    (FK_STR.REPLACE_SLICE, "start"),
+    (FK_STR.RIGHT, "count"),
+    (FK_STR.RPAD, "characters"),
+    (FK_STR.RPAD, "length"),
+    (FK_STR.RTRIM, "characters"),
+    (FK_STR.STARTS_WITH, "substring"),
+    (FK_STR.STRPOS, "substring"),
+    (FK_STR.SUBSTRING, "length"),
+    (FK_STR.SUBSTRING, "start"),
+    (FK_STR.TRIM, "characters"),
+    # Newly-wired regex + split ops — OP_SPECS exist for all pattern params.
+    # Note: FKEY enum name != protocol method name for these ops, so string keys are used.
+    ("regexp_match_substring_all", "pattern"),
+    ("regexp_count_substring", "pattern"),
+    ("regexp_match_substring", "pattern"),
+    ("regexp_strpos", "pattern"),
+    ("regexp_string_split", "pattern"),
+    ("string_split", "separator"),
+    (FK_STR.CONCAT_WS, "string_arguments"),
+]
+
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key=FK_STR.CONTAINS,
+        op_name="contains",
+        build=lambda col, arg: col.str.contains(arg),
+        raw_arg="world",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "world cup"],
+            "pattern": ["world", "baz", "cup"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.STARTS_WITH,
+        op_name="starts_with",
+        build=lambda col, arg: col.str.starts_with(arg),
+        raw_arg="hel",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "foo", "help"],
+            "pattern": ["hel", "baz", "hel"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.ENDS_WITH,
+        op_name="ends_with",
+        build=lambda col, arg: col.str.ends_with(arg),
+        raw_arg="world",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "my world"],
+            "pattern": ["world", "baz", "world"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE,
+        op_name="replace",
+        build=lambda col, arg: col.str.replace(arg, "X"),
+        raw_arg="o",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "foo", "world"],
+            "pattern": ["o", "o", "o"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LPAD,
+        op_name="lpad",
+        build=lambda col, arg: col.str.lpad(arg, "*"),
+        raw_arg=5,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [5, 5, 5],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RPAD,
+        op_name="rpad",
+        build=lambda col, arg: col.str.rpad(arg, "*"),
+        raw_arg=5,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [5, 5, 5],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SUBSTRING,
+        op_name="substring_start",
+        build=lambda col, arg: col.str.substring(arg),
+        raw_arg=1,
+        arg_col_name="start",
+        param_name="start",
+        data={
+            "text": ["hello", "world", "test"],
+            "start": [1, 2, 0],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SUBSTRING,
+        op_name="substring_length",
+        build=lambda col, arg: col.str.substring(0, arg),
+        raw_arg=3,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["hello", "world", "test"],
+            "length": [3, 4, 2],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LEFT,
+        op_name="left",
+        build=lambda col, arg: col.str.left(arg),
+        raw_arg=3,
+        arg_col_name="count",
+        param_name="count",
+        data={
+            "text": ["hello", "world", "test"],
+            "count": [3, 2, 4],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RIGHT,
+        op_name="right",
+        build=lambda col, arg: col.str.right(arg),
+        raw_arg=3,
+        arg_col_name="count",
+        param_name="count",
+        data={
+            "text": ["hello", "world", "test"],
+            "count": [3, 2, 4],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.TRIM,
+        op_name="trim",
+        build=lambda col, arg: col.str.trim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["xhellox", "xworldx", "xtestx"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LTRIM,
+        op_name="ltrim",
+        build=lambda col, arg: col.str.ltrim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["xhello", "xworld", "xtest"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RTRIM,
+        op_name="rtrim",
+        build=lambda col, arg: col.str.rtrim(arg),
+        raw_arg="x",
+        arg_col_name="chars",
+        param_name="characters",
+        data={
+            "text": ["hellox", "worldx", "testx"],
+            "chars": ["x", "x", "x"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LIKE,
+        op_name="like",
+        build=lambda col, arg: col.str.like(arg),
+        raw_arg="%ello%",
+        arg_col_name="pattern",
+        param_name="match",
+        data={
+            "text": ["hello", "world", "jello"],
+            "pattern": ["%ello%", "%orl%", "%ell%"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE,
+        op_name="replace_replacement",
+        build=lambda col, arg: col.str.replace("o", arg),
+        raw_arg="X",
+        arg_col_name="replacement",
+        param_name="replacement",
+        data={
+            "text": ["hello", "foo", "world"],
+            "replacement": ["X", "Y", "Z"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_pattern",
+        build=lambda col, arg: col.str.regexp_replace(arg, "X"),
+        raw_arg="o+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "pattern": ["o+", "o+", "o+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_REPLACE,
+        op_name="regexp_replace_replacement",
+        build=lambda col, arg: col.str.regexp_replace("o+", arg),
+        raw_arg="X",
+        arg_col_name="replacement",
+        param_name="replacement",
+        data={
+            "text": ["hello", "foooo", "world"],
+            "replacement": ["X", "Y", "Z"],
+        },
+    ),
+    # -- secondary args added in Part 2 --
+    OpSpec(
+        function_key=FK_STR.COUNT_SUBSTRING,
+        op_name="count_substring",
+        build=lambda col, arg: col.str.count_substring(arg),
+        raw_arg="o",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello world", "foo bar", "boo"],
+            "pattern": ["o", "o", "o"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.STRPOS,
+        op_name="strpos",
+        build=lambda col, arg: col.str.strpos(arg),
+        raw_arg="lo",
+        arg_col_name="pattern",
+        param_name="substring",
+        data={
+            "text": ["hello", "world", "helo"],
+            "pattern": ["lo", "lo", "lo"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPEAT,
+        op_name="repeat",
+        build=lambda col, arg: col.str.repeat(arg),
+        raw_arg=3,
+        arg_col_name="count_col",
+        param_name="count",
+        data={
+            "text": ["a", "b", "c"],
+            "count_col": [3, 3, 3],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CENTER,
+        op_name="center_length",
+        build=lambda col, arg: col.str.center(arg, "*"),
+        raw_arg=10,
+        arg_col_name="length",
+        param_name="length",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "length": [10, 10, 10],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CENTER,
+        op_name="center_character",
+        build=lambda col, arg: col.str.center(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="character",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.LPAD,
+        op_name="lpad_characters",
+        build=lambda col, arg: col.str.lpad(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="characters",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.RPAD,
+        op_name="rpad_characters",
+        build=lambda col, arg: col.str.rpad(10, arg),
+        raw_arg="*",
+        arg_col_name="fill",
+        param_name="characters",
+        data={
+            "text": ["a", "bb", "ccc"],
+            "fill": ["*", "*", "*"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_start",
+        build=lambda col, arg: col.str.replace_slice(arg, 2, "XX"),
+        raw_arg=0,
+        arg_col_name="start_col",
+        param_name="start",
+        data={
+            "text": ["hello", "world", "test"],
+            "start_col": [0, 0, 0],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_length",
+        build=lambda col, arg: col.str.replace_slice(0, arg, "XX"),
+        raw_arg=2,
+        arg_col_name="length_col",
+        param_name="length",
+        data={
+            "text": ["hello", "world", "test"],
+            "length_col": [2, 2, 2],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REPLACE_SLICE,
+        op_name="replace_slice_replacement",
+        build=lambda col, arg: col.str.replace_slice(0, 2, arg),
+        raw_arg="XX",
+        arg_col_name="repl",
+        param_name="replacement",
+        data={
+            "text": ["hello", "world", "test"],
+            "repl": ["XX", "YY", "ZZ"],
+        },
+    ),
+    # -- Mountainash string extensions --
+    OpSpec(
+        function_key=FK_MA_STR.REGEX_CONTAINS,
+        op_name="regex_contains",
+        build=lambda col, arg: col.str.regex_contains(arg),
+        raw_arg="^AU$",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={"text": ["AU", "NZ", "AU"], "pattern": ["^AU$", "^AU$", "au"]},
+        complex_builder=lambda name: ma.col(name).str.upper(),
+        expected_by_input={
+            "raw": [True, False, True],
+            "lit": [True, False, True],
+            "col": [True, False, False],
+            "complex": [True, False, True],
+        },
+    ),
+    OpSpec(
+        function_key=FK_MA_STR.STRIP_SUFFIX,
+        op_name="strip_suffix",
+        build=lambda col, _arg: col.str.strip_suffix("_old"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["hello_old", "world_old", "test"]},
+    ),
+    OpSpec(
+        function_key="to_integer",
+        op_name="to_integer",
+        build=lambda col, _arg: col.str.to_integer(),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["123", "456", "789"]},
+    ),
+    OpSpec(
+        function_key="to_time",
+        op_name="to_time",
+        build=lambda col, _arg: col.str.to_time("%H:%M"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["12:30", "08:00", "23:59"]},
+    ),
+    OpSpec(
+        function_key="encode",
+        op_name="encode",
+        build=lambda col, _arg: col.str.encode("hex"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["hello", "world", "test"]},
+    ),
+    OpSpec(
+        function_key="decode",
+        op_name="decode",
+        build=lambda col, _arg: col.str.decode("hex"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["68656c6c6f", "776f726c64", "74657374"]},
+    ),
+    OpSpec(
+        function_key="json_path_match",
+        op_name="json_path_match",
+        build=lambda col, _arg: col.str.json_path_match("$.x"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ['{"x":1}', '{"x":2}', '{"x":3}']},
+    ),
+    OpSpec(
+        function_key="extract_groups",
+        op_name="extract_groups",
+        build=lambda col, _arg: col.str.extract_groups(r"(\w+)@(\w+)"),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": ["user@host", "foo@bar", "a@b"]},
+    ),
+    OpSpec(
+        function_key=FK_STR.CONCAT_WS,
+        op_name="concat_ws_separator",
+        build=lambda col, arg: col.str.concat_ws(arg),
+        raw_arg=",",
+        arg_col_name="sep",
+        param_name="separator",
+        data={
+            "text": ["hello", "world", "test"],
+            "sep": [",", ",", ","],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.CONCAT_WS,
+        op_name="concat_ws_string_arguments",
+        build=lambda col, arg: col.str.concat_ws(",", arg),
+        raw_arg="c",
+        arg_col_name="extra",
+        param_name="string_arguments",
+        data={
+            "text": ["a", "b", "c"],
+            "extra": ["x", "y", "z"],
+        },
+    ),
+    # regexp_replace position/occurrence were argument-type OpSpecs here, but the
+    # channel-unification moved them to the option channel (Optional[int]) — no
+    # backend accepts an expression for them, and the arguments placement silently
+    # dropped literals. They are now tracked by the option-surface matrix
+    # (_KNOWN_UNTESTED_OPTION_PARAMS → dispositioned in the option task), not the
+    # argument-types matrix. See option_disposition.py O-migrate rows.
+    # -- Newly-wired regex + split ops --
+    OpSpec(
+        function_key=FK_STR.REGEXP_MATCH_ALL,
+        op_name="regexp_match_substring_all",
+        build=lambda col, arg: col.str.regexp_match_substring_all(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_COUNT,
+        op_name="regexp_count_substring",
+        build=lambda col, arg: col.str.regexp_count_substring(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_MATCH,
+        op_name="regexp_match_substring",
+        build=lambda col, arg: col.str.regexp_match_substring(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_STRPOS,
+        op_name="regexp_strpos",
+        build=lambda col, arg: col.str.regexp_strpos(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123", "world456", "test"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.REGEXP_SPLIT,
+        op_name="regexp_string_split",
+        build=lambda col, arg: col.str.regexp_string_split(arg),
+        raw_arg=r"\d+",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={
+            "text": ["hello123world", "foo456bar", "baz"],
+            "pattern": [r"\d+", r"\d+", r"\d+"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_STR.SPLIT,
+        op_name="string_split",
+        build=lambda col, arg: col.str.string_split(arg),
+        raw_arg=",",
+        arg_col_name="sep",
+        param_name="separator",
+        data={
+            "text": ["a,b,c", "d,e", "f"],
+            "sep": [",", ",", ","],
+        },
+    ),
+]
+
+
+# These concrete fixture cells are known native backend gaps.  They remain
+# strict expected failures until the upstream implementation changes.
+_NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
+    (FK_STR.REPEAT, "count"),
+    (FK_STR.CENTER, "length"),
+    (FK_STR.CENTER, "character"),
+    # string extension ops with no narwhals support
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
+}
+
+# Ops fully unsupported on ibis (raise BackendCapabilityError for all input types).
+_IBIS_FULLY_UNSUPPORTED: set[tuple] = {
+    # REGEXP_MATCH_ALL/REGEXP_COUNT/REGEXP_STRPOS removed 2026-08 — now fact-backed
+    # (see _NARWHALS_FULLY_UNSUPPORTED above for the mechanism).
+    ("to_time", "x"),
+    ("encode", "x"),
+    ("decode", "x"),
+    ("json_path_match", "x"),
+    ("extract_groups", "x"),
+}
+
+
+def _params():
+    cases = []
+    for op in OP_SPECS:
+        for bk in ALL_BACKENDS:
+            for it in INPUT_TYPES:
+                mark = None
+                if mark is None and bk in ("narwhals-polars", "narwhals-pandas"):
+                    if (op.function_key, op.param_name) in _NARWHALS_FULLY_UNSUPPORTED:
+                        mark = pytest.mark.xfail(
+                            strict=True,
+                            raises=BackendCapabilityError,
+                            reason="Narwhals backend does not support this operation at all",
+                        )
+                if mark is None and bk == "ibis":
+                    if (op.function_key, op.param_name) in _IBIS_FULLY_UNSUPPORTED:
+                        mark = pytest.mark.xfail(
+                            strict=True,
+                            raises=BackendCapabilityError,
+                            reason="Ibis backend does not support this operation at all",
+                        )
+                marks = [mark] if mark else []
+                cases.append(
+                    pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
+                )
+    return cases
+
+
+if OP_SPECS:
+
+    @pytest.mark.parametrize("op,backend,input_type", _params())
+    def test_argument_channel(op: OpSpec, backend: str, input_type: str):
+        if (
+            op.function_key == FK_MA_STR.REGEX_CONTAINS
+            and backend == "narwhals-pandas"
+            and input_type in {"col", "complex"}
+        ):
+            error_type = (
+                BackendCapabilityError
+                if version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+                else TypeError
+            )
+            with expect_call_failure(
+                errors=(error_type,),
+                reason="NW-STR-08: dynamic patterns are gated on the qualified pandas stack",
+            ):
+                run_argument_matrix(op, backend, input_type)
+            return
+
+        if backend == "narwhals-pandas" and op.op_name == "string_split" and input_type in ("raw", "lit"):
+            with expect_call_failure(
+                reason="Narwhals pandas string_split requires pyarrow-backed storage",
+                errors=(TypeError,),
+            ):
+                run_argument_matrix(op, backend, input_type)
+            return
+
+        if (
+            backend == "ibis"
+            and op.op_name
+            in {
+                "regexp_match_substring_all",
+                "regexp_count_substring",
+                "regexp_strpos",
+            }
+            or backend in {"narwhals-polars", "narwhals-pandas"}
+            and op.op_name
+            in {
+                "strpos",
+                "regexp_match_substring",
+                "regexp_match_substring_all",
+                "regexp_count_substring",
+                "regexp_strpos",
+                "regexp_string_split",
+            }
+        ):
+            _assert_backend_refusal(
+                lambda: run_argument_matrix(op, backend, input_type), op.function_key
+            )
+            return
+
+        if input_type in {"col", "complex"} and (
+            backend == "polars"
+            and op.op_name
+            in {
+                "replace",
+                "like",
+                "regexp_replace_pattern",
+                "repeat",
+                "center_length",
+                "center_character",
+                "lpad_characters",
+                "rpad_characters",
+                "replace_slice_start",
+                "replace_slice_length",
+                "replace_slice_replacement",
+                "regexp_string_split",
+            }
+            or backend == "ibis"
+            and op.op_name
+            in {
+                "trim",
+                "ltrim",
+                "rtrim",
+                "center_length",
+                "center_character",
+                "replace_slice_start",
+                "replace_slice_length",
+                "replace_slice_replacement",
+            }
+            or backend == "narwhals-polars"
+            and op.op_name
+            in {
+                "replace",
+                "lpad",
+                "rpad",
+                "substring_start",
+                "substring_length",
+                "left",
+                "right",
+                "trim",
+                "ltrim",
+                "rtrim",
+                "like",
+                "regexp_replace_pattern",
+                "count_substring",
+                "lpad_characters",
+                "rpad_characters",
+                "string_split",
+            }
+            or backend == "narwhals-pandas"
+            and op.op_name
+            in {
+                "contains",
+                "starts_with",
+                "ends_with",
+                "replace",
+                "lpad",
+                "rpad",
+                "substring_start",
+                "substring_length",
+                "left",
+                "right",
+                "trim",
+                "ltrim",
+                "rtrim",
+                "like",
+                "replace_replacement",
+                "regexp_replace_pattern",
+                "regexp_replace_replacement",
+                "count_substring",
+                "lpad_characters",
+                "rpad_characters",
+                "string_split",
+            }
+        ):
+            _assert_backend_refusal(
+                lambda: run_argument_matrix(op, backend, input_type), op.function_key
+            )
+            return
+
+        run_argument_matrix(op, backend, input_type)

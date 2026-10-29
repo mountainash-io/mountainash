@@ -7,6 +7,9 @@ path = "src/mountainash/__version__.py"
 [build.targets.wheel]
 packages = ["src/mountainash"]
 
+[build.targets.sdist]
+include = ["/src", "/pyproject.toml", "/hatch.toml", "/requirements-hatch.txt", "/README.md", "/LICENSE", "/NOTICE"]
+
 
 #================
 # Env: dev
@@ -15,6 +18,7 @@ packages = ["src/mountainash"]
 [envs.dev]
 python = "3.12"
 installer = "uv"
+path = ".venv"
 dependencies = []
 
 #================
@@ -58,21 +62,47 @@ dependencies = [
     "pytest==8.3.5",
     "pytest-check==2.5.3",
     "pytest-cov==6.1.1",
+    "pytest-mock==3.12.0",
     # Optional backends required by cross-backend tests
-    "pandas>=2.2.0",
-    "ibis-framework[duckdb,sqlite]>=9.0.0",
-    "pyarrow>=15.0.0",
+    "pandas>=3.0.0",
+    "ibis-framework[duckdb,sqlite]>=12.0.0",
+    # Verified set. Capability declarations and expected failures are qualified
+    # to exact versions; Narwhals 2.28.0 needs re-qualification (backlog 392)
+    # and DuckDB 2.0 breaks Ibis 12 (backlog 363).
+    "duckdb>=1.5.6,<2.0",
+    "narwhals==2.27.1",
+    "dask[dataframe]",
+    "sqlframe[duckdb]>=4.5.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
+    "pyyaml>=6.0",
+    # CI sibling chain: the checkout-dependencies action clones these into
+    # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
+    # are the direct consumers; data supplies optional Ibis physical support.
+    # settings/auth-client are the shared
+    # runtime import chain. Mirrors [envs.test] but with temp/ (CI) vs ../ (local).
+    "mountainash_files @       {root:uri}/temp/mountainash-files",
+    "mountainash_transport[http] @   {root:uri}/temp/mountainash-transport",
+    "mountainash_settings @    {root:uri}/temp/mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
+    "mountainash_data @        {root:uri}/temp/mountainash-data",
 ]
 [envs.test_github.scripts]
 test = "pytest"
 test-cov = "pytest --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
+# Default CI script — runs only the compile smoke suite (~2k tests). The
+# full suite (~15k tests) blew out CI runtime once the cross-backend
+# matrix expanded to 8 backends; use test-cov-full for the comprehensive
+# run (gated via workflow_dispatch input in python-run-pytest.yml).
+test-cov-smoke = "pytest tests/core/test_compile_smoke.py --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
+test-cov-full = "pytest --cov --junitxml=junit.xml -o junit_family=legacy --cov-report=xml"
 
 
 #================
 # Env: test
 #================
 [[envs.test.matrix]]
-python = ["3.12"] #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+python = ["3.12"]
 
 [envs.test]
 type = "virtual"
@@ -91,11 +121,25 @@ dependencies = [
     "pytest-timeout>=2.1.0",
     "pytest-picked>=0.5.0",
     # All optional backends for testing
-    "pandas>=2.2.0",
-    "ibis-framework[duckdb,sqlite]>=9.0.0",
-    "pyarrow>=15.0.0",
-    "pydantic>=2.0.0",
+    "pandas>=3.0.0",
+    # Verified set; see [envs.test_github] (backlogs 392, 363).
+    "duckdb>=1.5.6,<2.0",
+    "narwhals==2.27.1",
+    "ibis-framework[duckdb,sqlite]>=12.0.0",
+    "dask[dataframe]",
+    "sqlframe[duckdb]>=4.5.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
     "xarray==2024.11.0",
+    "pyyaml>=6.0",
+    # Local sibling-package chain from ../. Explicit URLs select development
+    # checkouts; settings/auth-client are transport's declared runtime chain.
+    # Installed-candidate qualification uses exact wheels instead of these paths.
+    "mountainash_files @       {root:uri}/../mountainash-files",
+    "mountainash_transport[http] @   {root:uri}/../mountainash-transport",
+    "mountainash_settings @    {root:uri}/../mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+    "mountainash_data @        {root:uri}/../mountainash-data",
 ]
 [envs.test.scripts]
 # ===========================================
@@ -135,6 +179,12 @@ test-changed = [
     "coverage report --show-missing",
 ]
 
+# Run only tests affected by local changes vs develop (full backend scope).
+affected = "pytest $(python scripts/select_tests.py --base develop)"
+
+# Taxonomy + selector audits (the contract-tier guards, run directly).
+audit-taxonomy = "python scripts/audit_test_taxonomy.py --strict"
+
 # Only changed files (without coverage)
 test-changed-quick = "pytest --picked"
 
@@ -147,7 +197,6 @@ test-perf = "pytest --benchmark-only"
 test-perf-target = "pytest --benchmark-only {args}"
 
 # Specific test markers
-test-unit = "pytest -m unit"
 test-integration = "pytest -m integration"
 test-performance = "pytest -m performance"
 
@@ -170,7 +219,8 @@ test-ci = [
 #================
 [envs.ruff]
 installer = "uv"
-dependencies = ["ruff==0.3.7"]
+detached = true
+dependencies = ["ruff==0.16.8"]
 [envs.ruff.scripts]
 check = "ruff check ./src"
 fix = "ruff check ./src --fix"
@@ -181,6 +231,7 @@ fix = "ruff check ./src --fix"
 # Radon Complexity Checks
 [envs.radon]
 installer = "uv"
+detached = true
 dependencies = ["radon==6.0.1"]
 [envs.radon.scripts]
 radon-cc = "radon cc ./src -nd"
@@ -191,11 +242,58 @@ radon-mi-detail = "radon mi ./src"
 radon-cc-detail = "radon cc ./src"
 
 #================
+# Env: griffe
+#================
+[envs.griffe]
+installer = "uv"
+detached = true
+dependencies = ["griffe>=1.0.0"]
+[envs.griffe.scripts]
+check = "griffe check --search src mountainash {args}"
+
+#================
 # Env: mypy
 #================
 # Mypy Type checks
 [envs.mypy]
+python = "3.12"
 installer = "uv"
-dependencies = ["mypy==1.10.1"]
+dependencies = [
+    "mypy==1.10.1",
+    # Explicit stub package — mypy's own `--install-types` shells out to
+    # `<venv-python> -m pip install <pkg>`, but uv-provisioned venvs don't
+    # ship pip, so that call silently fails and every pandas import falls
+    # back to import-untyped. Declared here instead so uv installs it at
+    # env-sync time like every other dependency. See backlog item 76.
+    "pandas-stubs",
+    # Runtime import-resolution set — mirrors [envs.test] so mypy can
+    # resolve every third-party import actually used in src/
+    # (mypy needs the real package installed, not just a stub, for
+    # inline-typed / py.typed libraries). Kept independent of [envs.test]
+    # rather than templated from it: mypy doesn't need the pytest-plugin
+    # or coverage tooling test actually runs with.
+    "pandas>=3.0.0",
+    "ibis-framework[duckdb,sqlite]>=12.0.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4,<3",
+    "pyyaml>=6.0",
+    "pytest==8.3.5",
+    "mountainash_files @       {root:uri}/../mountainash-files",
+    "mountainash_transport[http] @   {root:uri}/../mountainash-transport",
+    "mountainash_settings @    {root:uri}/../mountainash-settings",
+    "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+]
 [envs.mypy.scripts]
-check = "mypy --install-types --non-interactive {args:src/mountainash tests}"
+check = "mypy {args:src}"
+
+[envs.default.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/.."
+
+[envs.test_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"
+
+[envs.build_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"

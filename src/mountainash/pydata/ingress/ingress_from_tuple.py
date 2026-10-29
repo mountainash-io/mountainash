@@ -6,10 +6,12 @@ import logging
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
 
+
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
+from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 
 logger = logging.getLogger(__name__)
@@ -43,8 +45,10 @@ class DataframeFromTuple(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
-                column_names: Optional[List[str]] = None) -> PolarsFrame:
+                table_schema: Optional['TableSchema'] = None,
+                column_names: Optional[List[str]] = None, *,
+                source_table_schema: Optional['TableSchema'] = None,
+                inline_conform: bool = True) -> PolarsFrame:
         """
         Convert plain tuple(s) to Polars DataFrame.
 
@@ -52,6 +56,8 @@ class DataframeFromTuple(BasePydataIngressHandler):
             data: Single tuple or sequence of tuples
             column_config: Optional column transformation configuration
             column_names: Optional list of column names. If not provided, auto-generates col_0, col_1, etc.
+            source_table_schema: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply table_schema after construction.
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -72,6 +78,8 @@ class DataframeFromTuple(BasePydataIngressHandler):
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_table_schema)
 
         # Handle single tuple - convert to list
         if isinstance(data, tuple) and not isinstance(data[0] if data else None, tuple):
@@ -124,11 +132,12 @@ class DataframeFromTuple(BasePydataIngressHandler):
             dict_data.append(dict(zip(column_names, item)))
 
         # Create DataFrame from list of dictionaries
-        df = pl.DataFrame(dict_data, strict=False)
+        df = pl.DataFrame(dict_data, strict=False, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None:
-            from mountainash.conform.compiler import compile_conform
-            df = compile_conform(type_spec, df)
+        if table_schema is not None and inline_conform:
+            from .custom_type_helpers import apply_hybrid_conversion_to_dataframe
+            df = apply_hybrid_conversion_to_dataframe(df, table_schema)
 
         return df
+declare_lowering(DataframeFromTuple.convert.__func__, REPEATABLE)

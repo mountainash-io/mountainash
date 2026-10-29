@@ -20,7 +20,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def add(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
+    def add(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, rounding: Optional[str] = None) -> ExpressionT:
         """Add two values.
 
         Substrait: add
@@ -28,7 +28,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def subtract(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
+    def subtract(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, rounding: Optional[str] = None) -> ExpressionT:
         """Subtract one value from another.
 
         Substrait: subtract
@@ -36,7 +36,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def multiply(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None) -> ExpressionT:
+    def multiply(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, rounding: Optional[str] = None) -> ExpressionT:
         """Multiply two values.
 
         Substrait: multiply
@@ -44,7 +44,7 @@ class SubstraitScalarArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def divide(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, on_domain_error: Optional[str] = None, on_division_by_zero: Optional[str] = None) -> ExpressionT:
+    def divide(self, x: ExpressionT, y: ExpressionT, /, overflow: Optional[str] = None, on_domain_error: Optional[str] = None, on_division_by_zero: Optional[str] = None, rounding: Optional[str] = None) -> ExpressionT:
         """Divide x by y. In the case of integer division, partial values are truncated (i.e. rounded towards 0). The `on_division_by_zero` option governs behavior in cases where y is 0.  If the option is IEEE then the IEEE754 standard is followed: all values except +/-infinity return NaN and +/-infinity are unchanged. If the option is LIMIT then the result is +/-infinity in all cases. If either x or y are NaN then behavior will be governed by `on_domain_error`. If x and y are both +/-infinity, behavior will be governed by `on_domain_error`.
 
 

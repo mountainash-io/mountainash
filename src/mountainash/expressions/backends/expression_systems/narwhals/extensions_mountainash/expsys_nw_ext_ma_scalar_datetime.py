@@ -5,57 +5,19 @@ Implements datetime operations for the Narwhals backend.
 
 from __future__ import annotations
 
+import datetime as dt
 from datetime import date, datetime
-from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarDatetimeExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME,
-)
 
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
-
-
-class DatetimeComponent(Enum):
-    """Datetime component types for extraction."""
-
-    YEAR = "YEAR"
-    ISO_YEAR = "ISO_YEAR"
-    US_YEAR = "US_YEAR"
-    QUARTER = "QUARTER"
-    MONTH = "MONTH"
-    DAY = "DAY"
-    DAY_OF_YEAR = "DAY_OF_YEAR"
-    MONDAY_DAY_OF_WEEK = "MONDAY_DAY_OF_WEEK"
-    SUNDAY_DAY_OF_WEEK = "SUNDAY_DAY_OF_WEEK"
-    MONDAY_WEEK = "MONDAY_WEEK"
-    SUNDAY_WEEK = "SUNDAY_WEEK"
-    ISO_WEEK = "ISO_WEEK"
-    US_WEEK = "US_WEEK"
-    HOUR = "HOUR"
-    MINUTE = "MINUTE"
-    SECOND = "SECOND"
-    MILLISECOND = "MILLISECOND"
-    MICROSECOND = "MICROSECOND"
-    NANOSECOND = "NANOSECOND"
-    PICOSECOND = "PICOSECOND"
-    SUBSECOND = "SUBSECOND"
-    UNIX_TIME = "UNIX_TIME"
-    TIMEZONE_OFFSET = "TIMEZONE_OFFSET"
-
-
-class BooleanComponent(Enum):
-    """Boolean component types for extraction."""
-
-    IS_LEAP_YEAR = "IS_LEAP_YEAR"
-    IS_DST = "IS_DST"
 
 
 class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarDatetimeExpressionSystemProtocol[nw.Expr]):
@@ -70,76 +32,38 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     Note: Narwhals has a more limited datetime API than Polars. Some methods
     use workarounds or simplified implementations.
     """
+    def _prepare_date_offset(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(
+                1, "Narwhals datetime offsets require a literal interval amount"
+            ),
+        ]
 
-    # =========================================================================
-    # Core Extraction Methods
-    # =========================================================================
+    def _prepare_call_add_years(self, operands):
+        return self._prepare_date_offset(operands)
 
-    def extract(
-        self,
-        x: NarwhalsExpr,
-        component: NarwhalsExpr,
-        timezone: Optional[NarwhalsExpr] = None,
-        /,
-    ) -> NarwhalsExpr:
-        """Extract portion of a date/time value.
+    def _prepare_call_add_months(self, operands):
+        return self._prepare_date_offset(operands)
 
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
+    def _prepare_call_add_days(self, operands):
+        return self._prepare_date_offset(operands)
 
-        Returns:
-            Extracted component as integer.
-        """
-        comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
+    def _prepare_call_add_hours(self, operands):
+        return self._prepare_date_offset(operands)
 
-        component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "QUARTER": lambda e: e.dt.month() // nw.lit(4) + nw.lit(1),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-        }
+    def _prepare_call_add_minutes(self, operands):
+        return self._prepare_date_offset(operands)
 
-        if comp in component_map:
-            return component_map[comp](x)
+    def _prepare_call_add_seconds(self, operands):
+        return self._prepare_date_offset(operands)
 
-        return x.dt.year()
+    def _prepare_call_add_milliseconds(self, operands):
+        return self._prepare_date_offset(operands)
 
-    def extract_boolean(
-        self,
-        x: NarwhalsExpr,
-        /,
-        component: NarwhalsExpr,
-    ) -> NarwhalsExpr:
-        """Extract boolean values of a date/time value.
+    def _prepare_call_add_microseconds(self, operands):
+        return self._prepare_date_offset(operands)
 
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
-        comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
-
-        if comp == "IS_LEAP_YEAR":
-            year = x.dt.year()
-            return ((year % nw.lit(4) == nw.lit(0)) & (year % nw.lit(100) != nw.lit(0))) | (year % nw.lit(400) == nw.lit(0))
-
-        if comp == "IS_DST":
-            return nw.lit(False)
-
-        return nw.lit(False)
 
     # =========================================================================
     # Convenience Extraction Methods
@@ -196,7 +120,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
     def week_of_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO week of year (1-53)."""
-        return x.dt.week()
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+        raise BackendCapabilityError(
+            "Narwhals does not support ISO week extraction",
+            backend="narwhals",
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
+        )
 
     def iso_year(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
         """Extract ISO 8601 week-numbering year."""
@@ -224,14 +154,43 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> NarwhalsExpr:
-        """Check if DST is observed at this time.
+        """Return True if DST is observed for x in the given timezone.
 
-        Note: Narwhals doesn't have direct DST detection.
-        Returns False as a placeholder.
+        Narwhals has no direct DST/offset primitive. Hand-rolled via two
+        reference-offset comparisons: compute the zone's UTC offset at `x`,
+        and compare against the smaller (standard-time) of two fixed
+        reference-instant offsets six months apart. DST always moves the
+        offset in the direction that makes local time further from UTC, so
+        `current_offset > standard_offset` <=> DST is in effect. Zones with
+        no DST have equal reference offsets, so this is always False.
+
+        Verified against `zoneinfo` for UTC, America/New_York,
+        America/Los_Angeles, Europe/Paris, Australia/Sydney,
+        Pacific/Auckland, Asia/Kolkata (both hemispheres).
+
+        Warning: `utc_naive` must always be derived directly from `x`
+        (never by converting back from `local_naive`), and every reference
+        offset must be derived directly from a fresh UTC-anchored literal --
+        narwhals 2.24.0 + pandas 3.0.5 raises AttributeError when a second
+        `convert_time_zone` call chains directly onto an expression whose
+        first hop already targeted America/New_York or America/Los_Angeles.
         """
-        return nw.lit(False)
+        utc_naive = x.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
+        local_naive = x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+        current_offset = local_naive - utc_naive
+
+        def _offset_at(utc_dt: datetime) -> NarwhalsExpr:
+            ref_utc = nw.lit(utc_dt)
+            ref_utc_naive = ref_utc.dt.replace_time_zone(None)
+            ref_local_naive = ref_utc.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
+            return ref_local_naive - ref_utc_naive
+
+        ref1 = _offset_at(datetime(2020, 1, 1, 12, 0, tzinfo=dt.timezone.utc))
+        ref2 = _offset_at(datetime(2020, 7, 1, 12, 0, tzinfo=dt.timezone.utc))
+        standard_offset = nw.when(ref1 < ref2).then(ref1).otherwise(ref2)
+        return current_offset > standard_offset
 
     # =========================================================================
     # Date Arithmetic Methods
@@ -240,7 +199,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def add_years(
         self,
         x: NarwhalsExpr,
-        years: NarwhalsExpr,
+        years: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add years to a datetime.
@@ -252,17 +211,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with years added.
         """
-        years_val = self._extract_literal_if_possible(years)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(years_val)}y"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
-            years=years,
-        )
+        return x.dt.offset_by(f"{int(years)}y")
 
     def add_months(
         self,
         x: NarwhalsExpr,
-        months: NarwhalsExpr,
+        months: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add months to a datetime.
@@ -274,17 +228,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with months added.
         """
-        months_val = self._extract_literal_if_possible(months)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(months_val)}mo"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
-            months=months,
-        )
+        return x.dt.offset_by(f"{int(months)}mo")
 
     def add_days(
         self,
         x: NarwhalsExpr,
-        days: NarwhalsExpr,
+        days: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add days to a datetime.
@@ -296,17 +245,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with days added.
         """
-        days_val = self._extract_literal_if_possible(days)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(days_val)}d"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
-            days=days,
-        )
+        return x.dt.offset_by(f"{int(days)}d")
 
     def add_hours(
         self,
         x: NarwhalsExpr,
-        hours: NarwhalsExpr,
+        hours: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add hours to a datetime.
@@ -318,17 +262,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with hours added.
         """
-        hours_val = self._extract_literal_if_possible(hours)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(hours_val)}h"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
-            hours=hours,
-        )
+        return x.dt.offset_by(f"{int(hours)}h")
 
     def add_minutes(
         self,
         x: NarwhalsExpr,
-        minutes: NarwhalsExpr,
+        minutes: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add minutes to a datetime.
@@ -340,17 +279,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with minutes added.
         """
-        minutes_val = self._extract_literal_if_possible(minutes)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(minutes_val)}m"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
-            minutes=minutes,
-        )
+        return x.dt.offset_by(f"{int(minutes)}m")
 
     def add_seconds(
         self,
         x: NarwhalsExpr,
-        seconds: NarwhalsExpr,
+        seconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add seconds to a datetime.
@@ -362,17 +296,12 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with seconds added.
         """
-        seconds_val = self._extract_literal_if_possible(seconds)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(seconds_val)}s"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
-            seconds=seconds,
-        )
+        return x.dt.offset_by(f"{int(seconds)}s")
 
     def add_milliseconds(
         self,
         x: NarwhalsExpr,
-        milliseconds: NarwhalsExpr,
+        milliseconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add milliseconds to a datetime.
@@ -387,18 +316,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Note:
             Narwhals offset_by may not support 'ms'. Falls back to microseconds.
         """
-        ms_val = self._extract_literal_if_possible(milliseconds)
         # Convert to microseconds: 1ms = 1000us
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(ms_val) * 1000}us"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
-            milliseconds=milliseconds,
-        )
+        return x.dt.offset_by(f"{int(milliseconds) * 1000}us")
 
     def add_microseconds(
         self,
         x: NarwhalsExpr,
-        microseconds: NarwhalsExpr,
+        microseconds: NarwhalsExpr | int,
         /,
     ) -> NarwhalsExpr:
         """Add microseconds to a datetime.
@@ -410,12 +334,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Datetime with microseconds added.
         """
-        us_val = self._extract_literal_if_possible(microseconds)
-        return self._call_with_expr_support(
-            lambda: x.dt.offset_by(f"{int(us_val)}us"),
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
-            microseconds=microseconds,
-        )
+        return x.dt.offset_by(f"{int(microseconds)}us")
 
     # =========================================================================
     # Date Difference Methods
@@ -472,7 +391,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Difference in days (x - other).
         """
-        return (x - other).dt.total_days()
+        return ((x - other).dt.total_seconds() / nw.lit(86400)).floor()
 
     def diff_hours(
         self,
@@ -556,7 +475,7 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Truncate datetime to the specified unit.
 
@@ -567,13 +486,13 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Truncated datetime.
         """
-        return x.dt.truncate(unit)
+        return self._round(x, "FLOOR", unit)
 
-    def round(
+    def round_dt(
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime to the nearest unit.
 
@@ -583,18 +502,14 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Narwhals may not have round. Falls back to truncate.
         """
-        # Narwhals doesn't have round - fallback to truncate
-        return x.dt.truncate(unit)
+        return self._round(x, "ROUND_TIE_UP", unit)
 
-    def ceil(
+    def ceil_dt(
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime up to the next unit.
 
@@ -604,18 +519,14 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns:
             Ceiling datetime.
-
-        Note:
-            Narwhals doesn't have ceil. Falls back to truncate.
         """
-        # Narwhals doesn't have ceil - fallback to truncate
-        return x.dt.truncate(unit)
+        return self._round(x, "CEIL", unit)
 
-    def floor(
+    def floor_dt(
         self,
         x: NarwhalsExpr,
         *,
-        unit: NarwhalsExpr,
+        unit: str,
     ) -> NarwhalsExpr:
         """Round datetime down to the previous unit.
 
@@ -626,7 +537,23 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Floor datetime.
         """
-        return x.dt.truncate(unit)
+        # Floor is the same as truncate.
+        return self._round(x, "FLOOR", unit)
+
+    def _round(self, x: NarwhalsExpr, rounding: str, unit: str) -> NarwhalsExpr:
+        """Redirect through the real round_temporal/round_calendar
+        implementation (item 74). `unit` is already normalize_unit()'d and
+        validate_ma_option()'d by the builder before it reaches here."""
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import parse_ma_unit
+
+        multiple, canonical_unit, family = parse_ma_unit(unit)
+        if family == "calendar":
+            return self.round_calendar(
+                x, rounding=rounding, unit=canonical_unit, multiple=multiple
+            )
+        return self.round_temporal(
+            x, rounding=rounding, unit=canonical_unit, multiple=multiple
+        )
 
     # =========================================================================
     # Timezone Methods
@@ -635,8 +562,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     def to_timezone(
         self,
         x: NarwhalsExpr,
-        timezone: NarwhalsExpr,
         /,
+        timezone: str,
     ) -> NarwhalsExpr:
         """Convert to specified timezone.
 
@@ -646,58 +573,8 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
         Returns:
             Datetime in target timezone.
-
-        Note:
-            Narwhals may not have timezone conversion. Returns input as fallback.
         """
-        # Narwhals doesn't have convert_time_zone - fallback
-        return x
-
-    def assume_timezone(
-        self,
-        x: NarwhalsExpr,
-        timezone: NarwhalsExpr,
-        /,
-    ) -> NarwhalsExpr:
-        """Assume the timestamp is in the specified timezone.
-
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Narwhals may not have timezone assignment. Returns input as fallback.
-        """
-        # Narwhals doesn't have replace_time_zone - fallback
-        return x
-
-    # =========================================================================
-    # Formatting Methods
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: NarwhalsExpr,
-        format: NarwhalsExpr,
-        /,
-    ) -> NarwhalsExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-
-        Note:
-            Narwhals may not have strftime. Returns string representation.
-        """
-        # Narwhals doesn't have strftime - fallback to string conversion
-        return x.cast(nw.String)
+        return x.dt.convert_time_zone(timezone)
 
     # =========================================================================
     # Snapshot Methods (Static)
@@ -767,3 +644,30 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
 
     def days_in_month(self, input: NarwhalsExpr, /) -> NarwhalsExpr:
         raise NotImplementedError("Narwhals does not support days_in_month()")
+
+    # =========================================================================
+    # Duration Extraction Methods
+    # =========================================================================
+
+    def total_seconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_seconds()
+
+    def total_minutes(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_minutes()
+
+    def total_milliseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_milliseconds()
+
+    def total_microseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_microseconds()
+
+    def total_days(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        """Total days in a duration. Composed from total_seconds (Narwhals lacks total_days)."""
+        return (x.dt.total_seconds() // nw.lit(86400))
+
+    def total_hours(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        """Total hours in a duration. Composed from total_seconds (Narwhals lacks total_hours)."""
+        return (x.dt.total_seconds() // nw.lit(3600))
+
+    def total_nanoseconds(self, x: NarwhalsExpr, /) -> NarwhalsExpr:
+        return x.dt.total_nanoseconds()

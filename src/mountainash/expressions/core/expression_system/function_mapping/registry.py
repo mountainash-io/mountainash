@@ -12,11 +12,21 @@ The registry enables:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Callable, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING, get_type_hints
+
 import inspect
+
+from mountainash.core.dtypes.metadata import FixedResultType, PreserveResultType
+from .output_rules import ProjectionRule
+
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    SubstraitExtension,
+    MountainashExtension,
+)
 
 if TYPE_CHECKING:
     from enum import Enum
+    from mountainash.core.lowering_reuse import LoweringDescriptor
 
 
 # class SubstraitExtension(str, Enum):
@@ -36,6 +46,20 @@ if TYPE_CHECKING:
 #     MOUNTAINASH = "https://mountainash.io/extensions/functions.yaml"
 
 
+
+_RESERVED_METADATA_ROOTS = ("__operand_types__", "__window__")
+
+
+def _expression_parameter_names(method: Callable) -> frozenset[str]:
+    signature = inspect.signature(method)
+    annotations = get_type_hints(method)
+    return frozenset(
+        name
+        for name, parameter in signature.parameters.items()
+        if name != "self"
+        and "ExpressionT" in str(annotations.get(name, parameter.annotation))
+    )
+
 @dataclass(frozen=True)
 class ExpressionFunctionDef:
     """Definition of a function with Substrait mapping and protocol reference.
@@ -51,33 +75,78 @@ class ExpressionFunctionDef:
         options: List of valid option names for this function
         protocol: Protocol class that defines the method signature (for introspection)
         protocol_method_name: Method name on the protocol (may differ from backend_method)
+        projection_rule: Optional projection naming/cardinality declaration; does
+            not affect standalone compilation or grouped aggregation.
     """
 
     function_key: Enum
-    substrait_uri: str
-    substrait_name: str
+    substrait_uri: str | None
+    substrait_name: str | None
     # backend_method: str
     # category: str
     is_extension: bool = False
     # n_args: Optional[int] = None
     options: tuple[str, ...] = field(default_factory=tuple)
-    # Protocol reference for type introspection (Phase B)
-    # protocol: Optional[Type] = None
     protocol_method: Optional[Callable] = None
+    result_type: FixedResultType | PreserveResultType | None = None
+    type_arguments: tuple[str, ...] = field(default_factory=tuple)
+    projection_rule: ProjectionRule | None = None
+    lowering: LoweringDescriptor | None = None
 
-    # @property
-    # def protocol_method(self) -> Optional[Callable]:
-    #     """Get the protocol method for signature introspection.
+    def __post_init__(self) -> None:
+        if self.projection_rule is not None and not isinstance(
+            self.projection_rule, ProjectionRule
+        ):
+            raise TypeError("projection_rule must be ProjectionRule or None")
+        if self.result_type is not None and not isinstance(
+            self.result_type, (FixedResultType, PreserveResultType)
+        ):
+            raise TypeError(
+                "result_type must be FixedResultType, PreserveResultType, or None"
+            )
+        if not isinstance(self.type_arguments, tuple):
+            raise TypeError("type_arguments must be a tuple of protocol parameter names")
+        if len(set(self.type_arguments)) != len(self.type_arguments):
+            raise ValueError("type_arguments must not contain duplicates")
+        for root in _RESERVED_METADATA_ROOTS:
+            if root in self.options:
+                raise ValueError(f"{root!r} is reserved for compiler metadata")
 
-    #     Returns the method from the protocol class, not a bound method.
-    #     This can be used with inspect.signature() for type introspection.
+        method = self.protocol_method
+        if method is None:
+            if self.type_arguments or isinstance(self.result_type, PreserveResultType):
+                raise ValueError("metadata rules requiring operands need a protocol method")
+            return
 
-    #     Returns:
-    #         Protocol method callable, or None if no protocol is defined.
-    #     """
-    #     if self.protocol is None or self.protocol_method_name is None:
-    #         return None
-        # return getattr(self.protocol, self.protocol_method_name, None)
+        signature = inspect.signature(method)
+        for root in _RESERVED_METADATA_ROOTS:
+            if root in signature.parameters:
+                raise ValueError(f"{root!r} is reserved for compiler metadata")
+        if not self.type_arguments and not isinstance(
+            self.result_type, PreserveResultType
+        ):
+            return
+
+
+        expression_parameters = _expression_parameter_names(method)
+        for argument in self.type_arguments:
+            if argument not in signature.parameters:
+                raise ValueError(
+                    f"type_argument {argument!r} does not name a protocol parameter"
+                )
+            if argument not in expression_parameters:
+                raise ValueError(
+                    f"type_argument {argument!r} must name an expression parameter"
+                )
+
+        if (
+            isinstance(self.result_type, PreserveResultType)
+            and self.result_type.argument not in expression_parameters
+        ):
+            raise ValueError(
+                f"result_type argument {self.result_type.argument!r} "
+                "must name an expression parameter"
+            )
 
     def get_signature(self) -> Optional[inspect.Signature]:
         """Get the method signature from the protocol for type introspection.
@@ -89,6 +158,35 @@ class ExpressionFunctionDef:
         if method is None:
             return None
         return inspect.signature(method)
+
+
+def _uri_values(holder: type) -> frozenset[str]:
+    return frozenset(
+        v for k, v in vars(holder).items()
+        if not k.startswith("_") and isinstance(v, str)
+    )
+
+
+_SUBSTRAIT_URIS = _uri_values(SubstraitExtension)
+_MOUNTAINASH_URIS = _uri_values(MountainashExtension)
+
+
+def classify_expression_def(d: ExpressionFunctionDef) -> str | None:
+    """Return the provenance class of a def, or None if its metadata is invalid.
+
+    Valid states (see spec §4.4):
+      - "substrait":  is_extension is False, substrait_uri is a SubstraitExtension
+                      value, substrait_name is not None.
+      - "extension":  is_extension is True, substrait_uri is a MountainashExtension
+                      value, substrait_name is not None.
+    """
+    if d.substrait_name is None or d.substrait_uri is None:
+        return None
+    if d.is_extension is False and d.substrait_uri in _SUBSTRAIT_URIS:
+        return "substrait"
+    if d.is_extension is True and d.substrait_uri in _MOUNTAINASH_URIS:
+        return "extension"
+    return None
 
 
 class ExpressionFunctionRegistry:
@@ -146,7 +244,7 @@ class ExpressionFunctionRegistry:
         return cls._functions[function_key]
 
     @classmethod
-    def get_substrait_uri(cls, function_key: Enum) -> str:
+    def get_substrait_uri(cls, function_key: Enum) -> str | None:
         """Get the Substrait extension URI for a function.
 
         Args:
@@ -158,7 +256,7 @@ class ExpressionFunctionRegistry:
         return cls.get(function_key).substrait_uri
 
     @classmethod
-    def get_substrait_name(cls, function_key: Enum) -> str:
+    def get_substrait_name(cls, function_key: Enum) -> str | None:
         """Get the Substrait function name.
 
         Args:
@@ -196,11 +294,11 @@ class ExpressionFunctionRegistry:
     #     return cls._by_category.get(category, [])
 
     @classmethod
-    def list_all(cls) -> List[str]:
-        """List all registered function names.
+    def list_all(cls) -> List[Enum]:
+        """List all registered function enum keys.
 
         Returns:
-            List of function names
+            List of function enum keys
         """
         if not cls._initialized:
             cls._init_registry()

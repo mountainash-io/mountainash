@@ -98,10 +98,10 @@ new p5(function(p) {
         });
 
         // Source panel
-        drawPanel(panelLeft, panelTop, panelWidth, 'Source TypeSpec', sourceFields, missingFromTarget, 'missing');
+        drawPanel(panelLeft, panelTop, panelWidth, 'Source TableSchema', sourceFields, missingFromTarget, 'missing');
 
         // Target panel
-        drawPanel(panelRight - panelWidth, panelTop, panelWidth, 'Target TypeSpec', targetFields, addedInTarget, 'added');
+        drawPanel(panelRight - panelWidth, panelTop, panelWidth, 'Target TableSchema', targetFields, addedInTarget, 'added');
 
         // Connection lines
         var srcCenterX = panelLeft + panelWidth;

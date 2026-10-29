@@ -6,7 +6,7 @@ NarwhalsExpressionSystem class that can be registered with the visitor factory.
 
 from __future__ import annotations
 
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.expsys_base import register_expression_system
 
 
@@ -42,14 +42,25 @@ from .extensions_mountainash.expsys_nw_ext_ma_null import MountainAshNarwhalsNul
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_arithmetic import MountainAshNarwhalsScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_set import SubstraitNarwhalsScalarSetExpressionSystem as MountainAshNarwhalsScalarSetExpressionSystem
-from .extensions_mountainash.expsys_nw_ext_ma_scalar_boolean import SubstraitNarwhalsScalarBooleanExpressionSystem as MountainAshNarwhalsScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_boolean import MountainAshNarwhalsScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_comparison import MountainAshNarwhalsScalarComparisonExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_string import SubstraitNarwhalsScalarStringExpressionSystem as MountainAshNarwhalsScalarStringExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_window import MountainAshNarwhalsWindowExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_struct import MountainAshNarwhalsScalarStructExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_list import MountainAshNarwhalsScalarListExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_categorical import MountainAshNarwhalsScalarCategoricalExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_aggregate import MountainAshNarwhalsScalarAggregateExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_value import MountainAshNarwhalsScalarValueExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainAshNarwhalsScalarGeospatialExpressionSystem
 
 
 
 
-@register_expression_system(CONST_VISITOR_BACKENDS.NARWHALS)
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
+@register_expression_system(CONST_BACKEND.NARWHALS)
 class NarwhalsExpressionSystem(
     # Foundation protocols
     SubstraitNarwhalsCastExpressionSystem,
@@ -79,9 +90,17 @@ class NarwhalsExpressionSystem(
     MountainAshNarwhalsScalarArithmeticExpressionSystem,
     MountainAshNarwhalsScalarDatetimeExpressionSystem,
     MountainAshNarwhalsScalarBooleanExpressionSystem,
+    MountainAshNarwhalsScalarComparisonExpressionSystem,
     MountainAshNarwhalsScalarStringExpressionSystem,
     MountainAshNarwhalsScalarSetExpressionSystem,
     MountainAshNarwhalsScalarTernaryExpressionSystem,
+    MountainAshNarwhalsWindowExpressionSystem,
+    MountainAshNarwhalsScalarStructExpressionSystem,
+    MountainAshNarwhalsScalarListExpressionSystem,
+    MountainAshNarwhalsScalarCategoricalExpressionSystem,
+    MountainAshNarwhalsScalarGeospatialExpressionSystem,
+    MountainAshNarwhalsScalarAggregateExpressionSystem,
+    MountainAshNarwhalsScalarValueExpressionSystem,
 
 ):
     """Complete Narwhals backend expression system.
@@ -91,6 +110,8 @@ class NarwhalsExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(NarwhalsExpressionSystem, "narwhals")
 
 
 __all__ = [
@@ -123,5 +144,7 @@ __all__ = [
     "MountainAshNarwhalsScalarArithmeticExpressionSystem",
     "MountainAshNarwhalsScalarDatetimeExpressionSystem",
     "MountainAshNarwhalsScalarSetExpressionSystem",
-    "MountainAshNarwhalsScalarTernaryExpressionSystem"
+    "MountainAshNarwhalsScalarComparisonExpressionSystem",
+    "MountainAshNarwhalsScalarTernaryExpressionSystem",
+    "MountainAshNarwhalsScalarValueExpressionSystem",
 ]

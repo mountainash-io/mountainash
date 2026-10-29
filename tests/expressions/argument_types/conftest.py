@@ -1,0 +1,41 @@
+"""Shared fixtures for argument/option channel tests."""
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas"]
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        item.add_marker(pytest.mark.argument_types)
+
+
+def make_df(
+    data: dict[str, list[Any]],
+    backend: str,
+    schema: dict[str, Any] | None = None,
+):
+    """Materialize a dict of columns into a backend-native DataFrame."""
+    import polars as pl
+    pdf = pl.DataFrame(data, schema=schema)
+    if backend == "polars":
+        return pdf
+    if backend == "ibis":
+        import ibis
+        connection = ibis.duckdb.connect()
+        return connection.create_table("option_test", pdf, overwrite=True)
+    if backend == "narwhals-polars":
+        import narwhals as nw
+        return nw.from_native(pdf, eager_only=True)
+    if backend == "narwhals-pandas":
+        import narwhals as nw
+        return nw.from_native(pdf.to_pandas(), eager_only=True)
+    raise ValueError(f"Unknown backend: {backend}")
+
+
+@pytest.fixture(params=ALL_BACKENDS)
+def backend(request) -> str:
+    return request.param

@@ -6,19 +6,32 @@ Standard string operations are handled by SubstraitScalarStringAPIBuilder.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarStringAPIBuilderProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+    FKEY_MOUNTAINASH_SCALAR_STRING,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+)
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
+from ._operation_options import (
+    validate_delimiter,
+    validate_failure_behavior,
+    validate_field_name,
+    validate_item_type,
+)
 
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
 
 
-class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
+class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarStringAPIBuilderProtocol):
     """Mountainash extension string operations.
 
     Provides Polars-compatible aliases for standard string operations.
@@ -72,6 +85,34 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
             options=options,
         )
         return self._build(node)
+    def parse_list(
+        self,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Split lexical text and parse each item into a list."""
+        validate_item_type("parse_list", item_type)
+        validate_delimiter("parse_list", delimiter)
+        validate_field_name("parse_list", field_name)
+        failure = validate_failure_behavior("parse_list", failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            arguments=[self._node],
+            options={
+                "item_type": item_type,
+                "delimiter": delimiter,
+                "failure_behavior": failure.value,
+            },
+            diagnostic_context={
+                "field_name": field_name,
+                "logical_type": "list",
+                "format": "default",
+            },
+        )
+        return self._build(node)
 
     def len_chars(self) -> BaseExpressionAPI:
         """Alias for char_length() — Polars compatibility."""
@@ -101,12 +142,17 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
 
     # Convenience methods (AST-level composition)
 
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros. Equivalent to lpad(length, "0")."""
+        length_node = LiteralNode(value=length)
+        zero_node = LiteralNode(value="0")
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            arguments=[self._node, length_node, zero_node],
+        )
+        return self._build(node)
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
-        """Remove prefix from string if present.
-
-        Args:
-            prefix: The prefix string to remove.
-        """
+        """Remove prefix from string if present."""
         prefix_node = LiteralNode(value=prefix)
         starts_cond = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
@@ -124,36 +170,131 @@ class MountainAshScalarStringAPIBuilder(BaseExpressionAPIBuilder):
         return self._build(node)
 
     def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
-        """Remove suffix from string if present.
-
-        Args:
-            suffix: The suffix string to remove.
-        """
-        suffix_node = LiteralNode(value=suffix)
-        ends_cond = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
-            arguments=[self._node, suffix_node],
-        )
-        # Use negative offset to slice from end: substring(0, char_length - suffix_len)
-        # Since char_length varies per row, we need to compute it dynamically.
-        # Use REPLACE to remove the suffix (replace last occurrence).
-        # Simpler: use substring with computed length.
-        str_len = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+        """Remove suffix from string if present."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
             arguments=[self._node],
+            options={"suffix": suffix},
         )
-        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-        new_len = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
-            arguments=[str_len, LiteralNode(value=len(suffix))],
+        return self._build(node)
+    def to_date(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to date using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_date", field_name)
+        failure_behavior = validate_failure_behavior("to_date", failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            arguments=[self._node],
+            options={"format": format, "failure_behavior": failure_behavior.value},
+            diagnostic_context={"logical_type": "date", "format": format, **({"field_name": field_name} if field_name is not None else {})},
         )
-        start_node = LiteralNode(value=0)
-        stripped = ScalarFunctionNode(
-            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
-            arguments=[self._node, start_node, new_len],
+        return self._build(node)
+
+    def to_datetime(
+        self,
+        format: str,
+        timezone: Optional[str] = None,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_datetime", field_name)
+        options = {"format": format, "failure_behavior": failure_behavior.value}
+        if timezone is not None:
+            from ..api_builder_base import _reject_expression
+            from mountainash.core.capabilities.schema import ValueClass
+            from ._ma_option_domains import validate_open_value
+
+            _reject_expression("timezone", timezone, "strptime_timestamp")
+            timezone = validate_open_value(
+                ValueClass.IANA_TIMEZONE, "timezone", timezone, "strptime_timestamp"
+            )
+            options["timezone"] = timezone
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            arguments=[self._node],
+            options=options,
+            diagnostic_context={"logical_type": "datetime", "format": format, **({"field_name": field_name} if field_name is not None else {})},
         )
-        node = IfThenNode(
-            conditions=[(ends_cond, stripped)],
-            else_clause=self._node,
+        return self._build(node)
+
+    def to_time(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> "BaseExpressionAPI":
+        """Parse string to time using format string."""
+        if field_name is not None:
+            field_name = validate_field_name("to_time", field_name)
+        failure_behavior = validate_failure_behavior("to_time", failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
+            arguments=[self._node],
+            options={"format": format, "failure_behavior": failure_behavior.value},
+            diagnostic_context={"logical_type": "time", "format": format, **({"field_name": field_name} if field_name is not None else {})},
+        )
+        return self._build(node)
+
+    def to_integer(self, base: int = 10) -> "BaseExpressionAPI":
+        """Parse string to integer with given base."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
+            arguments=[self._node],
+            options={"base": base},
+        )
+        return self._build(node)
+
+    def json_decode(self, dtype: Any = None) -> "BaseExpressionAPI":
+        """Parse JSON string into structured data."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE,
+            arguments=[self._node],
+            options={"dtype": dtype},
+        )
+        return self._build(node)
+
+    def json_path_match(self, json_path: str) -> "BaseExpressionAPI":
+        """Extract value from JSON string via JSONPath."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH,
+            arguments=[self._node],
+            options={"json_path": json_path},
+        )
+        return self._build(node)
+
+    def encode(self, encoding: str) -> "BaseExpressionAPI":
+        """Encode string to hex or base64."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE,
+            arguments=[self._node],
+            options={"encoding": encoding},
+        )
+        return self._build(node)
+
+    def decode(self, encoding: str, *, strict: bool = True) -> "BaseExpressionAPI":
+        """Decode hex or base64 string to binary."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.DECODE,
+            arguments=[self._node],
+            options={"encoding": encoding, "strict": strict},
+        )
+        return self._build(node)
+
+    def extract_groups(self, pattern: str) -> "BaseExpressionAPI":
+        """Extract named capture groups into struct column."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS,
+            arguments=[self._node],
+            options={"pattern": pattern},
         )
         return self._build(node)

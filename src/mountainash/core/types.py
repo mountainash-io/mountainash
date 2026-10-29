@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
 
-from dataclasses import dataclass
+from mountainash.core.errors import MountainashError
+from mountainash.core.dtypes.targets import TypeTarget
 
 
 
@@ -66,6 +69,14 @@ if TYPE_CHECKING:
 
     SupportedExpressions: TypeAlias = Union[PolarsExpr, IbisExpr, NarwhalsExpr]
 
+    SupportedRelations: TypeAlias = Union[
+        PolarsFrame,
+        PolarsLazyFrame,
+        NarwhalsFrame,
+        NarwhalsLazyFrame,
+        IbisTable,
+    ]
+
     SupportedSeries: TypeAlias = Union[PandasSeries, PolarsSeries, NarwhalsSeries, PyArrowArray]
 
     # ========================================================================
@@ -90,6 +101,7 @@ if TYPE_CHECKING:
 
 DataFrameT = TypeVar("DataFrameT", bound="SupportedDataFrames")
 ExpressionT = TypeVar("ExpressionT", bound="SupportedExpressions")
+RelationT = TypeVar("RelationT", bound="SupportedRelations")
 SeriesT = TypeVar("SeriesT", bound="SupportedSeries")
 
 
@@ -176,6 +188,12 @@ def is_ibis_table(obj: Any) -> TypeGuard['IbisTable']:
     module = type(obj).__module__
     return "ibis" in module and hasattr(obj, "execute")
 
+
+def is_ibis_backend(obj: Any) -> bool:
+    """Type guard for an Ibis backend (connection) object."""
+    return type(obj).__module__.startswith("ibis.backends") and hasattr(obj, "create_table")
+
+
 def is_narwhals_dataframe(obj: Any) -> TypeGuard['NarwhalsFrame']:
     """Type guard for Narwhals DataFrames."""
     return type(obj).__module__.startswith("narwhals") and type(obj).__name__ == "DataFrame"
@@ -257,31 +275,12 @@ def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
     return type(obj).__module__.startswith("pyarrow") and type(obj).__name__ == "Array"
 
 # ============================================================================
-# Backend Capability — Known Limitations
+# Backend Capability — compile-time error surface
 # ============================================================================
 
 
-@dataclass(frozen=True)
-class KnownLimitation:
-    """Documents a known backend limitation for expression-typed arguments.
-
-    Consulted only when the backend raises a native error — never gates
-    execution. When the upstream library adds support, the error stops
-    being raised and this entry becomes dormant.
-    """
-
-    message: str
-    native_errors: tuple[type[Exception], ...]
-    upstream_issue: str | None = None
-    workaround: str | None = None
-
-
-class BackendCapabilityError(Exception):
-    """Raised when a backend cannot handle an expression-typed argument.
-
-    Wraps native backend errors with curated context from the known
-    limitation registry.
-    """
+class BackendCapabilityError(MountainashError):
+    """Raised when a backend cannot handle an expression-typed argument."""
 
     def __init__(
         self,
@@ -289,15 +288,47 @@ class BackendCapabilityError(Exception):
         *,
         backend: str,
         function_key: Any,
-        limitation: KnownLimitation | None = None,
+        limitation: Any = None,
+        context: Mapping[str, str] | None = None,
+        candidate_fields: tuple[str, ...] = (),
+        candidate_fact_keys: tuple[str, ...] = (),
     ) -> None:
         parts = [f"[{backend}] {message}"]
-        if limitation:
-            if limitation.workaround:
-                parts.append(f"Workaround: {limitation.workaround}")
-            if limitation.upstream_issue:
-                parts.append(f"Upstream: {limitation.upstream_issue}")
+        if limitation is not None:
+            if workaround := getattr(limitation, "workaround", None):
+                parts.append(f"Workaround: {workaround}")
+            if upstream_url := getattr(limitation, "upstream_issue", None):
+                parts.append(f"Upstream: {upstream_url}")
+            if upstream_ref := getattr(limitation, "upstream_ref", None):
+                parts.append(f"Upstream ref: {upstream_ref}")
         super().__init__("\n".join(parts))
         self.backend = backend
         self.function_key = function_key
         self.limitation = limitation
+        self.context = MappingProxyType(dict(context)) if context is not None else None
+        self.candidate_fields = tuple(sorted(set(candidate_fields)))
+        self.candidate_fact_keys = tuple(sorted(set(candidate_fact_keys)))
+
+
+def detect_schema_carrier(obj: Any) -> "TypeTarget | None":
+    """Identify the native schema representation of a table carrier.
+
+    Independent of execution placement: a pandas frame has a pandas schema even
+    when it executes through Narwhals. A user subclass of a supported carrier
+    class has that carrier's schema. Returns None for unsupported carriers
+    (including non-table Ibis expressions). Imports no optional library: only
+    the object's own class hierarchy is inspected.
+    """
+    for module, class_names, target in (
+        ("polars", ("DataFrame", "LazyFrame"), TypeTarget.POLARS),
+        ("pyarrow", ("Table",), TypeTarget.PYARROW),
+        ("pandas", ("DataFrame",), TypeTarget.PANDAS),
+        ("ibis", ("Table",), TypeTarget.IBIS),
+        ("narwhals", ("DataFrame", "LazyFrame"), TypeTarget.NARWHALS),
+    ):
+        if any(
+            cls.__module__.startswith(module) and cls.__name__ in class_names
+            for cls in type(obj).__mro__
+        ):
+            return target
+    return None

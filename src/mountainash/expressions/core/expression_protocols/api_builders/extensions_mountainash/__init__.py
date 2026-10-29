@@ -17,26 +17,38 @@ from __future__ import annotations
 from .prtcl_api_bldr_ext_ma_name import MountainAshNameAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_native import MountainAshNativeAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_null import MountainAshNullAPIBuilderProtocol
-# from .prtcl_api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_comparison import MountainAshScalarComparisonAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_datetime import MountainAshScalarDatetimeAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_list import MountainAshScalarListAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_set import MountainAshScalarSetAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_string import MountainAshScalarStringAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_struct import MountainAshScalarStructAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_categorical import MountainAshScalarCategoricalAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_cast import MountainAshCastAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_scalar_value import MountainAshScalarValueAPIBuilderProtocol
 
 
 __all__ = [
     "MountainAshNameAPIBuilderProtocol",
     "MountainAshNativeAPIBuilderProtocol",
     "MountainAshNullAPIBuilderProtocol",
-    # "MountainAshScalarAggregateAPIBuilderProtocol",
+    "MountainAshScalarAggregateAPIBuilderProtocol",
     "MountainAshScalarArithmeticAPIBuilderProtocol",
     "MountainAshScalarBooleanAPIBuilderProtocol",
     "MountainAshScalarComparisonAPIBuilderProtocol",
     "MountainAshScalarDatetimeAPIBuilderProtocol",
+    "MountainAshScalarListAPIBuilderProtocol",
     "MountainAshScalarSetAPIBuilderProtocol",
     "MountainAshScalarStringAPIBuilderProtocol",
+    "MountainAshScalarStructAPIBuilderProtocol",
+    "MountainAshScalarGeospatialAPIBuilderProtocol",
+    "MountainAshScalarCategoricalAPIBuilderProtocol",
     "MountainAshScalarTernaryAPIBuilderProtocol",
+    "MountainAshCastAPIBuilderProtocol",
+    "MountainAshScalarValueAPIBuilderProtocol",
 ]

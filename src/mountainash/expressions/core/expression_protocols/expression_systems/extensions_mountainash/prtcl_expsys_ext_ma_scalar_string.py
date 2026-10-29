@@ -24,8 +24,8 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         input: ExpressionT,
         /,
+        pattern: ExpressionT,
         *,
-        pattern: str,
         case_sensitivity: Optional[str] = None,
     ) -> ExpressionT:
         """Check if string contains a match for a regex pattern.
@@ -37,12 +37,53 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
 
         Args:
             input: String expression.
-            pattern: Regex pattern as a literal ``str`` (kw-only, never an
-                expression — see arguments-vs-options.md).
-            case_sensitivity: "CASE_SENSITIVE" or "CASE_INSENSITIVE".
+            pattern: Compiled regex expression. Native routes may require a
+                literal expression rather than a column or computed pattern.
+            case_sensitivity: "CASE_SENSITIVE" leaves the pattern unchanged;
+                "CASE_INSENSITIVE" enables native case-insensitive matching.
+                Explicit inline flags retain their native meaning. Unicode
+                case equivalence is backend-dependent.
 
         Returns:
             Boolean expression — True on match, False on no-match,
             null when input is null (backend-dependent for narwhals).
         """
+        ...
+
+    def strip_suffix(self, x: ExpressionT, /, *, suffix: str) -> ExpressionT:
+        """Remove suffix from end of string if present."""
+        ...
+
+    def to_time(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string to time using format string."""
+        ...
+
+    def to_integer(self, x: ExpressionT, /, base: int = 10) -> ExpressionT:
+        """Parse string to integer with given base."""
+        ...
+
+    def json_decode(self, x: ExpressionT, /, dtype: object = None) -> ExpressionT:
+        """Parse JSON string into structured data."""
+        ...
+
+    def json_path_match(self, x: ExpressionT, /, json_path: str) -> ExpressionT:
+        """Extract value from JSON string via JSONPath."""
+        ...
+
+    def encode(self, x: ExpressionT, /, encoding: str) -> ExpressionT:
+        """Encode string to hex or base64."""
+        ...
+
+    def decode(self, x: ExpressionT, /, encoding: str, strict: bool = True) -> ExpressionT:
+        """Decode hex or base64 string to binary."""
+        ...
+
+    def extract_groups(self, x: ExpressionT, /, pattern: str) -> ExpressionT:
+        """Extract named capture groups into struct column."""
         ...

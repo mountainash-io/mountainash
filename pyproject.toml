@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,39 +7,54 @@ name = "mountainash"
 dynamic = ["version"]
 description = "Unified cross-backend DataFrame expressions, relations, and schema management"
 readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
+requires-python = ">=3.12"
+license = "Apache-2.0 AND MIT"
+license-files = ["LICENSE", "NOTICE", "src/mountainash/validation/schemas/LICENSE.geojson-schema.txt"]
 authors = [
     { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
 ]
 keywords = ["dataframe", "expressions", "polars", "pandas", "ibis", "cross-backend"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = [
-    "polars>=1.35.1",
-    "narwhals>=2.19.0",
-    "pydantic>=2.0.0",
-    "typing_extensions>=4.0.0",
+    "polars>=2,<3",
+    # Capability declarations are qualified to 2.27.x; 2.28.0 changes behaviour (backlog 392).
+    "narwhals>=2.27.1,<2.28",
+    "pydantic>=2.4,<3",
+    "packaging>=26.3",
+    "typing_extensions>=4.12.0",
     "lazy_loader>=0.3",
     "universal-pathlib>=0.2.0",
+    "pyarrow>=23.0.1",
+    "python-dateutil>=2.9,<2.10",
+    "jsonschema==4.25.1",
+    "referencing>=0.36,<1",
+    "elementpath==5.1.1",
+    "email-validator>=2.2,<3",
+    "rfc3986>=2,<3",
+    "mountainash-transport>=0.1.0,<0.2",
 ]
 
 [project.optional-dependencies]
-pandas = ["pandas>=2.2.0"]
-ibis = ["ibis-framework>=9.0.0"]
-pyarrow = ["pyarrow>=15.0.0"]
-all = ["mountainash[pandas,ibis,pyarrow]"]
-
+pandas = ["pandas>=3.0.0"]
+# Ibis 12 emits invalid DROP SQL with SQLGlot 30.18.0 and 30.22.0.
+ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "mountainash-files>=0.1.0,<0.2", "sqlglot>=29.0.1,<30.18.0"]
+files = ["mountainash-files>=0.1.0,<0.2"]
+dbos = ["dbos>=1.0.0"]
+http = ["mountainash-transport[http]>=0.1.0,<0.2"]
+s3 = ["mountainash-files[s3]>=0.1.0,<0.2"]
+gcs = ["mountainash-files[gcs]>=0.1.0,<0.2"]
+azure = ["mountainash-files[azure]>=0.1.0,<0.2"]
+sftp = ["mountainash-files[sftp]>=0.1.0,<0.2"]
+all = ["mountainash[pandas,ibis,files,dbos,http,s3,gcs,azure,sftp]"]
 
 [project.urls]
 Homepage = "https://github.com/mountainash-io/mountainash"
@@ -54,14 +69,14 @@ Source = "https://github.com/mountainash-io/mountainash"
 source_pkgs = ["mountainash", "tests"]
 branch = true
 parallel = true
-omit = ["src/mountainash/__version__.py", "src/mountainash/expressions/__version__.py"]
+omit = ["src/mountainash/__version__.py", "src/mountainash/__version__.py"]
 
 [tool.coverage.paths]
 mountainash_data = [
     "src/mountainash",
-    "*/mountainash-expressions/src/mountainash",
+    "*/mountainash/src/mountainash",
 ]
-tests = ["tests", "*/mountainash-expressions/tests"]
+tests = ["tests", "*/mountainash/tests"]
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
@@ -72,7 +87,7 @@ exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
 # ============================================================================
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

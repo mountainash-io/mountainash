@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Type alias for booleanizer parameter
 Booleanizer = Union[
-    Literal["is_true", "is_false", "is_unknown", "is_known", "maybe_true", "maybe_false"],
+    Literal["t_is_true", "t_is_false", "t_is_unknown", "t_is_known", "t_maybe_true", "t_maybe_false"],
     Callable[["BaseExpressionAPI"], "BaseExpressionAPI"],
     None,
 ]
@@ -87,8 +87,8 @@ class BaseExpressionAPI(ABC):
             )
 
         for ns_cls in self._FLAT_NAMESPACES:
-            ns = ns_cls(self)
-            if hasattr(ns_cls, name):
+            if name in ns_cls.__dict__:
+                ns = ns_cls(self)
                 return getattr(ns, name)
 
         raise AttributeError(
@@ -140,7 +140,7 @@ class BaseExpressionAPI(ABC):
         self,
         dataframe: Any,
         *,
-        booleanizer: Booleanizer = "is_true",
+        booleanizer: Booleanizer = "t_is_true",
     ) -> Any:
         """
         Compile expression to backend-native expression.
@@ -156,12 +156,12 @@ class BaseExpressionAPI(ABC):
         Args:
             dataframe: DataFrame to detect backend from (pl.DataFrame, nw.DataFrame, ir.Table, etc.)
             booleanizer: How to convert non-terminal ternary expressions to boolean.
-                - "is_true" (default): Only TRUE (1) becomes True - strictest
-                - "is_false": Only FALSE (-1) becomes True
-                - "is_unknown": Only UNKNOWN (0) becomes True
-                - "is_known": TRUE or FALSE becomes True
-                - "maybe_true": TRUE or UNKNOWN becomes True - lenient
-                - "maybe_false": FALSE or UNKNOWN becomes True
+                - "t_is_true" (default): Only TRUE (1) becomes True - strictest
+                - "t_is_false": Only FALSE (-1) becomes True
+                - "t_is_unknown": Only UNKNOWN (0) becomes True
+                - "t_is_known": TRUE or FALSE becomes True
+                - "t_maybe_true": TRUE or UNKNOWN becomes True - lenient
+                - "t_maybe_false": FALSE or UNKNOWN becomes True
                 - Callable: Custom function (api) -> api with booleanizer applied
                 - None: Return raw ternary values (-1/0/1) without conversion
 
@@ -171,29 +171,36 @@ class BaseExpressionAPI(ABC):
         Example:
             >>> import mountainash.expressions as ma
             >>> expr = ma.col("age").t_gt(30)  # ternary comparison
-            >>> # Default: strict is_true() - only definite TRUE passes
+            >>> # Default: strict t_is_true() - only definite TRUE passes
             >>> backend_expr = expr.compile(df)
             >>> # Lenient: UNKNOWN also passes
-            >>> backend_expr = expr.compile(df, booleanizer="maybe_true")
+            >>> backend_expr = expr.compile(df, booleanizer="t_maybe_true")
             >>> # Raw sentinels: for testing/debugging
             >>> backend_expr = expr.compile(df, booleanizer=None)
         """
-        from ..expression_system.expsys_base import identify_backend, get_expression_system
+        from ..expression_system.expsys_base import get_expression_system
+        from mountainash.core.backend_detection import native_identity
+        from mountainash.core.capabilities.policy import _new_execution_context
 
         # Auto-booleanize non-terminal ternary expressions
         node_to_compile = self._maybe_booleanize(booleanizer)
 
         # Detect backend and get ExpressionSystem
-        backend_type = identify_backend(dataframe)
-        expression_system_class = get_expression_system(backend_type)
-        expression_system = expression_system_class()
+        identity = native_identity(dataframe)
+        execution_context = _new_execution_context(dataframe)
+        expression_system_class = get_expression_system(identity.family)
+        expression_system = expression_system_class(
+            dialect=identity.dialect, execution_context=execution_context,
+        )
 
         # Check if this is an ExpressionNode
         from ..expression_nodes import ExpressionNode
         if isinstance(node_to_compile, ExpressionNode):
             # Use unified visitor for all expression nodes
             from ..unified_visitor import UnifiedExpressionVisitor
-            visitor = UnifiedExpressionVisitor(expression_system)
+            visitor = UnifiedExpressionVisitor(
+                expression_system, input_data=dataframe, execution_context=execution_context,
+            )
             return visitor.visit(node_to_compile)
 
         # Handle raw values (should not normally reach here)
@@ -201,7 +208,9 @@ class BaseExpressionAPI(ABC):
         from ..expression_nodes import LiteralNode
         lit_node = LiteralNode(value=node_to_compile)
         from ..unified_visitor import UnifiedExpressionVisitor
-        visitor = UnifiedExpressionVisitor(expression_system)
+        visitor = UnifiedExpressionVisitor(
+            expression_system, input_data=dataframe, execution_context=execution_context,
+        )
         return visitor.visit(lit_node)
 
     def _maybe_booleanize(
@@ -213,7 +222,7 @@ class BaseExpressionAPI(ABC):
 
         Ternary expressions return sentinel values (-1/0/1) which should not
         be materialized directly. This method automatically wraps them with
-        a booleanizer (default: is_true) to convert to boolean.
+        a booleanizer (default: t_is_true) to convert to boolean.
 
         Args:
             booleanizer: The booleanizer to apply, or None for raw values.
@@ -249,7 +258,7 @@ class BaseExpressionAPI(ABC):
         logger.info(
             "Auto-booleanizing ternary expression with '%s'. "
             "Use booleanizer=None to get raw sentinel values, or call "
-            ".is_true(), .maybe_true(), etc. explicitly.",
+            ".t_is_true(), .t_maybe_true(), etc. explicitly.",
             booleanizer if isinstance(booleanizer, str) else "custom",
         )
         return self._apply_booleanizer(booleanizer)._node
@@ -278,12 +287,12 @@ class BaseExpressionAPI(ABC):
 
         # String-based booleanizer lookup
         booleanizer_methods = {
-            "is_true": lambda api: api.is_true(),
-            "is_false": lambda api: api.is_false(),
-            "is_unknown": lambda api: api.is_unknown(),
-            "is_known": lambda api: api.is_known(),
-            "maybe_true": lambda api: api.maybe_true(),
-            "maybe_false": lambda api: api.maybe_false(),
+            "t_is_true": lambda api: api.t_is_true(),
+            "t_is_false": lambda api: api.t_is_false(),
+            "t_is_unknown": lambda api: api.t_is_unknown(),
+            "t_is_known": lambda api: api.t_is_known(),
+            "t_maybe_true": lambda api: api.t_maybe_true(),
+            "t_maybe_false": lambda api: api.t_maybe_false(),
         }
 
         if booleanizer not in booleanizer_methods:
@@ -371,10 +380,27 @@ class BaseExpressionAPI(ABC):
             upper_bound=upper_bound,
         )
 
-        # If inner node is a WindowFunctionNode with no spec, populate it
-        if isinstance(self._node, WindowFunctionNode) and self._node.window_spec is None:
-            updated_node = self._node.model_copy(update={"window_spec": spec})
-            return self.create(updated_node)
+        # If inner node is a WindowFunctionNode, either populate or merge
+        if isinstance(self._node, WindowFunctionNode):
+            if self._node.window_spec is None:
+                updated_node = self._node.model_copy(update={"window_spec": spec})
+                return self.create(updated_node)
+            else:
+                # Merge: add partition_by from .over() into existing spec.
+                # .over(order_by=...) replaces the receiver's ordering (backlog 364);
+                # bounds from cum_sum() etc. are preserved.
+                existing = self._node.window_spec
+                merged_order_by = sort_fields if sort_fields else existing.order_by
+                merged_lower = existing.lower_bound if existing.lower_bound is not None else lower_bound
+                merged_upper = existing.upper_bound if existing.upper_bound is not None else upper_bound
+                merged_spec = WindowSpec(
+                    partition_by=partition_nodes,
+                    order_by=merged_order_by,
+                    lower_bound=merged_lower,
+                    upper_bound=merged_upper,
+                )
+                updated_node = self._node.model_copy(update={"window_spec": merged_spec})
+                return self.create(updated_node)
 
         # Otherwise, wrap in an OverNode
         over_node = OverNode(expression=self._node, window_spec=spec)

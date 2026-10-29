@@ -4,9 +4,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Sequence, Ty
 import logging
 from collections import namedtuple
 import datetime
+import keyword as _keyword
+import re as _re
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_narwhals, import_polars
+
 
 from .base_egress_strategy import BaseEgressDataFrame
 
@@ -18,6 +21,35 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_namedtuple_fields(columns: list[str]) -> tuple[list[str], dict[str, str]]:
+    seen: set[str] = set()
+    sanitized: list[str] = []
+    mapping: dict[str, str] = {}
+
+    for col in columns:
+        original = col
+        name = col.replace(".", "__")
+        name = _re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        if name and name[0].isdigit():
+            name = f"f{name}"
+        if _keyword.iskeyword(name):
+            name = f"{name}_"
+        if not name:
+            name = "empty"
+        base = name
+        counter = 2
+        while name in seen:
+            name = f"{base}_{counter}"
+            counter += 1
+
+        seen.add(name)
+        sanitized.append(name)
+        if name != original:
+            mapping[name] = original
+
+    return sanitized, mapping
 
 
 
@@ -146,7 +178,8 @@ class EgressFromPolars(BaseEgressDataFrame):
     @classmethod
     def _to_dictionary_of_series_pandas(cls, df: PolarsFrame, /) -> Dict[str, PandasSeries]:
         nw = import_narwhals()
-        return nw.from_native(df).to_pandas().to_dict(orient='series')
+        pandas_df = nw.from_native(df).to_pandas()
+        return pandas_df.to_dict(orient='series')
 
 
     @classmethod
@@ -167,7 +200,8 @@ class EgressFromPolars(BaseEgressDataFrame):
 
     @classmethod
     def _to_list_of_named_tuples(cls, df: PolarsFrame, /) -> Sequence[Tuple]:
-        RecordClass = namedtuple('Row', df.columns)
+        sanitized, _ = _sanitize_namedtuple_fields(df.columns)
+        RecordClass = namedtuple('Row', sanitized)
         return [RecordClass(*row) for row in df.rows()]
 
     @classmethod
@@ -180,9 +214,9 @@ class EgressFromPolars(BaseEgressDataFrame):
         else:
             type_map = cls._type_map_dates_as_strings()
 
-        # Create with type annotations
-        field_types = [(col, type_map.get(dtype, Any))
-                        for col, dtype in df.schema.items()]
+        sanitized, _ = _sanitize_namedtuple_fields(df.columns)
+        field_types = [(san_name, type_map.get(dtype, Any))
+                        for san_name, (_, dtype) in zip(sanitized, df.schema.items())]
 
         RecordClass = namedtuple('Row', [name for name, _ in field_types])
         RecordClass.__annotations__ = {name: type_ for name, type_ in field_types}
@@ -216,7 +250,8 @@ class EgressFromPolars(BaseEgressDataFrame):
         if index_fields is None:
             index_fields = df.columns[0]
 
-        RecordClass = namedtuple('Row', df.columns)
+        sanitized, _ = _sanitize_namedtuple_fields(df.columns)
+        RecordClass = namedtuple('Row', sanitized)
 
         def row_generator(df):
             for key, rows in df.rows_by_key(key=index_fields, include_key=True).items():
@@ -238,9 +273,9 @@ class EgressFromPolars(BaseEgressDataFrame):
         else:
             type_map = cls._type_map_dates_as_strings()
 
-        # Create with type annotations
-        field_types = [(col, type_map.get(dtype, Any))
-                        for col, dtype in df.schema.items()]
+        sanitized, _ = _sanitize_namedtuple_fields(df.columns)
+        field_types = [(san_name, type_map.get(dtype, Any))
+                        for san_name, (_, dtype) in zip(sanitized, df.schema.items())]
 
         RecordClass = namedtuple('Row', [name for name, _ in field_types])
         RecordClass.__annotations__ = {name: type_ for name, type_ in field_types}
@@ -271,8 +306,8 @@ class EgressFromPolars(BaseEgressDataFrame):
         Args:
             df: Input Polars DataFrame
             dataclass_type: The dataclass type to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
             apply_defaults: Whether to apply dataclass field defaults
 
         Returns:
@@ -337,8 +372,8 @@ class EgressFromPolars(BaseEgressDataFrame):
         Args:
             df: Input Polars DataFrame
             model_class: The Pydantic model class to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
 
         Returns:
             List of Pydantic model instances

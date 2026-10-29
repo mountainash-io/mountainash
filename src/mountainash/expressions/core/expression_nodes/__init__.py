@@ -30,18 +30,6 @@ from .substrait.exn_window_function import WindowFunctionNode
 from .substrait.exn_window_spec import WindowSpec, WindowBound
 from .mountainash_extensions.exn_ext_ma_over import OverNode
 
-# Extension URIs (kept here for backwards compatibility)
-from .enums import SubstraitExtension
-
-# Function keys are now in expression_system.function_keys.enums
-# Import from the canonical location:
-#   from mountainash.expressions.core.expression_system.function_keys.enums import (
-#       KEY_SCALAR_COMPARISON,
-#       KEY_SCALAR_BOOLEAN,
-#       # etc.
-#   )
-
-
 __all__ = [
     # Base class
     "ExpressionNode",
@@ -57,6 +45,4 @@ __all__ = [
     "WindowSpec",
     "WindowBound",
     "OverNode",
-    # Extension URIs
-    "SubstraitExtension",
 ]

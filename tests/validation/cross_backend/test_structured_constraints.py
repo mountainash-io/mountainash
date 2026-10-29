@@ -1,0 +1,502 @@
+"""Structured Frictionless constraints execute against logical containers cross-backend."""
+
+import pytest
+
+import mountainash as ma
+from mountainash.datacontracts.compiler import compile_datacontract
+from mountainash.typespec import FieldConstraints, FieldDefinition, TableSchema, UniversalType
+from mountainash.validation import ValidationRunner
+
+from ibis.common.exceptions import UnsupportedBackendType
+
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("element_kind", ["scalar", "object"])
+def test_generated_datacontract_accepts_native_arrays(
+    backend_name, backend_factory, element_kind
+):
+    if element_kind == "scalar":
+        values = [["a", "b"], [], None]
+        field = FieldDefinition(type=UniversalType.ARRAY)
+        expected = {"x_type_format": (3, 0, 0)}
+    else:
+        values = [[{"tag": "a"}, {"tag": "b"}], [], None]
+        field = FieldDefinition(
+            type=UniversalType.ARRAY,
+            element=FieldDefinition(
+                type=UniversalType.OBJECT,
+                fields={"tag": FieldDefinition(type=UniversalType.STRING)},
+            ),
+        )
+        expected = {"x_type_format": (3, 0, 0), "x_nested": (3, 0, 0)}
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Array input",
+    ):
+        source = backend_factory.create({"x": values}, backend_name)
+    spec = TableSchema(fields={"x": field}, missing_values=[])
+    report = ma.datacontract(spec).validate_datacontract(source)
+    assert report.passes
+    assert {
+        row["check_id"]: (row["pass_count"], row["fail_count"], row["unknown_count"])
+        for row in report.check_summaries.to_dicts()
+    } == expected
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_generated_native_array_contract_retains_constraints(
+    backend_name, backend_factory
+):
+    values = [[{"tag": "good"}], [{"tag": "bad"}], [], None]
+    field = FieldDefinition(
+        type=UniversalType.ARRAY,
+        constraints=FieldConstraints(required=True),
+        element=FieldDefinition(
+            type=UniversalType.OBJECT,
+            fields={"tag": FieldDefinition(
+                type=UniversalType.STRING,
+                constraints=FieldConstraints(pattern="^good$"),
+            )},
+        ),
+    )
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Array input",
+    ):
+        source = backend_factory.create({"x": values}, backend_name)
+    spec = TableSchema(fields={"x": field}, missing_values=[])
+    report = ma.datacontract(spec).validate_datacontract(source)
+    assert not report.passes
+    assert {
+        row["check_id"]: (row["pass_count"], row["fail_count"], row["unknown_count"])
+        for row in report.check_summaries.to_dicts()
+    } == {
+        "x_type_format": (4, 0, 0),
+        "x_nested": (3, 1, 0),
+        "x__not_null": (3, 1, 0),
+    }
+
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_compiled_json_schema_reports_logical_object_failure(backend_name, backend_factory):
+    """JSON Schema receives a logical object rather than backend-native state."""
+    plan = compile_datacontract(
+        TableSchema(
+            fields={
+                "payload": FieldDefinition(
+                    type=UniversalType.OBJECT,
+                    constraints=FieldConstraints(
+                        json_schema={
+                            "type": "object",
+                            "required": ["id"],
+                            "properties": {"id": {"type": "integer", "minimum": 1}},
+                        }
+                    ),
+                )
+            }
+        )
+    )
+
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite does not support native Struct-column construction; this is native input construction, not ValidationRunner execution",
+    ):
+        df = backend_factory.create({"payload": [{"id": 0}]}, backend_name)
+    result = ValidationRunner().validate_relation(
+        ma.relation(df),
+        plan=plan,
+    )
+
+    summary = result.check_summaries.filter(result.check_summaries["check_id"] == "payload_json_schema").row(
+        0, named=True
+    )
+    assert summary["status"] == "failed", backend_name
+    failure = result.failure_cases.row(0, named=True)
+    assert failure["instance_path"] == "/id", backend_name
+    assert failure["validator"] == "minimum", backend_name
+
+
+# ---------------------------------------------------------------------------
+# Task 10 step 1: complete structured (ARRAY/OBJECT) validation matrix.
+#
+# Every test below ingresses through portable JSON text (spec's primary
+# ARRAY/OBJECT vehicle) rather than a native Python container cell value --
+# MA-CONF-04 covers native STRUCT *source construction* on ibis-sqlite,
+# which a string-typed JSON-text column never triggers, so this whole
+# matrix runs unconditionally across the complete `ALL_BACKENDS` set.
+# ---------------------------------------------------------------------------
+
+
+def _object_relation(backend_name, backend_factory, values, *, action="coerce", apply_value_transforms=True):
+    df = backend_factory.create({"payload": values}, backend_name)
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.OBJECT)})
+    return ma.relation(df).conform(spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms)
+
+
+def _array_relation(backend_name, backend_factory, values, *, action="coerce", apply_value_transforms=True):
+    df = backend_factory.create({"payload": values}, backend_name)
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
+    return ma.relation(df).conform(spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms)
+
+
+def _value_check(rel, validator, *, options, mostly=None):
+    from mountainash.validation import ValueRule, ValueValidatorKey
+
+    return ValidationRunner().validate_relation(
+        rel,
+        [
+            ValueRule(
+                id="payload_check",
+                fields=["payload"],
+                validator=getattr(ValueValidatorKey, validator),
+                options=options,
+                mostly=mostly,
+            )
+        ],
+    )
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestObjectAndArrayJSONSchema:
+    def test_object_json_schema_passes_for_valid_values(self, backend_name, backend_factory):
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.OBJECT,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "object",
+                                "required": ["id"],
+                                "properties": {"id": {"type": "integer", "minimum": 1}},
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        result = ValidationRunner().validate_relation(
+            _object_relation(backend_name, backend_factory, ['{"id": 5}']),
+            plan=plan,
+        )
+        summary = result.check_summaries.filter(result.check_summaries["check_id"] == "payload_json_schema").row(
+            0, named=True
+        )
+        assert summary["status"] == "passed", backend_name
+        assert result.failure_cases.height == 0, backend_name
+
+    def test_array_json_schema_reports_logical_failure(self, backend_name, backend_factory):
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.ARRAY,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "array",
+                                "minItems": 2,
+                                "items": {"type": "integer"},
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        result = ValidationRunner().validate_relation(
+            _array_relation(backend_name, backend_factory, ["[1]"]),
+            plan=plan,
+        )
+        summary = result.check_summaries.filter(result.check_summaries["check_id"] == "payload_json_schema").row(
+            0, named=True
+        )
+        assert summary["status"] == "failed", backend_name
+        failure = result.failure_cases.row(0, named=True)
+        assert failure["instance_path"] == "", backend_name
+        assert failure["validator"] == "minItems", backend_name
+
+    def test_array_json_schema_passes_for_valid_values(self, backend_name, backend_factory):
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.ARRAY,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "array",
+                                "minItems": 2,
+                                "items": {"type": "integer"},
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        result = ValidationRunner().validate_relation(
+            _array_relation(backend_name, backend_factory, ["[1, 2, 3]"]),
+            plan=plan,
+        )
+        summary = result.check_summaries.filter(result.check_summaries["check_id"] == "payload_json_schema").row(
+            0, named=True
+        )
+        assert summary["status"] == "passed", backend_name
+        assert result.failure_cases.height == 0, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestRecursiveStructuredFields:
+    def test_recursive_object_field_reports_the_nested_instance_path(self, backend_name, backend_factory):
+        """A JSON Schema violation two levels deep reports its full path
+        against the fully-decoded native Python structure -- recursive
+        validation is inherent to JSON Schema itself, not special-cased."""
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.OBJECT,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "object",
+                                "properties": {
+                                    "child": {
+                                        "type": "object",
+                                        "properties": {"id": {"type": "integer", "minimum": 1}},
+                                    }
+                                },
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        result = ValidationRunner().validate_relation(
+            _object_relation(backend_name, backend_factory, ['{"child": {"id": 0}}']),
+            plan=plan,
+        )
+        failure = result.failure_cases.row(0, named=True)
+        assert failure["instance_path"] == "/child/id", backend_name
+        assert failure["validator"] == "minimum", backend_name
+
+    def test_recursive_array_item_object_field_reports_the_item_index(self, backend_name, backend_factory):
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.ARRAY,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {"id": {"type": "integer", "minimum": 1}},
+                                },
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        result = ValidationRunner().validate_relation(
+            _array_relation(backend_name, backend_factory, ['[{"id": 1}, {"id": 0}]']),
+            plan=plan,
+        )
+        failure = result.failure_cases.row(0, named=True)
+        assert failure["instance_path"] == "/1/id", backend_name
+        assert failure["validator"] == "minimum", backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestStructuredLengthAndMembership:
+    def test_array_length_constraint_uses_the_decoded_element_count(self, backend_name, backend_factory):
+        rel = _array_relation(backend_name, backend_factory, ["[1]", "[1, 2, 3]"])
+        result = _value_check(rel, "LENGTH", options={"min_length": 2})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 1, backend_name
+
+    def test_object_membership_uses_canonical_structural_equality(self, backend_name, backend_factory):
+        """Enum membership on a structured field compares logical values,
+        not physical text -- whitespace and object-key order never change
+        the outcome (spec 15's canonical_value_key algebra)."""
+        rel = _object_relation(backend_name, backend_factory, ['{ "b": 2, "a": 1 }', '{"a": 9}'])
+        result = _value_check(
+            rel,
+            "MEMBERSHIP",
+            options={"allowed": [{"a": 1, "b": 2}]},
+        )
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 1, backend_name
+
+    def test_array_membership_uses_canonical_structural_equality(self, backend_name, backend_factory):
+        rel = _array_relation(backend_name, backend_factory, ["[1, 2]", "[2, 1]"])
+        result = _value_check(rel, "MEMBERSHIP", options={"allowed": [[1, 2]]})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 1, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestStructuredUniqueness:
+    def test_object_uniqueness_uses_canonical_structural_equality(self, backend_name, backend_factory):
+        rel = _object_relation(backend_name, backend_factory, ['{"a": 1}', '{ "a" : 1 }', '{"a": 2}'])
+        result = _value_check(rel, "UNIQUE", options={})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 2, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestStructuredCompositeKeys:
+    def test_composite_key_mixing_scalar_and_structured_fields_deduplicates(self, backend_name, backend_factory):
+        from mountainash.validation.identity import RowIdentity
+
+        df = backend_factory.create(
+            {"id": [1, 1], "tags": ["[1, 2]", "[1,2]"], "meta": ['{"a": 1}', '{"a":1}']},
+            backend_name,
+        )
+        spec = TableSchema(
+            fields_match="open",
+            fields={
+                "id": FieldDefinition(type=UniversalType.INTEGER),
+                "tags": FieldDefinition(type=UniversalType.ARRAY),
+                "meta": FieldDefinition(type=UniversalType.OBJECT),
+            },
+        )
+        rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+        result = ValidationRunner().validate_relation(
+            rel,
+            identity=RowIdentity("keyed", ("id", "tags", "meta")),
+            allow_imperfect_key=True,
+        )
+        assert result.identity_diagnostics["duplicate_key_tuples"] == 1, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestStructuredForeignKeys:
+    def test_object_key_orphan_is_reported_cross_backend(self, backend_name, backend_factory):
+        from mountainash.relations.dag.dag import RelationDAG
+        from mountainash.validation import ForeignKeyRule
+
+        parent_spec = TableSchema(fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)})
+        child_spec = TableSchema(fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)})
+        parent_rel = ma.relation(backend_factory.create({"meta": ['{"a": 1}']}, backend_name)).conform(
+            parent_spec, contract={"data_type": "coerce"}
+        )
+        child_rel = ma.relation(backend_factory.create({"meta": ['{ "a" : 1 }', '{"a": 2}']}, backend_name)).conform(
+            child_spec, contract={"data_type": "coerce"}
+        )
+        dag = RelationDAG()
+        dag.add("parents", parent_rel)
+        dag.add("children", child_rel)
+        result = ValidationRunner().validate_dag(
+            dag,
+            {
+                "children": [
+                    ForeignKeyRule(
+                        id="fk__children__meta__parents",
+                        child="children",
+                        parent="parents",
+                        child_fields=["meta"],
+                        parent_fields=["meta"],
+                    )
+                ]
+            },
+        )
+        assert not result.fk_result.passes, backend_name
+        summary = result.fk_result.check_summaries.row(0, named=True)
+        assert summary["fail_count"] == 1, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestMalformedAndWrongRootStructuredInput:
+    def test_malformed_json_text_is_unknown_not_a_crash(self, backend_name, backend_factory):
+        rel = _object_relation(backend_name, backend_factory, ["{broken", '{"a": 1}'])
+        result = _value_check(rel, "LENGTH", options={"min_length": 1})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["unknown_count"] == 1, backend_name
+        assert summary["fail_count"] == 0, backend_name
+        assert summary["status"] == "failed", backend_name  # unknown is not tolerated by default
+
+    def test_malformed_json_reports_type_format_failure_cross_backend(self, backend_name, backend_factory):
+        rel = _object_relation(backend_name, backend_factory, ["{broken", '{"a": 1}'])
+        result = _value_check(rel, "TYPE_FORMAT", options={"type": "object"})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 1, backend_name
+        assert summary["unknown_count"] == 0, backend_name
+
+    def test_discarded_rows_leave_passing_empty_value_check(self, backend_name, backend_factory):
+        """Discarding every malformed row leaves no values that can fail."""
+        rel = _object_relation(
+            backend_name, backend_factory, ["{broken"], action="discard_row",
+        )
+        result = _value_check(rel, "TYPE_FORMAT", options={"type": "object"})
+        row = result.check_summaries.row(0, named=True)
+        assert (
+            row["status"], row["total_rows"], row["pass_count"],
+            row["fail_count"], row["unknown_count"], row["error"],
+        ) == ("passed", 0, 0, 0, 0, None), (backend_name, row)
+        assert result.passes is True
+        assert result.failure_cases.to_dicts() == []
+
+    def test_wrong_root_is_unknown_not_a_crash(self, backend_name, backend_factory):
+        """An ARRAY-declared field whose JSON text decodes to an object
+        root is a structural mismatch, not a value the check ever sees."""
+        rel = _array_relation(backend_name, backend_factory, ['{"a": 1}', "[1, 2]"])
+        result = _value_check(rel, "LENGTH", options={"min_length": 1})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["unknown_count"] == 1, backend_name
+        assert summary["fail_count"] == 0, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestCoerceFalseStructuredValidation:
+    def test_json_schema_validates_the_logical_value_without_physical_transform(self, backend_name, backend_factory):
+        """`data_type=False` never applies the value transform, but
+        validation still runs against the decoded logical value (spec
+        Task 7 step 2/2.3) -- a `coerce=False` relation is exactly as
+        strict as a coercing one."""
+        plan = compile_datacontract(
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
+                        type=UniversalType.OBJECT,
+                        constraints=FieldConstraints(
+                            json_schema={
+                                "type": "object",
+                                "required": ["id"],
+                                "properties": {"id": {"type": "integer", "minimum": 1}},
+                            }
+                        ),
+                    )
+                }
+            )
+        )
+        rel = _object_relation(
+            backend_name,
+            backend_factory,
+            ['{"id": 0}'],
+            apply_value_transforms=False,
+        )
+        result = ValidationRunner().validate_relation(rel, plan=plan)
+        summary = result.check_summaries.filter(result.check_summaries["check_id"] == "payload_json_schema").row(
+            0, named=True
+        )
+        assert summary["status"] == "failed", backend_name
+        failure = result.failure_cases.row(0, named=True)
+        assert failure["instance_path"] == "/id", backend_name

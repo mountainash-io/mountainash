@@ -1,15 +1,15 @@
-// TypeSpec Construction — Hub-and-spoke sources
+// TableSchema Construction — Hub-and-spoke sources
 // CANVAS_HEIGHT: 500
 document.addEventListener('DOMContentLoaded', function() {
     const main = document.querySelector('main');
     main.innerHTML = `
         <div style="position:relative;width:100%;height:500px;background:#f0f8ff;font-family:Arial,sans-serif;">
             <div id="network" style="width:100%;height:100%;"></div>
-            <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:bold;background:rgba(240,248,255,0.9);padding:4px 12px;border-radius:4px;">TypeSpec Construction Sources</div>
+            <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:bold;background:rgba(240,248,255,0.9);padding:4px 12px;border-radius:4px;">TableSchema Construction Sources</div>
             <div id="legend" style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,0.95);padding:8px;border-radius:8px;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-weight:bold;margin-bottom:4px;">Legend</div>
                 <div><span style="color:#9370DB;">&#9679;</span> Input Source</div>
-                <div><span style="color:#6A5ACD;">&#9679;</span> TypeSpec (target)</div>
+                <div><span style="color:#6A5ACD;">&#9679;</span> TableSchema (target)</div>
                 <div style="margin-top:4px;font-size:10px;color:#666;">Hover a source to<br/>see a code snippet</div>
             </div>
             <div id="info" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);max-width:500px;background:rgba(255,255,255,0.95);padding:12px;border-radius:8px;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:none;"></div>
@@ -22,19 +22,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var sources = [
         { id: 'dict', label: 'Simple\nDict', angle: -90,
-          snippet: '<code style="font-size:11px;white-space:pre;">ts = TypeSpec.from_dict({\n  "name": "str",\n  "age": "int",\n  "score": "float"\n})</code>' },
+          snippet: '<code style="font-size:11px;white-space:pre;">ts = TableSchema.from_simple_dict({\n  "name": "string",\n  "age": "integer",\n  "score": "number"\n})</code>' },
         { id: 'frictionless', label: 'Frictionless\nJSON', angle: -18,
-          snippet: '<code style="font-size:11px;white-space:pre;">ts = TypeSpec.from_frictionless(\n  "datapackage.json",\n  resource="main"\n)</code>' },
+          snippet: '<code style="font-size:11px;white-space:pre;">descriptor = {"fields": [\n  {"name": "age", "type": "integer"}\n]}\nts = TableSchema.from_frictionless(descriptor)\n# DataPackage owns paths and resource resolution.</code>' },
         { id: 'polars', label: 'Polars\nDataFrame', angle: 54,
-          snippet: '<code style="font-size:11px;white-space:pre;">import polars as pl\ndf = pl.read_csv("data.csv")\nts = TypeSpec.from_polars(df)</code>' },
+          snippet: '<code style="font-size:11px;white-space:pre;">import polars as pl\nfrom mountainash.typespec.extraction import extract_from_dataframe\ndf = pl.DataFrame({"age": [42]})\nts = extract_from_dataframe(df)</code>' },
         { id: 'dataclass', label: 'Python\nDataclass', angle: 126,
-          snippet: '<code style="font-size:11px;white-space:pre;">@dataclass\nclass Record:\n  name: str\n  age: int\n\nts = TypeSpec.from_dataclass(Record)</code>' },
+          snippet: '<code style="font-size:11px;white-space:pre;">from dataclasses import dataclass\nfrom mountainash.typespec.extraction import extract_from_dataclass\n@dataclass\nclass Record:\n  name: str\n  age: int\n\nts = extract_from_dataclass(Record)</code>' },
         { id: 'pydantic', label: 'Pydantic\nModel', angle: 198,
-          snippet: '<code style="font-size:11px;white-space:pre;">class Record(BaseModel):\n  name: str\n  age: int\n\nts = TypeSpec.from_pydantic(Record)</code>' }
+          snippet: '<code style="font-size:11px;white-space:pre;">from pydantic import BaseModel\nfrom mountainash.typespec.extraction import extract_from_pydantic\nclass Record(BaseModel):\n  name: str\n  age: int\n\nts = extract_from_pydantic(Record)</code>' }
     ];
 
     var nodesList = [
-        { id: 'typespec', label: 'TypeSpec', x: centerX, y: centerY, fixed: true,
+        { id: 'typespec', label: 'TableSchema', x: centerX, y: centerY, fixed: true,
           shape: 'box', borderWidth: 3,
           color: { background: '#6A5ACD', border: '#483D8B',
                    highlight: { background: '#7B68EE', border: '#483D8B' },

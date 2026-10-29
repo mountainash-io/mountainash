@@ -174,7 +174,7 @@ htmlcov/
 
 #testing artifacts
 junit.*
-coverage.*
+/coverage.*
 
 # hiivmind-pulse-gh
 .hiivmind/github/user.yaml
@@ -182,3 +182,5 @@ coverage.*
 .ruff_cache/
 .substrait_cache/
 .benchmarks/
+.worktrees/
+.firecrawl/

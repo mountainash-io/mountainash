@@ -1,0 +1,84 @@
+# Task 6 report
+
+Status: complete
+
+## Implemented
+
+- Added `python-dateutil>=2.9,<2.10` without introducing a lockfile.
+- Added deterministic temporal parsers for temporal-any, default datetime, XSD duration, and XSD partial-date lexical values. The temporal-any parser preserves exact native types, applies the fixed two-digit year window, rejects unknown timezone tokens, and normalizes aware text to naive UTC.
+- Added temporal function keys, registry mappings, API/protocol signatures, and backend implementations across Polars, Narwhals, and Ibis.
+- Added `field_name` and `CaseFailureBehaviour` handling to custom `to_date`, `to_datetime`, and `to_time`, including explicit empty-name rejection.
+- Added datetime capability declaration modules for default and temporal-any unsupported backend cells plus the XSD declaration module.
+- Exported temporal parser symbols from `mountainash.typespec`.
+- Added focused temporal parser and custom-temporal API tests.
+
+## Verification
+
+- `hatch run test:test-target-quick tests/typespec/test_temporal.py tests/core/test_signature_conformance.py tests/core/test_capability_declarations.py tests/conform/test_v2_operation_ast.py tests/conform/cross_backend/test_v2_operations.py tests/conform/cross_backend/test_conform_temporal_types.py tests/conform/cross_backend/test_temporal_format.py -k "temporal or datetime or duration or year or time" -v`
+  - 648 passed, 2387 deselected, 12 existing deprecation warnings.
+- `hatch run python -c "import dateutil; assert dateutil.__version__.startswith('2.9.'); print(dateutil.__version__)"`
+  - `2.9.0.post0`.
+- `hatch run ruff:check src/mountainash/typespec/temporal.py src/mountainash/expressions src/mountainash/core/capabilities/datetime tests/typespec/test_temporal.py`
+  - All checks passed.
+- `git diff --check`
+  - Passed.
+
+Commit: `feat(conform): add Frictionless temporal operations` (final hash reported with delivery)
+
+## Correction wave
+
+- Enforced XML Schema year/yearMonth lexical grammar, including valid `0000` and invalid plus-prefixed years/`-0000`, ASCII duration digits, and explicit duration guards.
+- Restricted default datetime text to the required `T`-separated forms and normalized aware native datetime/time values to UTC-naive values.
+- Added partial-date and temporal-any kind validation, exact `parse_datetime_default` wire naming, and diagnostic-only field metadata for new temporal operations.
+- Updated backend signatures, custom temporal null-mode capability facts, and temporal AST contract coverage.
+
+Correction verification:
+
+- Final focused Task 6 command: 652 passed, 2387 deselected, 12 existing deprecation warnings.
+- Temporal parser tests: 46 passed.
+- Temporal signature subset: 59 passed.
+- Temporal AST subset: 5 passed.
+- Scoped Ruff checks and `git diff --check`: passed.
+
+## Rereview correction wave
+
+- Removed the global visitor option mutation; only custom temporal builders place optional field names in diagnostic metadata.
+- Added `parse_datetime_default` protocol/backend dispatch and exact wire mapping.
+- Hardened XSD grammar and backend null/throw validation predicates, timezone handling, `-0000` rejection, and non-Polars custom time capability facts.
+- Rereview focused gates: 565 passed, 1575 deselected, 12 existing deprecation warnings.
+
+## Final rereview correction wave
+
+- Closed XSD null-mode lexical parity for fractional seconds, trailing `T`, timezone `14:00` bounds, and negative-zero partial dates across backend predicates.
+- Added throw-mode XSD gates and expanded temporal capability declarations.
+- Added ALL_BACKENDS default-datetime execution/gate, Polars typed-null temporal-any, and non-Polars XSD throw gate matrices.
+- Final regression gates: 64 passed, 26 deselected, 1 existing Polars deprecation warning; compile and scoped Ruff checks passed.
+
+## Rereview 3 correction wave
+
+- Replaced generic XSD unsupported declarations with eight exact `NON_NULL_TO_NULL` materialization-residue facts across Ibis DuckDB/Polars and Narwhals Polars/Pandas.
+- Corrected all backend XSD predicates for `.5S`, trailing `T`, timezone suffixes, and signed `14:00` bounds.
+- Added real ALL_BACKENDS execution/gate and residue-fact matrices; Polars lazy remains an execution cell.
+
+## Final matrix review correction
+
+- Retained the two Ibis SQLite wildcard XSD gates alongside the eight dialect-specific residue facts.
+- Made all four Ibis/Narwhals XSD throw cells emit null-on-invalid residue expressions.
+- Corrected Polars duration null-mode return flow and signed `14:MM` bounds.
+- Reworked the ALL_BACKENDS matrix to use backend factories/result helpers, including real lazy-frame collection.
+- Regression: 62 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
+- Final matrix/parser regression: 61 passed, 2 existing Polars deprecation warnings; compile and scoped Ruff checks passed.
+
+## Post-cap repair wave
+
+- Restored one dialect-scoped `WILDCARD_PARAM` `GATE` fact for each XSD operation on `ibis-sqlite`, while retaining all eight XSD `MATERIALIZE_RESIDUE` / `NON_NULL_TO_NULL` facts.
+- Tightened every Polars, Narwhals, and Ibis partial-date predicate to reject both signs of every nonzero-minute `14:00` offset, including minute values ending in zero.
+- Replaced the narrow temporal tests with an `ALL_BACKENDS` matrix for XSD duration, XSD year/yearmonth, and temporal-any across both failure modes. Supported cells materialize through `BackendDataFrameFactory` and `BackendResultHelper`; unsupported cells assert the exact capability gate.
+
+Verification:
+
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_temporal_operations.py -q`: 309 passed, 2 existing Polars deprecation warnings.
+- `hatch run test:test-target-quick tests/typespec/test_temporal.py tests/conform/cross_backend/test_temporal_operations.py -q`: 354 passed, 2 existing Polars deprecation warnings.
+- `hatch run test:test-target-quick tests/core/test_capability_declarations.py tests/core/test_capability_registry.py -q`: 27 passed.
+- `hatch run ruff:check src/mountainash/expressions/backends/capabilities/datetime/xsd.py src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_datetime.py src/mountainash/expressions/backends/expression_systems/narwhals/substrait/expsys_nw_scalar_datetime.py src/mountainash/expressions/backends/expression_systems/ibis/substrait/expsys_ib_scalar_datetime.py tests/conform/cross_backend/test_temporal_operations.py`: passed.
+- `git diff --check`: passed.

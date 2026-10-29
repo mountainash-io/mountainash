@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Protocol, Optional
+from typing import Protocol, Sequence
 
 from mountainash.core.types import ExpressionT
 
@@ -20,24 +20,30 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: window
     """
 
-    def row_number(self) -> ExpressionT:
+    def row_number(self, *, order_by: Sequence[tuple[ExpressionT, bool]] = ()) -> ExpressionT:
         """the number of the current row within its partition, starting at 1
+
+        order_by: visitor-supplied (key, descending) pairs in priority order.
 
         Substrait: row_number
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
         ...
 
-    def rank(self) -> ExpressionT:
+    def rank(self, *, order_by: Sequence[tuple[ExpressionT, bool]] = ()) -> ExpressionT:
         """the rank of the current row, with gaps.
+
+        order_by: visitor-supplied (key, descending) pairs in priority order.
 
         Substrait: rank
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
         """
         ...
 
-    def dense_rank(self) -> ExpressionT:
+    def dense_rank(self, *, order_by: Sequence[tuple[ExpressionT, bool]] = ()) -> ExpressionT:
         """the rank of the current row, without gaps.
+
+        order_by: visitor-supplied (key, descending) pairs in priority order.
 
         Substrait: dense_rank
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_arithmetic.yaml
@@ -86,7 +92,7 @@ class SubstraitWindowArithmeticExpressionSystemProtocol(Protocol[ExpressionT]):
         """
         ...
 
-    def nth_value(self, x: ExpressionT, /, window_offset: ExpressionT, on_domain_error: Optional[str] = None) -> ExpressionT:
+    def nth_value(self, x: ExpressionT, /, window_offset: ExpressionT = 1) -> ExpressionT:  # type: ignore[assignment]
         """Returns a value from the nth row based on the `window_offset`. `window_offset` should be a positive integer. If the value of the `window_offset` is outside the range of the window, `null` is returned.
 The `on_domain_error` option governs behavior in cases where `window_offset` is not a positive integer or `null`.
 

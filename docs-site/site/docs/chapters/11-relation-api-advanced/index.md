@@ -1,6 +1,6 @@
 ---
 title: Relation API Advanced Features
-description: Advanced relation operations including conform for TypeSpec-driven transformation, unnest, the build-then-collect pattern, and terminal operations for materializing results.
+description: Advanced relation operations including conform for TableSchema-driven transformation, unnest, the build-then-collect pattern, and terminal operations for materializing results.
 generated_by: claude skill chapter-content-generator
 date: 2026-06-03
 version: 0.08
@@ -10,7 +10,7 @@ version: 0.08
 
 ## Summary
 
-Advanced relation operations: conform (TypeSpec-driven transformation), unnest, the build-then-collect pattern, terminal operations, output methods (to_polars, to_pandas, collect).
+Advanced relation operations: conform (TableSchema-driven transformation), unnest, the build-then-collect pattern, terminal operations, output methods (to_polars, to_pandas, collect).
 
 ---
 
@@ -21,12 +21,12 @@ The core relational operations (filter, sort, select, join, group_by) handle sta
 <!-- concept:108 -->
 ## Conform Operation
 
-The `conform` operation transforms a relation to match a `TypeSpec` schema. It handles column renaming (via `rename_from`), type casting to target types, null filling (via `null_fill`), missing value replacement (via `missing_values`), and column filtering based on the `fields_match` setting.
+The `conform` operation transforms a relation to match a `TableSchema` schema. It handles column renaming (via `rename_from`), type casting to target types, null filling (via `null_fill`), missing value replacement (via `missing_values`), and column filtering based on the `fields_match` setting.
 
 ```python
 import mountainash as ma
 
-spec = ma.typespec({
+spec = ma.table_schema({
     "customer_id": "integer",
     "full_name": "string",
     "signup_date": "date",
@@ -44,8 +44,8 @@ The conform operation stores a `ConformRelNode` in the AST. At compile time (not
 
 Conform handles several transformation types automatically:
 
-- **Column renaming**: If a FieldSpec has `rename_from="old_col"`, the compiler generates a rename from "old_col" to the FieldSpec's `name`
-- **Type casting**: If a column's actual type differs from the FieldSpec's `type`, a cast expression is generated
+- **Column binding**: `rename_from="old_col"` reads the original source; the containing TableSchema mapping key names the output. Swaps and fan-out do not consume earlier target results.
+- **Type casting**: Shared resolution combines the declaration's broad `type`, precise `dtype` and available source evidence; native adapters supply representations.
 - **Null filling**: If `null_fill` is set, a `fill_null` expression is generated
 - **Missing values**: If `missing_values` lists strings that represent null, they are replaced before other processing
 - **Column filtering**: Depending on `fields_match` mode, extra columns are kept or dropped
@@ -54,7 +54,13 @@ Conform handles several transformation types automatically:
 |-------------------|---------------|-----------------|
 | "open" | Kept | Ignored |
 | "partial" | Dropped | Ignored |
-| "strict" | Error | Error |
+| "exact" / "equal" | Error | Error |
+| "subset" | Dropped | Error |
+| "superset" | Error | Ignored |
+
+`exact` additionally requires matching column count; `partial` requires at least
+one overlapping field. Explicit conform-contract dimensions override presets.
+Conformance converts values; constraint checking remains a separate operation.
 
 #### Diagram: Conform Transformation Pipeline
 <iframe src="../../sims/conform-pipeline/main.html" width="100%" height="500px" scrolling="no"></iframe>
@@ -65,7 +71,7 @@ Type: workflow
 **Library:** vis-network<br/>
 **Status:** Specified
 
-A step-by-step workflow diagram showing the conformance process. Input: a DataFrame with columns [old_name, value_str, extra]. TypeSpec: fields [{name: new_name, rename_from: old_name}, {name: value, type: integer}]. Steps flow left to right: 1) Detect rename_from mappings, 2) Apply renames, 3) Cast types, 4) Fill nulls, 5) Filter columns based on fields_match. Each step shows the intermediate column state. Interactive: clicking a step highlights which FieldSpec properties drive that transformation. Colors: MediumPurple for type system elements, Teal for relation operations. Learning objective: Predict the output schema after a conform operation given a TypeSpec with various field specifications (Bloom: Apply).
+The diagram shows planning against unchanged source columns, followed by terminal execution. Mapping keys name outputs; definitions supply source bindings and conversion settings. Intermediate boxes describe planned expressions, not a sequence of mutated frames.
 </details>
 
 <!-- concept:109 -->
@@ -212,7 +218,7 @@ A decision tree diagram helping users choose the right terminal operation. Root 
 
 ## Key Takeaways
 
-- The `conform` operation applies TypeSpec-driven transformations (rename, cast, null-fill, column filter) at compile time when column information becomes available.
+- The `conform` operation applies TableSchema-driven transformations (rename, cast, null-fill, column filter) at compile time when column information becomes available.
 - `unnest` expands struct columns into separate top-level columns using a separator-based naming convention, handling nested data denormalization.
 - The build-then-collect pattern separates AST construction (free, backend-agnostic) from compilation and execution (costly, backend-specific).
 - Terminal operations (`to_polars`, `to_pandas`, `collect`) are the only methods that trigger actual computation; everything else is lazy AST construction.

@@ -48,6 +48,16 @@ class MountainashExtension:
     ARITHMETIC = "file://extensions/functions_arithmetic.yaml"
     COMPARISON = "file://extensions/functions_comparison.yaml"
     STRING = "file://extensions/functions_string.yaml"
+    WINDOW = "file://extensions/functions_window.yaml"
+    STRUCT = "file://extensions/functions_struct.yaml"
+    LIST = "file://extensions/functions_list.yaml"
+    AGGREGATE = "file://extensions/functions_aggregate.yaml"
+    CATEGORICAL = "file://extensions/functions_categorical.yaml"
+    BOOLEAN = "file://extensions/functions_boolean.yaml"
+    VALUE = "file://extensions/functions_value.yaml"
+
+
+    GEOSPATIAL = "file://extensions/functions_geospatial.yaml"
 
 
 
@@ -193,6 +203,15 @@ class FKEY_SUBSTRAIT_SCALAR_ARITHMETIC(Enum):
     RADIANS = auto()
     DEGREES = auto()
 
+    # Bitwise
+    BITWISE_NOT = auto()
+    BITWISE_AND = auto()
+    BITWISE_OR = auto()
+    BITWISE_XOR = auto()
+    SHIFT_LEFT = auto()
+    SHIFT_RIGHT = auto()
+    SHIFT_RIGHT_UNSIGNED = auto()
+
 # =============================================================================
 # Comparison Functions (Substrait-aligned)
 # =============================================================================
@@ -320,9 +339,12 @@ class FKEY_SUBSTRAIT_SCALAR_STRING(Enum):
 
     # Regex
     REGEXP_MATCH = auto()
+    REGEXP_MATCH_ALL = auto()
     REGEXP_CONTAINS = auto()
     REGEXP_REPLACE = auto()
     REGEXP_SPLIT = auto()
+    REGEXP_COUNT = auto()
+    REGEXP_STRPOS = auto()
 
 
 
@@ -343,6 +365,7 @@ class FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC(Enum):
     LOG10 = auto()
     LOG2 = auto()
     LOGB = auto()
+    LOG1P = auto()
 
 # =============================================================================
 # Datetime Functions (Substrait-aligned)
@@ -403,6 +426,24 @@ class SUBSTRAIT_ARITHMETIC_WINDOW(Enum):
     LAG = auto()
 
 
+class FKEY_MOUNTAINASH_WINDOW(Enum):
+    """mountainash extension window functions.
+
+    Not part of the Substrait spec — mountainash-specific operations.
+    """
+
+    RANK_AVERAGE = auto()
+    RANK_MAX = auto()
+    CUM_SUM = auto()
+    CUM_MAX = auto()
+    CUM_MIN = auto()
+    CUM_COUNT = auto()
+    CUM_PROD = auto()
+    DIFF = auto()
+    FORWARD_FILL = auto()
+    BACKWARD_FILL = auto()
+
+
 class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     """Substrait datetime functions.
 
@@ -418,6 +459,18 @@ class FKEY_SUBSTRAIT_SCALAR_DATETIME(Enum):
     # Timezone
     LOCAL_TIMESTAMP = auto()
 
+    # Arithmetic
+    ADD_INTERVALS = auto()
+
+    # Rounding
+    ROUND_TEMPORAL = auto()
+    ROUND_CALENDAR = auto()
+
+    # Migrated from mountainash namespace — catalog functions_datetime.yaml ops
+    ASSUME_TIMEZONE = auto()
+    STRFTIME = auto()
+    STRPTIME_DATE = auto()
+    STRPTIME_TIMESTAMP = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
@@ -479,10 +532,6 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
 
     # Timezone
     TO_TIMEZONE = auto()
-    ASSUME_TIMEZONE = auto()
-
-    # Formatting
-    STRFTIME = auto()
 
     # Snapshot
     TODAY = auto()
@@ -499,6 +548,20 @@ class FKEY_MOUNTAINASH_SCALAR_DATETIME(Enum):
 
     # Legacy
     OFFSET_BY = auto()
+
+    # Duration extraction (total elapsed)
+    TOTAL_SECONDS = auto()
+    TOTAL_MINUTES = auto()
+    TOTAL_MILLISECONDS = auto()
+    TOTAL_MICROSECONDS = auto()
+    TOTAL_DAYS = auto()
+    TOTAL_HOURS = auto()
+    TOTAL_NANOSECONDS = auto()
+    # Frictionless temporal parsing
+    PARSE_DEFAULT = auto()
+    PARSE_XSD_DURATION = auto()
+    PARSE_XSD_PARTIAL_DATE = auto()
+    PARSE_TEMPORAL_ANY = auto()
 
 
 # =============================================================================
@@ -517,12 +580,28 @@ class FKEY_MOUNTAINASH_SCALAR_COMPARISON(Enum):
     IS_CLOSE = "is_close"
     EQ_MISSING = "eq_missing"
     NE_MISSING = "ne_missing"
+    IS_DUPLICATED = "is_duplicated"
 
 
 class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     """Mountainash boolean extensions not in Substrait."""
 
     XOR_PARITY = "xor_parity"
+    PARSE_TOKENS = "parse_tokens"
+
+class FKEY_MOUNTAINASH_SCALAR_VALUE(Enum):
+    """Mountainash scalar-domain classification and projection functions."""
+
+    VALUE_KIND = "value_kind"
+    BOOLEAN_VALUE = "boolean_value"
+    TEXT_VALUE = "text_value"
+    DECIMAL_CAST = "decimal_cast"
+
+
+class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):
+    """Mountainash aggregate extensions not in Substrait."""
+
+    COUNT_DISTINCT = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
@@ -535,6 +614,14 @@ class FKEY_MOUNTAINASH_SCALAR_STRING(Enum):
     """
 
     REGEX_CONTAINS = "regex_contains"
+    STRIP_SUFFIX = "strip_suffix"
+    TO_TIME = "to_time"
+    TO_INTEGER = "to_integer"
+    JSON_DECODE = "json_decode"
+    JSON_PATH_MATCH = "json_path_match"
+    ENCODE = "encode"
+    DECODE = "decode"
+    EXTRACT_GROUPS = "extract_groups"
 
 
 class FKEY_MOUNTAINASH_NULL(Enum):
@@ -565,6 +652,73 @@ class FKEY_MOUNTAINASH_SCALAR_SET(Enum):
 
     IS_IN = "is_in"
     IS_NOT_IN = "is_not_in"
+
+
+class FKEY_MOUNTAINASH_SCALAR_STRUCT(Enum):
+    """Mountainash struct operations."""
+
+    FIELD = auto()
+    CAST = auto()
+
+class FKEY_MOUNTAINASH_SCALAR_CATEGORICAL(Enum):
+    """Mountainash categorical operations."""
+
+    CAST = auto()
+
+class FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL(Enum):
+    """Mountainash geospatial operations."""
+
+    PARSE_GEOPOINT = auto()
+    PARSE_GEOJSON = auto()
+    SERIALIZE_GEOJSON = auto()
+
+class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
+    """Mountainash list operations."""
+
+    PARSE = auto()
+    CAST_ITEMS = auto()
+    SUM = auto()
+    MIN = auto()
+    MAX = auto()
+    MEAN = auto()
+    LEN = auto()
+    CONTAINS = auto()
+    T_CONTAINS = auto()
+    SORT = auto()
+    UNIQUE = auto()
+    EXPLODE = auto()
+    JOIN = auto()
+    GET = auto()
+    ALL = auto()
+    ANY = auto()
+    DROP_NULLS = auto()
+    MEDIAN = auto()
+    STD = auto()
+    VAR = auto()
+    N_UNIQUE = auto()
+    COUNT_MATCHES = auto()
+    ITEM = auto()
+    REVERSE = auto()
+    HEAD = auto()
+    TAIL = auto()
+    SLICE = auto()
+    GATHER = auto()
+    GATHER_EVERY = auto()
+    SHIFT = auto()
+    DIFF = auto()
+    SET_UNION = auto()
+    SET_INTERSECTION = auto()
+    SET_DIFFERENCE = auto()
+    SET_SYMMETRIC_DIFFERENCE = auto()
+    CONCAT = auto()
+    FILTER = auto()
+    TO_STRUCT = auto()
+    TO_ARRAY = auto()
+    ARG_MIN = auto()
+    ARG_MAX = auto()
+    SAMPLE = auto()
+    AGG = auto()
+    ELEMENT = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
@@ -610,7 +764,7 @@ class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):
     ALWAYS_UNKNOWN = "always_unknown"
 
     # Helper
-    LIST = "list"
+    COLLECT_VALUES = "collect_values"
 
 
 # =============================================================================
@@ -643,6 +797,7 @@ MOUNTAINASH_TERNARY_NON_TERMINAL = frozenset({
     FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR,
     FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR_PARITY,
     FKEY_MOUNTAINASH_SCALAR_TERNARY.TO_TERNARY,
+    FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
     FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE,
     FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE,
     FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN,
@@ -667,11 +822,20 @@ SubstraitFunction = Union[
 MountainashFunction = Union[
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_NAME,
+    FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_VALUE,
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+    FKEY_MOUNTAINASH_SCALAR_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_SET,
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+    FKEY_MOUNTAINASH_WINDOW,
 ]
 
 # All function enums
@@ -703,14 +867,21 @@ __all__ = [
     "FKEY_SUBSTRAIT_SCALAR_STRING",
     "SUBSTRAIT_ARITHMETIC_WINDOW",
     # Mountainash extensions
+    "FKEY_MOUNTAINASH_SCALAR_AGGREGATE",
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
     "FKEY_MOUNTAINASH_SCALAR_BOOLEAN",
+    "FKEY_MOUNTAINASH_SCALAR_VALUE",
     "FKEY_MOUNTAINASH_SCALAR_STRING",
     "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
     "FKEY_MOUNTAINASH_SCALAR_DATETIME",
-    "FKEY_MOUNTAINASH_NULL",
+    "FKEY_MOUNTAINASH_SCALAR_LIST",
+    "FKEY_MOUNTAINASH_SCALAR_STRUCT",
+    "FKEY_MOUNTAINASH_SCALAR_CATEGORICAL",
+    "FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL",
+    "FKEY_MOUNTAINASH_SCALAR_SET",
     "FKEY_MOUNTAINASH_NAME",
     "FKEY_MOUNTAINASH_SCALAR_TERNARY",
+    "FKEY_MOUNTAINASH_NULL",
     # Ternary function categories (single source of truth)
     "MOUNTAINASH_TERNARY_TERMINAL",
     "MOUNTAINASH_TERNARY_NON_TERMINAL",

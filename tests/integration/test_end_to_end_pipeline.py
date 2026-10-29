@@ -1,13 +1,14 @@
 """End-to-end pipeline integration tests.
 
-Tests the full pipeline: Python data → ingress → conform → relation → expression filter → output.
+Tests the full pipeline: Python data -> ingress -> conform -> relation -> expression filter -> output.
 Validates that typespec, conform, pydata, relations, and expressions modules work together.
 """
 
 import pytest
 import polars as pl
 import mountainash as ma
-from mountainash.conform.builder import ConformBuilder
+from mountainash.typespec.spec import FieldDefinition, TableSchema
+from mountainash.typespec.universal_types import UniversalType
 from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
 
 
@@ -27,7 +28,7 @@ def sample_records():
 
 
 class TestPydataIngress:
-    """Test Python data → DataFrame conversion."""
+    """Test Python data -> DataFrame conversion."""
 
     def test_dict_to_dataframe(self, ingress_factory):
         data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
@@ -47,69 +48,101 @@ class TestPydataIngress:
 
 
 class TestConformTransform:
-    """Test DataFrame → conform-transformed DataFrame."""
+    """Test DataFrame -> conform-transformed DataFrame."""
 
     def test_cast_string_to_integer(self):
         df = pl.DataFrame({"age": ["25", "35"], "name": ["alice", "bob"]})
-        result = ConformBuilder({"age": {"cast": "integer"}}).apply(df)
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
+        result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
 
     def test_cast_string_to_float(self):
         df = pl.DataFrame({"score": ["88.5", "92.1"]})
-        result = ConformBuilder({"score": {"cast": "number"}}).apply(df)
+        spec = TableSchema(fields_match="open",
+            fields={"score": FieldDefinition(type=UniversalType.NUMBER)},
+        )
+        result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].dtype == pl.Float64
 
     def test_cast_multiple_columns(self):
         df = pl.DataFrame({"age": ["25", "35"], "score": ["88.5", "92.1"], "name": ["a", "b"]})
-        result = ConformBuilder({
-            "age": {"cast": "integer"},
-            "score": {"cast": "number"},
-        }).apply(df)
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "score": FieldDefinition(type=UniversalType.NUMBER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
+        result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
         assert result["score"].dtype == pl.Float64
         assert result["name"].dtype == pl.String
 
 
+ALL_BACKENDS = [
+    "polars",
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-duckdb",
+    "ibis-sqlite",
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestRelationExpressionFilter:
-    """Test DataFrame → relation → expression filter → output."""
+    """Test DataFrame -> relation -> expression filter -> output."""
 
-    def test_filter_with_expression(self):
-        df = pl.DataFrame({"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]})
-        result = ma.relation(df).filter(ma.col("age").gt(ma.lit(30))).to_polars()
-        assert result.shape[0] == 2
-        assert set(result["name"].to_list()) == {"bob", "diana"}
+    def test_filter_with_expression(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]},
+            backend_name,
+        )
+        result = ma.relation(df).filter(ma.col("age").gt(ma.lit(30))).sort("name").to_dict()
+        assert len(result["name"]) == 2, f"[{backend_name}]"
+        assert set(result["name"]) == {"bob", "diana"}, f"[{backend_name}]"
 
-    def test_sort_and_head(self):
-        df = pl.DataFrame({"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]})
-        result = ma.relation(df).sort("age").head(2).to_polars()
-        assert result.shape[0] == 2
-        assert result["name"].to_list() == ["charlie", "alice"]
+    def test_sort_and_head(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35, 20, 42], "name": ["alice", "bob", "charlie", "diana"]},
+            backend_name,
+        )
+        result = ma.relation(df).sort("age").head(2).to_dict()
+        assert len(result["name"]) == 2, f"[{backend_name}]"
+        assert result["name"] == ["charlie", "alice"], f"[{backend_name}]"
 
-    def test_select_columns(self):
-        df = pl.DataFrame({"age": [25, 35], "name": ["alice", "bob"], "score": [88, 92]})
-        result = ma.relation(df).select("name", "score").to_polars()
-        assert result.columns == ["name", "score"]
+    def test_select_columns(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"age": [25, 35], "name": ["alice", "bob"], "score": [88, 92]},
+            backend_name,
+        )
+        result = ma.relation(df).select("name", "score").to_dict()
+        assert set(result.keys()) == {"name", "score"}, f"[{backend_name}]"
 
 
 class TestFullPipeline:
-    """End-to-end: Python data → ingress → conform → relation filter → output."""
+    """End-to-end: Python data -> ingress -> conform -> relation filter -> output."""
 
     def test_full_pipeline(self, ingress_factory, sample_records):
-        # Step 1: Ingress
         df = ingress_factory.convert(sample_records)
         assert df.dtypes == [pl.String, pl.String, pl.String]
 
-        # Step 2: Conform (replaces old schema transform)
-        df = ConformBuilder({
-            "age": {"cast": "integer"},
-            "score": {"cast": "number"},
-        }).apply(df)
-        assert df["age"].dtype == pl.Int64
-        assert df["score"].dtype == pl.Float64
-
-        # Step 3: Relation + expression filter
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "score": FieldDefinition(type=UniversalType.NUMBER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
         result = (
             ma.relation(df)
+            .conform(spec)
             .filter(ma.col("age").gt(ma.lit(25)))
             .sort("score")
             .to_polars()
@@ -127,11 +160,15 @@ class TestFullPipeline:
             {"dept": "sales", "salary": "95000"},
         ]
 
-        # Ingress + conform
         df = ingress_factory.convert(records)
-        df = ConformBuilder({"salary": {"cast": "integer"}}).apply(df)
+        spec = TableSchema(fields_match="open",
+            fields={
+                "salary": FieldDefinition(type=UniversalType.INTEGER),
+                "dept": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
+        df = ma.relation(df).conform(spec).to_polars()
 
-        # Relation: group by + aggregate (agg takes native Polars expressions)
         result = (
             ma.relation(df)
             .group_by("dept")
@@ -144,13 +181,17 @@ class TestFullPipeline:
         assert result["dept"].to_list() == ["eng", "sales"]
 
     def test_pipeline_with_select_and_rename(self, ingress_factory, sample_records):
-        # Ingress + conform
         df = ingress_factory.convert(sample_records)
-        df = ConformBuilder({"age": {"cast": "integer"}}).apply(df)
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
 
-        # Relation: select + rename + filter
         result = (
             ma.relation(df)
+            .conform(spec)
             .select("age", "name")
             .rename({"name": "person"})
             .filter(ma.col("age").lt(ma.lit(30)))

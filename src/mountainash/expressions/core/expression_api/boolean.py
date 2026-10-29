@@ -30,7 +30,6 @@ from .api_builders.substrait import (
     SubstraitScalarStringAPIBuilder,
 )
 
-# Import Mountainash extension builders
 from .api_builders.extensions_mountainash import (
     MountainAshNameAPIBuilder,
     MountainAshNativeAPIBuilder,
@@ -40,9 +39,15 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarBooleanAPIBuilder,
     MountainAshScalarComparisonAPIBuilder,
     MountainAshScalarDatetimeAPIBuilder,
+    MountainAshScalarGeospatialAPIBuilder,
+    MountainAshScalarListAPIBuilder,
     MountainAshScalarSetAPIBuilder,
     MountainAshScalarStringAPIBuilder,
+    MountainAshScalarStructAPIBuilder,
+    MountainAshScalarCategoricalAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
+    MountainAshScalarValueAPIBuilder,
+    MountainAshCastAPIBuilder,
 )
 
 # Import descriptor for explicit namespaces
@@ -70,6 +75,26 @@ class StringAPIBuilder(
     pass
 
 
+class StructAPIBuilder(MountainAshScalarStructAPIBuilder):
+    """Unified struct builder for the .struct namespace."""
+    pass
+
+
+class ListAPIBuilder(MountainAshScalarListAPIBuilder):
+    """Unified list builder for the .list namespace."""
+    pass
+
+
+class CategoricalAPIBuilder(MountainAshScalarCategoricalAPIBuilder):
+    """Unified categorical builder for the .cat namespace."""
+    pass
+
+
+class GeospatialAPIBuilder(MountainAshScalarGeospatialAPIBuilder):
+    """Unified geospatial builder for the .geo namespace."""
+    pass
+
+
 # Import base namespace type for type hints
 
 
@@ -86,7 +111,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     Uses namespace-based composition for clean, organized method access.
 
     Flat namespaces (methods accessed directly):
-    - Ternary: t_eq, t_ne, t_gt, t_lt, t_and, t_or, is_true, is_false, etc.
+    - Ternary: t_eq, t_ne, t_gt, t_lt, t_and, t_or, t_is_true, t_is_false, etc.
     - Comparison: eq, ne, gt, lt, ge, le, is_close, between
     - Logical: and_, or_, xor_, not_, is_in, is_not_in, always_true, always_false
     - Null checks: is_null, is_not_null, coalesce, greatest, least
@@ -107,12 +132,9 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
         >>> result = df.filter(expr.compile(df))
     """
-
-    # Flat namespaces - methods dispatched via __getattr__
-    # TernaryNamespace first so ternary-specific methods (is_true, is_false, etc.)
-    # take priority when there are conflicts with ScalarComparisonNamespace
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
-        # Mountainash extensions first (ternary takes priority for is_true etc.)
+        # Mountainash extensions first
+        MountainAshCastAPIBuilder,  # must precede SubstraitCastAPIBuilder: takes over the flat .cast name
         MountainAshScalarTernaryAPIBuilder,
         MountainAshNullAPIBuilder,
         MountainAshNameAPIBuilder,
@@ -122,6 +144,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         MountainAshScalarComparisonAPIBuilder,
         MountainAshNativeAPIBuilder,
         MountainAshScalarSetAPIBuilder,
+        MountainAshScalarValueAPIBuilder,
         # Substrait core
         SubstraitCastAPIBuilder,
         SubstraitFieldReferenceAPIBuilder,
@@ -136,10 +159,14 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         SubstraitWindowArithmeticAPIBuilder,
     )
 
-    # Explicit namespace descriptors - accessed via .str, .dt, .name
+    # Explicit namespace descriptors - accessed via .str, .dt, .name, .struct, .list, .cat, .geo
     str = NamespaceDescriptor(StringAPIBuilder)
     dt = NamespaceDescriptor(DatetimeAPIBuilder)
     name = NamespaceDescriptor(MountainAshNameAPIBuilder)
+    struct = NamespaceDescriptor(StructAPIBuilder)
+    list = NamespaceDescriptor(ListAPIBuilder)
+    cat = NamespaceDescriptor(CategoricalAPIBuilder)
+    geo = NamespaceDescriptor(GeospatialAPIBuilder)
 
     @classmethod
     def create(cls, node: ExpressionNode) -> BooleanExpressionAPI:

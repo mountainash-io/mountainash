@@ -8,12 +8,20 @@ This module provides:
 - Test markers for organizing test suites
 """
 
+# --- must run BEFORE `from fixtures.backend_registry import ...` ---
+import os, sys
+
+for _i, _a in enumerate(sys.argv):
+    if _a == "--ma-backend-scope" and _i + 1 < len(sys.argv):
+        os.environ["MA_BACKEND_SCOPE"] = sys.argv[_i + 1]
+    elif _a.startswith("--ma-backend-scope="):
+        os.environ["MA_BACKEND_SCOPE"] = _a.split("=", 1)[1]
+
 import pytest
 import polars as pl
 import pandas as pd
 import narwhals as nw
 import ibis
-import pyarrow as pa
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List
 
@@ -22,53 +30,45 @@ from typing import Any, Callable, Dict, List
 # Constants
 # =============================================================================
 
-ALL_BACKENDS = [
-    "polars",
-    "pandas",
-    "narwhals-polars",
-    "narwhals-pandas",
-    "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
-]
+from fixtures.backend_registry import (
+    REGISTRY as BACKEND_REGISTRY,
+    ALL_BACKENDS,
+    create_ibis_sqlite_table,
+)
+
 TEMPORAL_BACKENDS = [
     "polars",
+    "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",
-    "ibis-polars",
-    "ibis-sqlite"
+    "ibis-sqlite",
 ]  # Pandas temporal support varies
 
 # Map backend names to Ibis backend types
-IBIS_BACKEND_TYPES = {
-    "ibis-duckdb": "duckdb",
-    "ibis-polars": "polars",
-    "ibis-sqlite": "sqlite"
-}
+IBIS_BACKEND_TYPES = {"ibis-duckdb": "duckdb", "ibis-sqlite": "sqlite"}
 
 
 # =============================================================================
-# Test Markers Configuration
+# CLI Options
 # =============================================================================
 
-def pytest_configure(config):
-    """Register custom markers for test organization."""
-    config.addinivalue_line("markers", "unit: Unit tests (fast, isolated)")
-    config.addinivalue_line("markers", "integration: Integration tests")
-    config.addinivalue_line("markers", "backend: Backend-specific tests")
-    config.addinivalue_line("markers", "cross_backend: Cross-backend consistency tests")
-    config.addinivalue_line("markers", "temporal: Temporal operation tests")
-    config.addinivalue_line("markers", "arithmetic: Arithmetic operation tests")
-    config.addinivalue_line("markers", "string: String operation tests")
-    config.addinivalue_line("markers", "comparison: Comparison operation tests")
-    config.addinivalue_line("markers", "logical: Logical operation tests")
-    config.addinivalue_line("markers", "slow: Slow-running tests")
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--ma-backend-scope",
+        action="store",
+        default=None,
+        choices=["pr", "full"],
+        help="Backend matrix scope: 'pr' (one per family) or 'full' (all). "
+        "Mirrors the MA_BACKEND_SCOPE env var; CLI wins.",
+    )
 
 
 # =============================================================================
 # Backend Name Fixtures
 # =============================================================================
+
 
 @pytest.fixture(params=ALL_BACKENDS)
 def backend_name(request):
@@ -97,6 +97,7 @@ def temporal_backend_name(request):
 # Test Data Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def sample_data() -> Dict[str, List]:
     """
@@ -110,11 +111,11 @@ def sample_data() -> Dict[str, List]:
         - salary: float (50k-90k)
     """
     return {
-        'age': [25, 30, 35, 40, 45],
-        'score': [85, 90, 75, 95, 80],
-        'name': ['Alice', 'Bob', 'Charlie', 'David', 'Eve'],
-        'active': [True, True, False, True, False],
-        'salary': [50000.0, 60000.0, 70000.0, 80000.0, 90000.0]
+        "age": [25, 30, 35, 40, 45],
+        "score": [85, 90, 75, 95, 80],
+        "name": ["Alice", "Bob", "Charlie", "David", "Eve"],
+        "active": [True, True, False, True, False],
+        "salary": [50000.0, 60000.0, 70000.0, 80000.0, 90000.0],
     }
 
 
@@ -130,15 +131,15 @@ def temporal_data() -> Dict[str, List]:
     """
     now = datetime.now()
     return {
-        'timestamp': [
+        "timestamp": [
             now - timedelta(minutes=5),
             now - timedelta(hours=1),
             now - timedelta(days=1),
             now - timedelta(days=7),
-            now - timedelta(days=30)
+            now - timedelta(days=30),
         ],
-        'event': ['A', 'B', 'C', 'D', 'E'],
-        'level': ['INFO', 'ERROR', 'WARN', 'INFO', 'ERROR']
+        "event": ["A", "B", "C", "D", "E"],
+        "level": ["INFO", "ERROR", "WARN", "INFO", "ERROR"],
     }
 
 
@@ -152,11 +153,7 @@ def arithmetic_data() -> Dict[str, List]:
         - b: int (2-6)
         - c: float (1.5-5.5, step 1.0)
     """
-    return {
-        'a': [10, 20, 30, 40, 50],
-        'b': [2, 3, 4, 5, 6],
-        'c': [1.5, 2.5, 3.5, 4.5, 5.5]
-    }
+    return {"a": [10, 20, 30, 40, 50], "b": [2, 3, 4, 5, 6], "c": [1.5, 2.5, 3.5, 4.5, 5.5]}
 
 
 @pytest.fixture
@@ -169,15 +166,9 @@ def string_data() -> Dict[str, List]:
         - category: str (A, B, C)
     """
     return {
-        'text': ['hello', 'world', 'test', 'data', 'python'],
-        'category': ['A', 'B', 'A', 'C', 'B'],
-        'description': [
-            'Hello World',
-            'Test String',
-            'Another Test',
-            'Final String',
-            'Python Code'
-        ]
+        "text": ["hello", "world", "test", "data", "python"],
+        "category": ["A", "B", "A", "C", "B"],
+        "description": ["Hello World", "Test String", "Another Test", "Final String", "Python Code"],
     }
 
 
@@ -190,15 +181,13 @@ def null_data() -> Dict[str, List]:
         - value: Optional[int]
         - text: Optional[str]
     """
-    return {
-        'value': [1, None, 3, None, 5],
-        'text': ['a', 'b', None, 'd', None]
-    }
+    return {"value": [1, None, 3, None, 5], "text": ["a", "b", None, "d", None]}
 
 
 # =============================================================================
 # Backend DataFrame Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def polars_df(sample_data) -> pl.DataFrame:
@@ -222,142 +211,46 @@ def narwhals_df(sample_data) -> Any:
 @pytest.fixture
 def ibis_duckdb_df(sample_data) -> Any:
     """Create Ibis Table with DuckDB backend from sample data."""
-    import duckdb
+
     conn = ibis.duckdb.connect()
     return conn.create_table("sample", sample_data, overwrite=True)
-
-
-@pytest.fixture
-def ibis_polars_df(sample_data) -> Any:
-    """Create Ibis Table with Polars backend from sample data."""
-    conn = ibis.polars.connect()
-    pl_df = pl.DataFrame(sample_data)
-    return conn.create_table("sample", pl_df, overwrite=True)
 
 
 @pytest.fixture
 def ibis_sqlite_df(sample_data) -> Any:
     """Create Ibis Table with SQLite backend from sample data."""
     conn = ibis.sqlite.connect(":memory:")
-    return conn.create_table("sample", sample_data, overwrite=True)
+    return create_ibis_sqlite_table(conn, "sample", sample_data)
 
 
 @pytest.fixture
 def backend_df(backend_name: str, sample_data) -> Any:
-    """
-    Create DataFrame for the specified backend.
-
-    Args:
-        backend_name: One of ["polars", "pandas", "narwhals", "ibis-duckdb", "ibis-polars", "ibis-sqlite"]
-        sample_data: Test data dictionary
-
-    Returns:
-        Backend-specific DataFrame object
-    """
-    if backend_name == "polars":
-        return pl.DataFrame(sample_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(sample_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(sample_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(sample_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("sample", sample_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(sample_data)
-        return conn.create_table("sample", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("sample", sample_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    """Create DataFrame for the specified backend via the central registry."""
+    return BACKEND_REGISTRY[backend_name].build(sample_data, table_name="sample")
 
 
 @pytest.fixture
 def backend_temporal_df(backend_name: str, temporal_data) -> Any:
     """Create temporal DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(temporal_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(temporal_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(temporal_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(temporal_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("temporal", temporal_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(temporal_data)
-        return conn.create_table("temporal", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("temporal", temporal_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(temporal_data, table_name="temporal")
 
 
 @pytest.fixture
 def backend_arithmetic_df(backend_name: str, arithmetic_data) -> Any:
     """Create arithmetic DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(arithmetic_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(arithmetic_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(arithmetic_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(arithmetic_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(arithmetic_data)
-        return conn.create_table("arithmetic", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("arithmetic", arithmetic_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(arithmetic_data, table_name="arithmetic")
 
 
 @pytest.fixture
 def backend_string_df(backend_name: str, string_data) -> Any:
     """Create string DataFrame for the specified backend."""
-    if backend_name == "polars":
-        return pl.DataFrame(string_data)
-    elif backend_name == "pandas":
-        return pd.DataFrame(string_data)
-    elif backend_name == "narwhals-polars":
-        pl_df = pl.DataFrame(string_data)
-        return nw.from_native(pl_df)
-    elif backend_name == "narwhals-pandas":
-        return nw.from_native(pd.DataFrame(string_data), eager_only=True)
-    elif backend_name == "ibis-duckdb":
-        conn = ibis.duckdb.connect()
-        return conn.create_table("strings", string_data, overwrite=True)
-    elif backend_name == "ibis-polars":
-        conn = ibis.polars.connect()
-        pl_df = pl.DataFrame(string_data)
-        return conn.create_table("strings", pl_df, overwrite=True)
-    elif backend_name == "ibis-sqlite":
-        conn = ibis.sqlite.connect(":memory:")
-        return conn.create_table("strings", string_data, overwrite=True)
-    else:
-        raise ValueError(f"Unknown backend: {backend_name}")
+    return BACKEND_REGISTRY[backend_name].build(string_data, table_name="strings")
 
 
 # =============================================================================
 # Result Helper Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def get_result_count() -> Callable:
@@ -371,13 +264,17 @@ def get_result_count() -> Callable:
         count = get_result_count(result_df, "polars")
         assert count == 3
     """
+
     def _get_count(df: Any, backend_name: str) -> int:
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
             return df.count().execute()
-        elif backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
+        if spec.materialization == "lazy":  # polars-lazy
+            return df.collect().shape[0]
+        if spec.family == "narwhals":
             return df.shape[0]
-        else:
-            return len(df)
+        return df.shape[0] if hasattr(df, "shape") else len(df)
+
     return _get_count
 
 
@@ -393,13 +290,16 @@ def get_result() -> Callable:
         count = get_result_count(result_df, "polars")
         assert count == 3
     """
-    def _get_result(df: Any, backend_name: str) -> int:
-        if backend_name.startswith("ibis-"):
-            return df.execute()
-        else: # backend_name in ["polars", "pandas", "narwhals-polars", "narwhals-pandas"]:
-            return df
-    return _get_result
 
+    def _get_result(df: Any, backend_name: str) -> Any:
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
+            return df.execute()
+        if spec.materialization == "lazy":  # polars-lazy
+            return df.collect()
+        return df
+
+    return _get_result
 
 
 @pytest.fixture
@@ -415,25 +315,31 @@ def select_and_extract() -> Callable:
         backend_expr = expr.compile(df, booleanizer=None)
         actual = select_and_extract(df, backend_expr, "result", backend_name)
     """
+
     def _select_and_extract(df: Any, backend_expr: Any, column_alias: str, backend_name: str) -> List:
-        # Handle each backend type completely in one place
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        family = spec.family
+        materialization = spec.materialization
+
+        if family == "ibis":
             # Ibis: use .name(), then PyArrow to avoid pandas NaN/null conflation
             result = df.select(backend_expr.name(column_alias))
             return result.to_pyarrow()[column_alias].to_pylist()
 
-        elif backend_name == "pandas":
+        if family == "pandas":
             # Pandas (via narwhals): use PyArrow to avoid NaN/null conflation
             result = df.select(backend_expr.alias(column_alias))
             return result.to_arrow()[column_alias].to_pylist()
 
-        elif backend_name in ("polars", "narwhals-polars", "narwhals-pandas"):
-            # Polars/Narwhals: .to_list() preserves nulls correctly
+        # Family "narwhals" covers narwhals-polars / narwhals-pandas /
+        # narwhals-lazy; the materialization check below collects the lazy one.
+        if family in ("polars-eager", "polars-lazy", "narwhals"):
             result = df.select(backend_expr.alias(column_alias))
+            if materialization == "lazy":
+                result = result.collect()
             return result[column_alias].to_list()
 
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
+        raise ValueError(f"Unknown backend: {backend_name}")
 
     return _select_and_extract
 
@@ -450,9 +356,12 @@ def collect_expr():
         actual = collect_expr(df, expr)
         actual = collect_expr(df, expr, alias="custom_name")
     """
+
     def _collect(df, expr, alias="result"):
         import mountainash as ma
+
         return ma.relation(df).select(expr.name.alias(alias)).to_dict()[alias]
+
     return _collect
 
 
@@ -463,9 +372,12 @@ def collect_col():
     Usage:
         values = collect_col(df, "age")
     """
+
     def _collect(df, column):
         import mountainash as ma
+
         return ma.relation(df).select(column).to_dict()[column]
+
     return _collect
 
 
@@ -482,6 +394,7 @@ def assert_parameter_sensitivity(collect_expr) -> Callable:
             df, lambda d: ma.col("val").round(d), 1, 2, backend_name
         )
     """
+
     def _assert_parameter_sensitivity(
         df: Any,
         build_expr: Callable,
@@ -513,17 +426,15 @@ def get_scalar_result() -> Callable:
         max_val = get_scalar_result(max_result, "polars")
         assert max_val == 45
     """
+
     def _get_scalar(result: Any, backend_name: str) -> Any:
-        if backend_name.startswith("ibis-"):
+        spec = BACKEND_REGISTRY[backend_name]
+        if spec.materialization == "deferred":  # ibis
             return result.execute()
-        elif backend_name == "polars":
-            return result
-        elif backend_name == "pandas":
-            return result
-        elif backend_name in ("narwhals-polars", "narwhals-pandas"):
-            return result
-        else:
-            raise ValueError(f"Unknown backend: {backend_name}")
+        if spec.materialization == "lazy":
+            return result.collect() if hasattr(result, "collect") else result
+        return result
+
     return _get_scalar
 
 
@@ -540,33 +451,25 @@ def assert_backend_equal():
     Usage:
         assert_backend_equal(actual, expected, backend_name, "age comparison")
     """
-    def _assert_equal(
-        actual: Any,
-        expected: Any,
-        backend_name: str,
-        message: str = ""
-    ):
+
+    def _assert_equal(actual: Any, expected: Any, backend_name: str, message: str = ""):
         if isinstance(expected, float):
             # Float comparison with tolerance
-            assert abs(actual - expected) < 1e-6, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert abs(actual - expected) < 1e-6, f"{message} [{backend_name}]: expected {expected}, got {actual}"
         elif isinstance(expected, list):
             # List comparison
-            assert actual == expected, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert actual == expected, f"{message} [{backend_name}]: expected {expected}, got {actual}"
         else:
             # Direct comparison
-            assert actual == expected, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert actual == expected, f"{message} [{backend_name}]: expected {expected}, got {actual}"
+
     return _assert_equal
 
 
 # =============================================================================
 # Factory Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def backend_factory():
@@ -579,18 +482,49 @@ def backend_factory():
     """
     import sys
     import os
+
     # Add tests directory to path
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     if tests_dir not in sys.path:
         sys.path.insert(0, tests_dir)
 
     from fixtures.backend_helpers import BackendDataFrameFactory
+
     return BackendDataFrameFactory
+
+
+@pytest.fixture
+def declared_decimal_frame(backend_name):
+    """Build native declared Decimal inputs without exercising MA's cast."""
+    from fixtures.backend_registry import MATRIX_BACKENDS
+
+    connections = []
+
+    def create(data, dtypes):
+        if backend_name == "ibis-sqlite":
+            raise ValueError("SQLite has no native fixed-precision Decimal input")
+        spec = MATRIX_BACKENDS[backend_name]
+        frame = pl.DataFrame(
+            data,
+            schema_overrides={
+                name: pl.Decimal(precision, scale)
+                for name, (precision, scale) in dtypes.items()
+            },
+        )
+        native = spec.build_typed(frame.to_arrow(), "declared_decimal")
+        if spec.family == "ibis":
+            connections.append(native.get_backend())
+        return native
+
+    yield create
+    for connection in connections:
+        connection.disconnect()
 
 
 # =============================================================================
 # Cleanup Fixtures
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def reset_between_tests():
@@ -609,48 +543,72 @@ def reset_between_tests():
 # Pytest Collection Hooks
 # =============================================================================
 
+
+def pytest_configure(config):
+    # Load all capability declarations at import time — before collection — so
+    # collection-time xfail/skip markers derived from the spine see a fully
+    # populated registry. A session-autouse fixture runs too late (post-import).
+    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+
+    load_all_capability_declarations()
+
+
+@pytest.fixture(scope="session")
+def collected_cells(request) -> set[str]:
+    """Every ``@pytest.mark.cell(name)`` argument across the collected session."""
+    return {
+        str(m.args[0])
+        for item in request.session.items
+        for m in item.iter_markers("cell")
+        if m.args
+    }
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
-    """
-    Modify test items during collection.
+    """Select backend scope and assign tiers without catalogue-owned expectations.
 
-    Auto-applies markers based on test path:
-    - tests/unit/* → @pytest.mark.unit
-    - tests/integration/* → @pytest.mark.integration
-    - tests/cross_backend/* → @pytest.mark.cross_backend
-
-    Auto-skips tests with known external issues:
-    - pandas: Visitor factory doesn't support pandas backend yet
-    - ibis-duckdb: External DuckDB dependency incompatibility
+    Backend scope (MA_BACKEND_SCOPE=pr) then DESELECTS cross-backend
+    parametrized cases for out-of-scope backends — ALL_BACKENDS stays the full
+    canonical list, so structural tests that assert against it are unaffected.
+    Explicit tier markers win; unmarked items receive resolve_tier().
     """
+    from selection.tiers import TIERS, resolve_tier
+    from fixtures.backend_registry import active_scope, partition_items_by_scope
+
+    # --- backend-scope deselection (pr scope drops out-of-scope backend params) ---
+    kept, deselected = partition_items_by_scope(items, active_scope())
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = kept
+
+    untagged, multi = [], []
     for item in items:
-        # Get test file path
-        test_path = str(item.fspath)
+        existing = [m.name for m in item.iter_markers() if m.name in TIERS]
+        if len(existing) > 1:
+            multi.append(item.nodeid)
+            continue
+        if existing:
+            continue  # exactly one explicit tier marker
+        tier = resolve_tier(item.nodeid)
+        if tier is None:
+            untagged.append(item.nodeid)
+        else:
+            item.add_marker(getattr(pytest.mark, tier))
+    config._ma_tier_untagged = untagged
+    config._ma_tier_multi = multi
 
-        # Auto-apply markers based on directory
-        if "/unit/" in test_path:
-            item.add_marker(pytest.mark.unit)
-        elif "/integration/" in test_path:
-            item.add_marker(pytest.mark.integration)
-        elif "/cross_backend/" in test_path:
-            item.add_marker(pytest.mark.cross_backend)
-        elif "/backends/" in test_path:
-            item.add_marker(pytest.mark.backend)
 
-        # Auto-apply feature markers based on filename
-        test_name = item.nodeid.lower()
-        if "temporal" in test_name:
-            item.add_marker(pytest.mark.temporal)
-        if "arithmetic" in test_name:
-            item.add_marker(pytest.mark.arithmetic)
-        if "string" in test_name:
-            item.add_marker(pytest.mark.string)
 
-        # Auto-mark tests with known external issues
-        # Check if test is parametrized with backend_name
-        if hasattr(item, 'callspec') and 'backend_name' in item.callspec.params:
-            backend_name = item.callspec.params['backend_name']
 
-            # DuckDB dependency issue RESOLVED! ✅
-            # Issue was fixed by updating dependencies
-            # Previous blocker: module 'duckdb' has no attribute 'functional'
-            # All 110+ DuckDB tests now pass
+@pytest.fixture(params=("checked", "trusted"))
+def validation_execution_policy(request):
+    import mountainash as ma
+    return getattr(ma.CapabilityPolicy, request.param)()
+
+
+@pytest.fixture
+def validation_execution_scope(validation_execution_policy):
+    import mountainash as ma
+    with ma.capability_policy(validation_execution_policy):
+        yield validation_execution_policy

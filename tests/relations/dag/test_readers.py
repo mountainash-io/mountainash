@@ -4,9 +4,18 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
+from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+    MountainashPolarsExtensionRelationSystem,
+)
 from mountainash.relations.dag.errors import UnsupportedResourceFormat
-from mountainash.relations.dag.readers import read_resource_to_polars
 from mountainash.typespec.datapackage import DataResource, TableDialect
+
+_polars_ext = MountainashPolarsExtensionRelationSystem()
+
+
+def read_resource_to_polars(res):
+    """Compatibility shim — delegates to Polars backend's read_resource."""
+    return _polars_ext.read_resource(res)
 
 
 def test_inline_list_of_dicts():

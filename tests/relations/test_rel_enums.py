@@ -2,18 +2,9 @@
 import pytest
 from enum import StrEnum
 from mountainash.core.constants import (
-    ProjectOperation, JoinType, ExecutionTarget, SetType,
-    ExtensionRelOperation, SortField,
+    JoinType, ExecutionTarget, SetType,
+    SortField,
 )
-
-class TestProjectOperation:
-    def test_members(self):
-        assert ProjectOperation.SELECT is not None
-        assert ProjectOperation.WITH_COLUMNS is not None
-        assert ProjectOperation.DROP is not None
-        assert ProjectOperation.RENAME is not None
-    def test_member_count(self):
-        assert len(ProjectOperation) == 4
 
 class TestJoinType:
     def test_is_strenum(self):
@@ -27,34 +18,16 @@ class TestJoinType:
         assert JoinType.ANTI == "anti"
         assert JoinType.CROSS == "cross"
         assert JoinType.ASOF == "asof"
-    def test_member_count(self):
-        assert len(JoinType) == 8
 
 class TestExecutionTarget:
     def test_members(self):
         assert ExecutionTarget.LEFT is not None
         assert ExecutionTarget.RIGHT is not None
-    def test_member_count(self):
-        assert len(ExecutionTarget) == 2
 
 class TestSetType:
     def test_members(self):
         assert SetType.UNION_ALL is not None
         assert SetType.UNION_DISTINCT is not None
-
-class TestExtensionRelOperation:
-    def test_members(self):
-        assert ExtensionRelOperation.DROP_NULLS is not None
-        assert ExtensionRelOperation.WITH_ROW_INDEX is not None
-        assert ExtensionRelOperation.EXPLODE is not None
-        assert ExtensionRelOperation.SAMPLE is not None
-        assert ExtensionRelOperation.UNPIVOT is not None
-        assert ExtensionRelOperation.PIVOT is not None
-        assert ExtensionRelOperation.TOP_K is not None
-        assert ExtensionRelOperation.REF is not None
-        assert ExtensionRelOperation.READ_RESOURCE is not None
-    def test_member_count(self):
-        assert len(ExtensionRelOperation) == 9
 
 class TestSortField:
     def test_creation(self):

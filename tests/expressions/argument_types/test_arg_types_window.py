@@ -1,0 +1,69 @@
+"""Argument channel tests for window operations."""
+from __future__ import annotations
+
+import pytest
+
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    SUBSTRAIT_ARITHMETIC_WINDOW as FK_WIN,
+)
+from expressions.argument_types.conftest import ALL_BACKENDS
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
+
+TESTED_PARAMS: list[tuple] = [
+    (FK_WIN.FIRST_VALUE, "x"),
+    (FK_WIN.LAG, "x"),
+    (FK_WIN.LAST_VALUE, "x"),
+    (FK_WIN.LEAD, "x"),
+    (FK_WIN.NTH_VALUE, "window_offset"),
+    (FK_WIN.NTH_VALUE, "x"),
+    (FK_WIN.NTILE, "x"),
+    # order_by is visitor-supplied from WindowSpec, not user-facing
+    (FK_WIN.RANK, "order_by"),
+    (FK_WIN.DENSE_RANK, "order_by"),
+    (FK_WIN.ROW_NUMBER, "order_by"),
+    # Mountainash extension window operations
+    ("backward_fill", "x"),
+    ("cum_count", "x"),
+    ("cum_max", "x"),
+    ("cum_min", "x"),
+    ("cum_prod", "x"),
+    ("cum_sum", "x"),
+    ("diff", "x"),
+    ("forward_fill", "x"),
+]
+
+OP_SPECS: list[OpSpec] = [
+    OpSpec(
+        function_key="cum_sum",
+        op_name="cum_sum",
+        build=lambda col, _arg: col.cum_sum(),
+        raw_arg=0,
+        arg_col_name="a",
+        param_name="x",
+        input_col="a",
+        data={"a": [10, 20, 30, 40], "__group__": [1, 1, 2, 2]},
+        execution_mode="over",
+    ),
+]
+
+
+def _params():
+    cases = []
+    for op in OP_SPECS:
+        for bk in ALL_BACKENDS:
+            for it in INPUT_TYPES:
+                
+                marks = []
+                cases.append(
+                    pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
+                )
+    return cases
+
+
+if OP_SPECS:
+
+    @pytest.mark.parametrize("op,backend,input_type", _params())
+    def test_argument_channel(op: OpSpec, backend: str, input_type: str):
+        run_argument_matrix(op, backend, input_type)

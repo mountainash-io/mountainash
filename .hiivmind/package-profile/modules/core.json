@@ -1,0 +1,35 @@
+{
+  "id": "core",
+  "path": "src/mountainash/core/",
+  "summary": "Shared infrastructure: backend/dtype/operation enums (CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation, etc.), type guards (is_polars_dataframe, detect_dataframe_backend_type), factory base classes, lazy imports, and remote I/O facade.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["MountainashDtype", "BaseFactoryMixin", "BaseStrategyFactory", "DataFrameTypeFactoryMixin"],
+  "key_functions": ["resolve_dtype", "is_available", "require_module", "detect_dataframe_backend_type", "is_remote", "facade_read_bytes"],
+  "dependencies": [],
+  "dependents": ["expressions", "relations.core.relation_nodes", "relations.core.relation_protocols", "typespec", "conform", "pydata.ingress", "pydata.egress"],
+  "extension_points": [],
+  "lifecycle_notes": [
+    "2026-05 (PR #147): Added ExtensionRelOperation.UNNEST for struct column expansion"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/core/constants.py", "detail": "ExtensionRelOperation.UNNEST added to enum"}
+  ],
+  "source_hash": "b068ebae14df4dca259b1f48a6a21309d37248f3",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -6,7 +6,7 @@ PolarsExpressionSystem class that can be registered with the visitor factory.
 
 from __future__ import annotations
 
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.expsys_base import register_expression_system
 
 
@@ -42,14 +42,25 @@ from .extensions_mountainash.expsys_pl_ext_ma_null import MountainAshPolarsNullE
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainAshPolarsScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_set import SubstraitPolarsScalarSetExpressionSystem as MountainAshPolarsScalarSetExpressionSystem
-from .extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import SubstraitPolarsScalarBooleanExpressionSystem as MountainAshPolarsScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import MountainAshPolarsScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_value import MountainAshPolarsScalarValueExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_comparison import MountainAshPolarsScalarComparisonExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_string import SubstraitPolarsScalarStringExpressionSystem as MountainAshPolarsScalarStringExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_window import MountainAshPolarsWindowExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_struct import MountainAshPolarsScalarStructExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_list import MountainAshPolarsScalarListExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_categorical import MountainAshPolarsScalarCategoricalExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_geospatial import MountainAshPolarsScalarGeospatialExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_aggregate import SubstraitPolarsScalarAggregateExpressionSystem as MountainAshPolarsScalarAggregateExpressionSystem
 
 
 
 
-@register_expression_system(CONST_VISITOR_BACKENDS.POLARS)
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
+@register_expression_system(CONST_BACKEND.POLARS)
 class PolarsExpressionSystem(
     # Foundation protocols
     SubstraitPolarsCastExpressionSystem,
@@ -79,9 +90,17 @@ class PolarsExpressionSystem(
     MountainAshPolarsScalarArithmeticExpressionSystem,
     MountainAshPolarsScalarDatetimeExpressionSystem,
     MountainAshPolarsScalarBooleanExpressionSystem,
+    MountainAshPolarsScalarValueExpressionSystem,
+    MountainAshPolarsScalarComparisonExpressionSystem,
     MountainAshPolarsScalarStringExpressionSystem,
     MountainAshPolarsScalarSetExpressionSystem,
     MountainAshPolarsScalarTernaryExpressionSystem,
+    MountainAshPolarsWindowExpressionSystem,
+    MountainAshPolarsScalarStructExpressionSystem,
+    MountainAshPolarsScalarListExpressionSystem,
+    MountainAshPolarsScalarCategoricalExpressionSystem,
+    MountainAshPolarsScalarAggregateExpressionSystem,
+    MountainAshPolarsScalarGeospatialExpressionSystem,
 
 ):
     """Complete Polars backend expression system.
@@ -91,6 +110,8 @@ class PolarsExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(PolarsExpressionSystem, "polars")
 
 
 __all__ = [
@@ -122,5 +143,8 @@ __all__ = [
     "MountainAshPolarsNullExpressionSystem",
     "MountainAshPolarsScalarArithmeticExpressionSystem",
     "MountainAshPolarsScalarDatetimeExpressionSystem",
-    "MountainAshPolarsScalarTernaryExpressionSystem"
+    "MountainAshPolarsScalarComparisonExpressionSystem",
+    "MountainAshPolarsScalarValueExpressionSystem",
+    "MountainAshPolarsScalarTernaryExpressionSystem",
+    "MountainAshPolarsScalarGeospatialExpressionSystem",
 ]

@@ -1,6 +1,6 @@
-"""Polars ScalarBooleanExpressionProtocol implementation.
+"""Polars MountainAsh boolean extension implementation.
 
-Implements boolean logical operations for the Polars backend.
+Implements xor_parity for the Polars backend.
 """
 
 from __future__ import annotations
@@ -10,24 +10,38 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
-# Type alias for expression type
+class MountainAshPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarBooleanExpressionSystemProtocol[pl.Expr]):
+    """Polars implementation of MountainAsh boolean extensions."""
 
-class SubstraitPolarsScalarBooleanExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[pl.Expr]):
-    """Polars implementation of ScalarBooleanExpressionProtocol.
-
-    Implements 5 boolean methods using Kleene (three-valued) logic:
-    - and_: Boolean AND (returns false if any false, null if any null and no false)
-    - or_: Boolean OR (returns true if any true, null if any null and no true)
-    - not_: Boolean NOT (negation)
-    - xor: Boolean XOR (exclusive or)
-    - and_not: Boolean AND of first value with negation of second
-    """
+    def parse_boolean(
+        self,
+        x: PolarsExpr,
+        /,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        text = x.cast(pl.String)
+        if failure_behavior == "null":
+            return (
+                pl.when(text.is_in(true_values)).then(pl.lit(True))
+                .when(text.is_in(false_values)).then(pl.lit(False))
+                .otherwise(pl.lit(None, dtype=pl.Boolean))
+            )
+        mapped = (
+            pl.when(text.is_in(true_values)).then(pl.lit(1))
+            .when(text.is_in(false_values)).then(pl.lit(0))
+            .when(text.is_null()).then(pl.lit(None))
+            .otherwise(pl.lit("__invalid_boolean_token__"))
+        )
+        return mapped.cast(pl.Int8, strict=True).cast(pl.Boolean)
 
 
     def xor_parity(self, a: PolarsExpr, b: PolarsExpr, /) -> PolarsExpr:

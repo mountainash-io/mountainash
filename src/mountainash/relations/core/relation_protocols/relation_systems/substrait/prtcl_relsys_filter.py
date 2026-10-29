@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
+
+from mountainash.core.types import ExpressionT, RelationT
 
 
-class SubstraitFilterRelationSystemProtocol(Protocol):
+class SubstraitFilterRelationSystemProtocol(Protocol[RelationT, ExpressionT]):
     """Contract for filtering rows from a relation."""
 
-    def filter(self, relation: Any, predicate: Any, /) -> Any: ...
+    def filter(self, relation: RelationT, predicate: ExpressionT, /) -> RelationT: ...

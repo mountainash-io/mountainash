@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol, Sequence, Union
+
+from mountainash.core.types import ExpressionT, RelationT
 
 
-class SubstraitAggregateRelationSystemProtocol(Protocol):
+class SubstraitAggregateRelationSystemProtocol(Protocol[RelationT, ExpressionT]):
     """Contract for aggregation operations on relations."""
 
-    def aggregate(self, relation: Any, keys: list[Any], measures: list[Any], /) -> Any: ...
+    def aggregate(
+        self,
+        relation: RelationT,
+        keys: Sequence[Union[ExpressionT, str]],
+        measures: list[ExpressionT],
+        /,
+    ) -> RelationT: ...
 
-    def distinct(self, relation: Any, columns: list[Any], /) -> Any: ...
+    def distinct(
+        self, relation: RelationT, columns: Sequence[Union[ExpressionT, str]], /
+    ) -> RelationT: ...

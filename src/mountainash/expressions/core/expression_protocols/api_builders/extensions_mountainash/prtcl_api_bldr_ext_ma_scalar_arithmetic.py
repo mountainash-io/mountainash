@@ -88,6 +88,19 @@ class MountainAshScalarArithmeticAPIBuilderProtocol(Protocol):
         """Alias for negate() — Polars compatibility."""
         ...
 
+    # Composable convenience methods
+    def cot(self, /) -> BaseExpressionAPI:
+        """Cotangent. Equivalent to 1 / tan(x)."""
+        ...
+
+    def cbrt(self, /) -> BaseExpressionAPI:
+        """Cube root. Equivalent to power(1/3)."""
+        ...
+
+    def pct_change(self, n: int = 1) -> BaseExpressionAPI:
+        """Percentage change. Equivalent to diff(n) / lag(n)."""
+        ...
+
 
 #     def sqrt(self, x: SupportedExpressions, rounding: Any = None, on_domain_error: Any = None) -> SupportedExpressions:
 #         """Square root of the value

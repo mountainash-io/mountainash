@@ -6,6 +6,8 @@ Corresponds to Substrait's Cast message.
 from __future__ import annotations
 from typing import Any, Literal
 
+from mountainash.core.dtypes import CastTarget
+
 from .exn_base import ExpressionNode
 
 
@@ -27,7 +29,7 @@ class CastNode(ExpressionNode):
     """
 
     input: ExpressionNode
-    target_type: str
+    target_type: CastTarget
     failure_behavior: Literal["throw", "null"] = "throw"
 
     def accept(self, visitor: Any) -> Any:

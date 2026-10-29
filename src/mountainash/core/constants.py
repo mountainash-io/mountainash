@@ -4,6 +4,9 @@ from enum import Enum, IntEnum, StrEnum, auto
 from dataclasses import dataclass
 
 
+DECIMAL_ROUNDING_MODES = ("half_to_even", "half_away_from_zero", "to_zero")
+
+
 class CONST_BACKEND(StrEnum):
     """
     Unified backend enumeration — detection level.
@@ -70,9 +73,6 @@ def backend_to_system(backend: CONST_BACKEND) -> CONST_BACKEND_SYSTEM:
     }
     return mapping[backend]
 
-
-# Backwards-compat alias for expressions code
-CONST_VISITOR_BACKENDS = CONST_BACKEND
 
 class CONST_LOGIC_TYPES(Enum):
     """
@@ -544,14 +544,6 @@ class CONST_TERNARY_LOGIC_VALUES(IntEnum):
 
 # --- Relational AST Enums ---
 
-class ProjectOperation(Enum):
-    """Variants of the Substrait ProjectRel."""
-    SELECT = auto()
-    WITH_COLUMNS = auto()
-    DROP = auto()
-    RENAME = auto()
-
-
 class JoinType(StrEnum):
     """Join types aligned with Substrait JoinRel."""
     INNER = "inner"
@@ -574,19 +566,6 @@ class SetType(Enum):
     """Substrait SetRel operation types."""
     UNION_ALL = auto()
     UNION_DISTINCT = auto()
-
-
-class ExtensionRelOperation(Enum):
-    """Mountainash extension relation operations (not in Substrait)."""
-    DROP_NULLS = auto()
-    WITH_ROW_INDEX = auto()
-    EXPLODE = auto()
-    SAMPLE = auto()
-    UNPIVOT = auto()
-    PIVOT = auto()
-    TOP_K = auto()
-    REF = auto()              # dag.ref(name) placeholder for RelationDAG
-    READ_RESOURCE = auto()    # load via storage facade from a DataResource
 
 
 @dataclass(frozen=True)

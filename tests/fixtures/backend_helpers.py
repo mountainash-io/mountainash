@@ -12,6 +12,8 @@ import pandas as pd
 import narwhals as nw
 import ibis
 
+from .backend_registry import create_ibis_sqlite_table
+
 
 class BackendResultHelper:
     """
@@ -36,7 +38,7 @@ class BackendResultHelper:
 
         Args:
             df: DataFrame from any backend
-            backend_name: Backend identifier ("polars", "pandas", "narwhals", "ibis-duckdb", "ibis-polars", "ibis-sqlite")
+            backend_name: Backend identifier ("polars", "pandas", "narwhals", "ibis-duckdb", "ibis-sqlite")
 
         Returns:
             Number of rows in DataFrame
@@ -48,6 +50,8 @@ class BackendResultHelper:
         """
         if backend_name.startswith("ibis-"):
             return df.count().execute()
+        elif backend_name in ("polars-lazy", "narwhals-lazy"):
+            return df.collect().shape[0]
         elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas"]:
             return df.shape[0]
         else:
@@ -75,6 +79,9 @@ class BackendResultHelper:
             return df[column].execute().tolist()
         elif backend_name == "polars":
             return df[column].to_list()
+        elif backend_name == "polars-lazy":
+            # LazyFrame can't be column-indexed; collect first.
+            return df.select(column).collect()[column].to_list()
         elif backend_name == "pandas":
             return df[column].tolist()
         elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
@@ -120,10 +127,20 @@ class BackendResultHelper:
             result = df.select(backend_expr.name(column_alias))
             return result[column_alias].execute().tolist()
 
-        elif backend_name in ("polars", "narwhals", "narwhals-polars", "narwhals-pandas", "pandas"):
+        elif backend_name == "polars-lazy":
+            # LazyFrame.select() returns LazyFrame; collect before column extract.
+            result = df.select(backend_expr.alias(column_alias)).collect()
+            return result[column_alias].to_list()
+
+        elif backend_name in (
+            "polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas",
+        ):
             # Polars/Narwhals/Pandas: use .alias(), then to_list()
             # (pandas is routed through narwhals in factory)
             result = df.select(backend_expr.alias(column_alias))
+            return result[column_alias].to_list()
+        elif backend_name == "narwhals-lazy":
+            result = df.select(backend_expr.alias(column_alias)).collect()
             return result[column_alias].to_list()
 
         else:
@@ -151,6 +168,13 @@ class BackendResultHelper:
             return result.execute()
         elif backend_name == "polars":
             # Polars aggregation returns DataFrame, need to extract
+            if isinstance(result, pl.DataFrame):
+                return result.item()
+            return result
+        elif backend_name == "polars-lazy":
+            # Polars-lazy aggregation returns LazyFrame; collect, then extract.
+            if isinstance(result, pl.LazyFrame):
+                return result.collect().item()
             if isinstance(result, pl.DataFrame):
                 return result.item()
             return result
@@ -256,13 +280,19 @@ class BackendDataFrameFactory:
         """
         if backend_name == "polars":
             return pl.DataFrame(data)
+        elif backend_name == "polars-lazy":
+            return pl.DataFrame(data).lazy()
         elif backend_name == "pandas":
             # Route pandas through narwhals for visitor compatibility
             pd_df = pd.DataFrame(data)
             return nw.from_native(pd_df)
-        elif backend_name in ("narwhals", "narwhals-polars"):
+        elif backend_name in ("narwhals-polars"):
             # Narwhals wrapping a polars frame
             pl_df = pl.DataFrame(data)
+            return nw.from_native(pl_df)
+        elif backend_name in ("narwhals-lazy"):
+            # Narwhals wrapping a polars lazyframe
+            pl_df = pl.DataFrame(data).lazy()
             return nw.from_native(pl_df)
         elif backend_name == "narwhals-pandas":
             # Narwhals wrapping a pandas frame
@@ -270,15 +300,53 @@ class BackendDataFrameFactory:
         elif backend_name == "ibis-duckdb":
             conn = ibis.duckdb.connect()
             return conn.create_table("test_table", data, overwrite=True)
-        elif backend_name == "ibis-polars":
-            conn = ibis.polars.connect()
-            pl_df = pl.DataFrame(data)
-            return conn.create_table("test_table", pl_df, overwrite=True)
         elif backend_name == "ibis-sqlite":
             conn = ibis.sqlite.connect(":memory:")
-            return conn.create_table("test_table", data, overwrite=True)
+            return create_ibis_sqlite_table(conn, "test_table", data)
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
+
+    @staticmethod
+    def create_pair(
+        left_data: Dict[str, List],
+        right_data: Dict[str, List],
+        backend_name: str,
+        left_name: str = "left_table",
+        right_name: str = "right_table",
+    ) -> tuple:
+        """
+        Create two DataFrames on the same backend connection.
+
+        For ibis backends, both tables are registered on the same connection so
+        cross-table operations (e.g. joins) work correctly. For other backends,
+        this is equivalent to calling ``create()`` twice.
+
+        Args:
+            left_data: Data for the left DataFrame.
+            right_data: Data for the right DataFrame.
+            backend_name: Backend identifier.
+            left_name: Table name for ibis left table (default ``"left_table"``).
+            right_name: Table name for ibis right table (default ``"right_table"``).
+
+        Returns:
+            Tuple of (left_df, right_df) for the requested backend.
+        """
+        if backend_name == "ibis-duckdb":
+            conn = ibis.duckdb.connect()
+            left = conn.create_table(left_name, left_data, overwrite=True)
+            right = conn.create_table(right_name, right_data, overwrite=True)
+            return left, right
+        elif backend_name == "ibis-sqlite":
+            conn = ibis.sqlite.connect(":memory:")
+            left = create_ibis_sqlite_table(conn, left_name, left_data)
+            right = create_ibis_sqlite_table(conn, right_name, right_data)
+            return left, right
+        else:
+            # Non-ibis backends: independent DataFrames, no shared connection needed.
+            return (
+                BackendDataFrameFactory.create(left_data, backend_name),
+                BackendDataFrameFactory.create(right_data, backend_name),
+            )
 
     @staticmethod
     def create_empty(columns: List[str], backend_name: str) -> Any:
@@ -330,3 +398,43 @@ def assert_backend_results_equal(
     if not BackendResultHelper.compare_with_tolerance(actual, expected, tolerance):
         error_msg = f"{message} [{backend_name}]: expected {expected}, got {actual}"
         raise AssertionError(error_msg)
+
+
+def extract_column(result: Any, col: str) -> list:
+    """Extract a column from a backend-native result as a plain list.
+
+    Detects the result type and extracts accordingly:
+    - Ibis Table: .execute() then pandas .tolist()
+    - Polars LazyFrame: .collect() then .to_list()
+    - Polars DataFrame / Narwhals: direct [col].to_list()
+    - Pandas: .tolist()
+    """
+    if hasattr(result, "execute"):
+        return result.execute()[col].tolist()
+    if hasattr(result, "collect") and not hasattr(result, "to_list"):
+        return result.collect()[col].to_list()
+    if hasattr(result, "to_list"):
+        return result[col].to_list()
+    return list(result[col])
+
+
+def extract_row_count(result: Any) -> int:
+    """Extract row count from a backend-native result."""
+    if hasattr(result, "execute"):
+        return len(result.execute())
+    if hasattr(result, "collect") and not hasattr(result, "shape"):
+        return len(result.collect())
+    if hasattr(result, "shape"):
+        return result.shape[0]
+    return len(result)
+
+
+def extract_scalar(result: Any, col: str):
+    """Extract a single scalar from a 1-row result."""
+    if hasattr(result, "execute"):
+        return result.execute()[col].tolist()[0]
+    if hasattr(result, "collect") and not hasattr(result, "to_list"):
+        return result.collect()[col].to_list()[0]
+    if hasattr(result, "to_list"):
+        return result[col].to_list()[0]
+    return list(result[col])[0]

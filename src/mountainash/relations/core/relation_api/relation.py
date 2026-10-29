@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional, Sequence, TypeVar, Union
 
+
+if TYPE_CHECKING:
+    import polars as pl
+    from mountainash.conform.drift import ConformCollection, ConformDrift
+    from mountainash.core.capabilities.identity import BackendIdentity
 
 from mountainash.core.constants import (
+    CONST_BACKEND,
     ExecutionTarget,
-    ExtensionRelOperation,
     JoinType,
-    ProjectOperation,
     SetType,
     SortField,
+)
+
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
 )
 from ..relation_nodes import (
     AggregateRelNode,
@@ -17,7 +25,6 @@ from ..relation_nodes import (
     FetchRelNode,
     FilterRelNode,
     JoinRelNode,
-    ProjectRelNode,
     ReadRelNode,
     RelationNode,
     SetRelNode,
@@ -25,9 +32,9 @@ from ..relation_nodes import (
 )
 from .relation_base import RelationBase
 from .grouped_relation import GroupedRelation
+from .api_builders import RelationProjectionBuilder
 
 _T = TypeVar("_T")
-
 
 """Relation fluent API, factory functions, and helpers.
 
@@ -52,6 +59,18 @@ def _normalize_columns(cols: Any) -> Optional[list[str]]:
     if isinstance(cols, str):
         return [cols]
     return list(cols)
+
+
+def _normalize_execution_target(value: Any) -> ExecutionTarget | None:
+    """Validate and normalize a public join target before building its node."""
+    if value is None or isinstance(value, ExecutionTarget):
+        return value
+    if isinstance(value, str):
+        if value == "left":
+            return ExecutionTarget.LEFT
+        if value == "right":
+            return ExecutionTarget.RIGHT
+    raise ValueError("execute_on must be None, 'left', 'right', or ExecutionTarget")
 
 
 def _normalize_sort_fields(
@@ -86,6 +105,158 @@ def _to_relation_node(other: Any) -> RelationNode:
     return ReadRelNode(dataframe=other)
 
 
+def _combine_result(node: "RelationNode", operands: "Sequence[Any]") -> "Relation":
+    """Build a combined relation, propagating DAG ownership across ALL operands.
+
+    If any operand is a DAGRelation, all DAG-bound operands must share one DAG
+    (else ValueError) and the result is a DAGRelation bound to it; otherwise a
+    plain Relation. Handles both operand orders and raw-data operands.
+    """
+    from mountainash.relations.dag.dag_relation import (
+        DAGRelation,
+        _resolve_shared_dag,
+    )
+
+    shared = _resolve_shared_dag(list(operands))
+    if shared is not None:
+        return DAGRelation(node, shared)
+    return Relation(node)
+
+
+def _compiler_identity(visitor: "Any") -> "BackendIdentity":
+    """The backend identity the visitor compiled against (spec 7.1)."""
+    from mountainash.core.capabilities.identity import BackendIdentity
+
+    return BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
+
+
+def _finish_terminal(visitor: Any, thunk: Callable[[], Any], *, release_owned_on_success: bool = False) -> Any:
+    """Keep transfer dependencies alive through egress, then hand off or roll back.
+
+    Every session the terminal opened is closed: the retained execution scope
+    and the compilation session that carries the root envelope. An eager
+    result (``release_owned_on_success``) releases everything it owned; a
+    returned deferred graph keeps what it references.
+    """
+    scopes = [getattr(visitor, "_execution_session", None)]
+    egress = getattr(visitor, "_egress_session", None)
+    if egress is not None and all(egress is not scope for scope in scopes):
+        scopes.append(egress)
+    scopes = [scope for scope in scopes if scope is not None]
+
+    def close_all(release_owned: bool) -> None:
+        failure: BaseException | None = None
+        for scope in scopes:
+            try:
+                scope.close(release_owned=release_owned)
+            except BaseException as cleanup:
+                if failure is None:
+                    failure = cleanup
+        if failure is not None:
+            raise failure
+
+    try:
+        result = thunk()
+    except BaseException as primary:
+        try:
+            close_all(True)
+        except BaseException as cleanup:
+            if hasattr(primary, "add_note"):
+                primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
+        raise
+    close_all(release_owned_on_success)
+    return result
+
+
+_OWN_LOCATION_COLLECT_FAMILIES = frozenset({
+    CONST_BACKEND.POLARS, CONST_BACKEND.IBIS, CONST_BACKEND.PANDAS, CONST_BACKEND.PYARROW,
+})
+_OWN_LOCATION_COLLECT_DIALECTS = frozenset({
+    "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow",
+})
+
+
+def _family_export(native: Any) -> Any:
+    """The native value's own family ``export`` to Arrow, collected at its own location."""
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    identity = native.value_identity
+    source = ExecutionLocation(identity.family, identity.dialect, ExecutionForm.EAGER, "bound")
+    return get_relation_system(identity.family)().export(native.value, source=source)
+
+
+def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
+    """Unwrap a Narwhals frame to its native value when requested.
+
+    Shared by :meth:`Relation.collect` and :meth:`Relation.collect_with_drift`
+    after :func:`materialize_native` has already forced any lazy value
+    eager. The selected native representation, including pandas, is preserved.
+    """
+    from mountainash.core.types import is_narwhals_dataframe
+
+    if not (unwrap and is_narwhals_dataframe(value)):
+        return value
+    return value.to_native()
+
+
+def _blocking_structured_plans(plans: Any) -> Any:
+    """The subset of *plans* that requires a logical terminal snapshot."""
+    from types import MappingProxyType
+    return MappingProxyType(
+        {name: plan for name, plan in plans.items() if plan.requires_logical_terminal}
+    )
+
+
+def _guard_native_terminal(plans: Any) -> None:
+    """Raise before any native materialization if a field needs logical
+    resolution first (spec Task 5 step 7). ``collect()`` and
+    ``collect_with_drift()`` call this before ``materialize_native()`` --
+    no native terminal attempt occurs for a structured field that still
+    needs decoding.
+    """
+    from mountainash.relations.core.errors import LogicalTerminalRequired
+
+    blocking = _blocking_structured_plans(plans)
+    if blocking:
+        raise LogicalTerminalRequired(blocking)
+
+
+def _resolve_logical_egress(
+    result: Any,
+    visitor: Any,
+    compiler_identity: "BackendIdentity",
+    *,
+    execution_context: Any,
+    to_native: Callable[[Any], Any],
+) -> Any:
+    """One logical-terminal snapshot, resolved once, handed to the
+    requested output adapter (spec Task 5 step 6): compile already
+    happened in the caller; this materializes with ``LOGICAL_TERMINAL``
+    inside one scope, snapshots once, resolves transported cells once,
+    and closes the scope after ``to_native`` finishes building output.
+    """
+    from mountainash.relations.core.logical_snapshot import (
+        logical_terminal_snapshot,
+        resolve_logical_snapshot,
+    )
+    from mountainash.relations.core.materialization import (
+        MaterializationPurpose,
+        MaterializationScope,
+        materialize_native,
+    )
+
+    with MaterializationScope() as scope:
+        native = materialize_native(
+            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL,
+            execution_context=execution_context, scope=scope,
+        )
+        snapshot = logical_terminal_snapshot(native)
+        resolved = resolve_logical_snapshot(snapshot, visitor.structured_field_plans)
+        return to_native(resolved)
+
+
 # ---------------------------------------------------------------------------
 # Relation
 # ---------------------------------------------------------------------------
@@ -98,46 +269,39 @@ class Relation(RelationBase):
     terminal operation is called.
     """
 
-    # --- Projection ---
+    _FLAT_NAMESPACES: tuple[type, ...] = (
+        RelationProjectionBuilder,
+    )
 
-    def select(self, *columns: Any) -> Relation:
-        """Select columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.SELECT,
-            )
-        )
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+        for ns_cls in self._FLAT_NAMESPACES:
+            if name in ns_cls.__dict__:
+                ns = ns_cls(self)
+                return getattr(ns, name)
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    def with_columns(self, *expressions: Any) -> Relation:
-        """Add or overwrite columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(expressions),
-                operation=ProjectOperation.WITH_COLUMNS,
-            )
-        )
+    def _make(self, node: RelationNode) -> "Relation":
+        """Construct a same-typed relation around ``node``.
 
-    def drop(self, *columns: Any) -> Relation:
-        """Drop columns."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=list(columns),
-                operation=ProjectOperation.DROP,
-            )
-        )
+        The single construction hook for all chaining and internal terminal
+        compositions. Subclasses (``DAGRelation``) override this so a chained
+        call preserves the subclass and its DAG binding. Never call
+        ``Relation(...)`` directly inside an instance method — always
+        ``self._make(...)``.
+        """
+        return Relation(node)
 
-    def rename(self, mapping: dict[str, str]) -> Relation:
-        """Rename columns according to *mapping*."""
-        return Relation(
-            ProjectRelNode(
-                input=self._node,
-                expressions=[],
-                operation=ProjectOperation.RENAME,
-                rename_mapping=mapping,
+    def _without_resource_schema_conform(self) -> Relation:
+        """Copy resource-read leaves for validation before validator conform."""
+        from ..relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        return self._make(
+            self._walk_and_push(
+                self._node,
+                lambda node: node.model_copy(update={"apply_schema_conform": False}),
+                ResourceReadRelNode,
             )
         )
 
@@ -147,10 +311,72 @@ class Relation(RelationBase):
         """Filter rows.  Multiple predicates produce chained FilterRelNodes."""
         result = self
         for pred in predicates:
-            result = Relation(
+            result = result._make(
                 FilterRelNode(input=result._node, predicate=pred)
             )
         return result
+
+    # --- Conformance ---
+
+    def conform(
+        self,
+        spec: Any,
+        *,
+        contract: Optional[Union[str, Mapping[str, str]]] = None,
+        apply_value_transforms: bool = True,
+    ) -> Relation:
+        """Conform the relation to a TableSchema.
+
+        Stores the TableSchema as a ConformRelNode in the plan tree. The actual
+        transformation (missingValues, type casting, fieldsMatch enforcement)
+        happens at compile time when column information is available.
+
+        Args:
+            spec: A TableSchema describing the target schema. Set
+                ``fields_match`` to control overflow/underflow behavior:
+                ``"exact"`` (the default when unset) requires the output
+                columns to match the spec exactly; ``"open"`` keeps unmapped
+                columns; ``"partial"`` drops them; stricter modes enforce
+                column presence.
+            contract: Optional reconciliation-contract override, layered on
+                top of any ``TableSchema.contract`` and the ``fields_match``
+                preset (highest precedence). A scalar string (e.g.
+                ``"freeze"``) applies to the extension dimensions
+                (``data_type``, ``keys``) only; a dict maps dimension name ->
+                mode explicitly (``extra_columns``, ``missing_columns``,
+                ``data_type``, ``keys``). Validated eagerly here so malformed
+                input fails at build time, not at collect().
+
+        Returns:
+            A new Relation wrapping a ConformRelNode.
+        """
+        if contract is not None:
+            from mountainash.conform.contract import (
+                EXTENSION_DIMENSIONS,
+                validate_contract_dict,
+            )
+            if isinstance(contract, str):
+                validate_contract_dict({dim: contract for dim in EXTENSION_DIMENSIONS})
+            else:
+                validate_contract_dict(contract)
+        from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
+        from copy import deepcopy
+
+        # Own the declarations: later edits to the caller's spec/override must
+        # not change this relation. Mapping proxies reject deepcopy, so a
+        # supplied override is normalised to a dict first.
+        contract_value = (
+            contract if contract is None or isinstance(contract, str) else dict(contract)
+        )
+        owned_spec, owned_contract = deepcopy((spec, contract_value))
+        return self._make(
+            ConformRelNode(
+                input=self._node,
+                spec=owned_spec,
+                contract=owned_contract,
+                apply_value_transforms=apply_value_transforms,
+            )
+        )
 
     # --- Sorting ---
 
@@ -161,7 +387,7 @@ class Relation(RelationBase):
     ) -> Relation:
         """Sort rows."""
         sort_fields = _normalize_sort_fields(by, descending)
-        return Relation(
+        return self._make(
             SortRelNode(input=self._node, sort_fields=sort_fields)
         )
 
@@ -169,19 +395,19 @@ class Relation(RelationBase):
 
     def head(self, n: int = 5) -> Relation:
         """Return the first *n* rows."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, count=n, from_end=False)
         )
 
     def tail(self, n: int = 5) -> Relation:
         """Return the last *n* rows."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, count=n, from_end=True)
         )
 
     def slice(self, offset: int, length: Optional[int] = None) -> Relation:
         """Return a slice starting at *offset*."""
-        return Relation(
+        return self._make(
             FetchRelNode(input=self._node, offset=offset, count=length)
         )
 
@@ -196,10 +422,22 @@ class Relation(RelationBase):
         right_on: Optional[Union[str, list[str]]] = None,
         how: str = "inner",
         suffix: str = "_right",
-        execute_on: Optional[ExecutionTarget] = None,
+        coalesce: Optional[bool] = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
-        """Join with another relation or raw data."""
-        return Relation(
+        """Join with another relation or raw data.
+
+        Output is all left columns, then all right columns. A right column
+        whose name exists on the left gets ``suffix``; if that name is also
+        taken, ``_1``, ``_2``, ... is appended (with a ``UserWarning``).
+
+        Args:
+            coalesce: Merge each key pair into the left key column (for
+                right/outer joins its value is ``coalesce(left, right)``) and
+                drop the right key. ``None`` merges keys declared with ``on``
+                and keeps both keys for ``left_on``/``right_on``.
+        """
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
@@ -208,8 +446,10 @@ class Relation(RelationBase):
                 left_on=_normalize_columns(left_on),
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
-                execute_on=execute_on,
-            )
+                coalesce=coalesce,
+                execute_on=_normalize_execution_target(execute_on),
+            ),
+            [self, other],
         )
 
     def join_asof(
@@ -220,24 +460,37 @@ class Relation(RelationBase):
         by: Optional[Union[str, list[str]]] = None,
         strategy: str = "backward",
         tolerance: Any = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
-        """Asof join with another relation or raw data."""
-        return Relation(
+        """Asof join with another relation or raw data.
+
+        Output retains all left columns in their original order, followed by
+        right payload columns. Shared ``on`` and ``by`` keys appear only on
+        the left; colliding right payload names receive ``_right``.
+
+        On Ibis-DuckDB, backward joins may select any right row tied at the
+        nearest eligible key; input order does not guarantee a last-row winner.
+        Deduplicate right-side keys explicitly when the choice matters.
+        """
+        return _combine_result(
             JoinRelNode(
                 left=self._node,
                 right=_to_relation_node(other),
                 join_type=JoinType.ASOF,
                 on=_normalize_columns(on),
+                by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
-            )
+                execute_on=_normalize_execution_target(execute_on),
+            ),
+            [self, other],
         )
 
     # --- Aggregation ---
 
     def group_by(self, *keys: Any) -> GroupedRelation:
         """Group rows by *keys*, returning a GroupedRelation."""
-        return GroupedRelation(self._node, list(keys))
+        return GroupedRelation(self._node, list(keys), _origin=self)
 
     def unique(
         self,
@@ -247,7 +500,7 @@ class Relation(RelationBase):
     ) -> Relation:
         """Return distinct rows.  Implemented as an aggregate with no measures."""
         keys = list(columns) if columns else (subset or [])
-        return Relation(
+        return self._make(
             AggregateRelNode(input=self._node, keys=keys, measures=[])
         )
 
@@ -258,31 +511,70 @@ class Relation(RelationBase):
         options: dict[str, Any] = {}
         if subset is not None:
             options["subset"] = subset
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.DROP_NULLS,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NULLS,
+                options=options,
+            )
+        )
+
+    def drop_nans(self, *, subset: Optional[list[str]] = None) -> Relation:
+        """Drop rows containing NaN values.
+
+        When subset is None, only float columns are checked.
+        """
+        options: dict[str, Any] = {}
+        if subset is not None:
+            options["subset"] = subset
+        return self._make(
+            ExtensionRelNode(
+                input=self._node,
+                operation=RKEY_MOUNTAINASH_REL.DROP_NANS,
                 options=options,
             )
         )
 
     def with_row_index(self, *, name: str = "index") -> Relation:
-        """Add a row-index column."""
-        return Relation(
+        """Add a native zero-based ordinal, not a persistent row identity.
+
+        Dtype, column placement and name collisions follow the native backend.
+        There is no portable guarantee of output row order or repeatable
+        row-to-ordinal assignment across executions. In particular, sorting
+        before this operation does not order the SQL row-number window.
+        Ordered native frames retain their documented position semantics.
+        """
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.WITH_ROW_INDEX,
+                operation=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
                 options={"name": name},
             )
         )
 
     def explode(self, *columns: Any) -> Relation:
         """Explode list columns into rows."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.EXPLODE,
+                operation=RKEY_MOUNTAINASH_REL.EXPLODE,
                 options={"columns": list(columns)},
+            )
+        )
+
+    def unnest(self, *columns: str, separator: str) -> Relation:
+        """Expand struct columns into top-level columns.
+
+        Each field in the struct becomes a new column named
+        ``{struct_col}{separator}{field_name}``.
+        """
+        if not columns:
+            raise ValueError("unnest requires at least one column")
+        return self._make(
+            ExtensionRelNode(
+                input=self._node,
+                operation=RKEY_MOUNTAINASH_REL.UNNEST,
+                options={"columns": list(columns), "separator": separator},
             )
         )
 
@@ -291,17 +583,33 @@ class Relation(RelationBase):
         *,
         n: Optional[int] = None,
         fraction: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> Relation:
-        """Sample rows."""
+        """Sample rows using a validated common argument contract."""
+        from mountainash.relations.core.errors import InvalidSampleArgumentsError
+
+        if (n is None) == (fraction is None):
+            raise InvalidSampleArgumentsError(
+                "sample() requires exactly one of n or fraction "
+                f"(got n={n!r}, fraction={fraction!r})"
+            )
+        if n is not None and n < 0:
+            raise InvalidSampleArgumentsError(f"sample(n=...) must be >= 0, got {n}")
+        if fraction is not None and not (0.0 <= fraction <= 1.0):
+            raise InvalidSampleArgumentsError(
+                f"sample(fraction=...) must be in [0, 1], got {fraction}"
+            )
         options: dict[str, Any] = {}
         if n is not None:
             options["n"] = n
         if fraction is not None:
             options["fraction"] = fraction
-        return Relation(
+        if seed is not None:
+            options["seed"] = seed
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.SAMPLE,
+                operation=RKEY_MOUNTAINASH_REL.SAMPLE,
                 options=options,
             )
         )
@@ -315,10 +623,10 @@ class Relation(RelationBase):
         value_name: str = "value",
     ) -> Relation:
         """Unpivot (melt) from wide to long format."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.UNPIVOT,
+                operation=RKEY_MOUNTAINASH_REL.UNPIVOT,
                 options={
                     "on": _normalize_columns(on),
                     "index": _normalize_columns(index),
@@ -337,10 +645,10 @@ class Relation(RelationBase):
         aggregate_function: str = "first",
     ) -> Relation:
         """Pivot from long to wide format."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.PIVOT,
+                operation=RKEY_MOUNTAINASH_REL.PIVOT,
                 options={
                     "on": _normalize_columns(on),
                     "index": _normalize_columns(index),
@@ -358,10 +666,10 @@ class Relation(RelationBase):
         descending: bool = True,
     ) -> Relation:
         """Return the top *k* rows ordered by *by*."""
-        return Relation(
+        return self._make(
             ExtensionRelNode(
                 input=self._node,
-                operation=ExtensionRelOperation.TOP_K,
+                operation=RKEY_MOUNTAINASH_REL.TOP_K,
                 options={
                     "k": k,
                     "by": _normalize_columns(by),
@@ -370,6 +678,56 @@ class Relation(RelationBase):
             )
         )
 
+    # --- Polars-compatible aliases ---
+
+    def limit(self, n: int = 5) -> Relation:
+        """Return the first *n* rows. Polars-compatible alias for head()."""
+        return self.head(n)
+
+    def melt(
+        self,
+        *,
+        on: Union[str, list[str]],
+        index: Optional[Union[str, list[str]]] = None,
+        variable_name: str = "variable",
+        value_name: str = "value",
+    ) -> Relation:
+        """Unpivot from wide to long format. Polars-compatible alias for unpivot()."""
+        return self.unpivot(
+            on=on, index=index, variable_name=variable_name, value_name=value_name,
+        )
+
+    def bottom_k(
+        self,
+        k: int,
+        *,
+        by: Union[str, list[str]],
+    ) -> Relation:
+        """Return the bottom *k* rows. Polars-compatible alias for top_k(descending=False)."""
+        return self.top_k(k, by=by, descending=False)
+
+    def cross_join(
+        self,
+        other: Any,
+        *,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
+    ) -> Relation:
+        """Cartesian product. Polars-compatible alias for join(how='cross')."""
+        return self.join(other, how="cross", execute_on=_normalize_execution_target(execute_on))
+
+    def first(self) -> Relation:
+        """Return the first row. Polars-compatible alias for head(1)."""
+        return self.head(1)
+
+    def last(self) -> Relation:
+        """Return the last row. Polars-compatible alias for tail(1)."""
+        return self.tail(1)
+
+    def remove(self, predicate: Any) -> Relation:
+        """Remove rows matching predicate. Polars-compatible inverse of filter()."""
+        inverted = predicate.not_()
+        return self.filter(inverted)
+
     # --- Pipe ---
 
     def pipe(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -377,6 +735,16 @@ class Relation(RelationBase):
         return func(self, *args, **kwargs)
 
     # --- Terminal operations ---
+
+    def snapshot(self) -> Relation:
+        """Return an independent, native snapshot, held by the current scope if any.
+
+        Outside a scope its storage follows result/derived-plan reachability.
+        SQL snapshots require one idle connection; deferred cleanup runs on the
+        owning thread at a later admitted copy or explicit scope release.
+        """
+        from .materialization_scope import snapshot
+        return snapshot(self)
 
     def compile(self) -> Any:
         """Compile to a native backend plan without materializing.
@@ -388,21 +756,138 @@ class Relation(RelationBase):
 
         Symmetric with the expressions-side ``expr.compile(df)``.
         """
-        return self._compile_and_execute()
+        from mountainash.relations.core.execution.preparation import ExecutionPhase
 
-    def collect(self) -> Any:
+        result, _visitor = self._compile_and_execute_with_visitor(phase=ExecutionPhase.COMPILE)
+        return _finish_terminal(_visitor, lambda: result)
+
+    def explain(self) -> str:
+        """Return the backend's query plan as a string, without executing data.
+
+        For Polars, returns the optimized LazyFrame plan. For Ibis, returns
+        the SQL string. For other backends, returns repr() of the compiled plan.
+        """
+        from mountainash.relations.core.execution.preparation import (
+            ExecutionPhase, prepare_execution, render_execution,
+        )
+
+        prepared = prepare_execution(
+            self._apply_optimisations(self._node), phase=ExecutionPhase.EXPLAIN,
+        )
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        if (any(isinstance(node, ResourceReadRelNode) for node in prepared.nodes.values())
+                or prepared.transfers
+                or any(loc.binding in ("unbound", "unresolved", "memory")
+                       for loc in prepared.locations.values())):
+            return render_execution(prepared)
+        result, _visitor = self._compile_and_execute_with_visitor(phase=ExecutionPhase.COMPILE)
+        _finish_terminal(_visitor, lambda: result)
+        from mountainash.core.types import is_polars_lazyframe
+        if is_polars_lazyframe(result):
+            return result.explain()
+        if hasattr(result, "compile") and callable(result.compile):
+            try:
+                import ibis
+                return ibis.to_sql(result)
+            except (ImportError, Exception):
+                pass
+        return render_execution(prepared)
+
+    def collect(self, *, unwrap: bool = True, target: Any = None) -> Any:
         """Execute the plan and return a fully materialized native result.
 
-        Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
-        an Ibis expression returns an executed result, narwhals returns its
-        native frame, and so on. One syntax for all backends.
-        """
-        from mountainash.core.types import is_polars_lazyframe
+        A Polars ``LazyFrame`` source returns a ``DataFrame``; Ibis returns a
+        deferred, dialect-intact ``Table``; Narwhals returns its native frame.
+        Use :meth:`snapshot` for independently owned values fixed at this time.
 
-        result = self.compile()
-        if is_polars_lazyframe(result):
-            return result.collect()
-        return result
+        Args:
+            unwrap: When *True* (default), narwhals wrappers are stripped so
+                the caller receives the underlying native value (pandas only
+                when the caller's own source was pandas-selected; Polars,
+                PyArrow, or Ibis otherwise). Pass *False* to keep the
+                narwhals wrapper (useful for internal code that needs
+                narwhals-level operations on the result).
+            target: Optional execution target -- backend family, dialect
+                identifier or Ibis connection -- see
+                :meth:`_compile_and_execute_with_visitor`.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+
+        result, visitor = self._compile_and_execute_with_visitor(target=target)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _materialize_thunk() -> Any:
+            _guard_native_terminal(visitor.structured_field_plans)
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
+            )
+            return _unwrap_native(native.value, unwrap=unwrap)
+
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _materialize_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ))
+
+    def collect_with_drift(self, *, target: Any = None) -> "ConformCollection":
+        """Collect and return the frame plus per-conform-node drift reports.
+
+        Terminals stay single-typed: this is the ONE report terminal; every
+        other terminal keeps returning a bare frame. A ``freeze`` policy
+        still raises ``SchemaDriftError`` before this returns (fail-fast --
+        the first tripping conform node in traversal order; the exception's
+        ``.drift`` carries that node's identity).
+
+        Args:
+            target: Optional execution target -- see
+                :meth:`_compile_and_execute_with_visitor`.
+
+        Returns:
+            A :class:`~mountainash.conform.drift.ConformCollection` with the
+            materialized ``frame``, the ordered list of ``drifts`` collected
+            during compilation (one per conform node that assessed anything;
+            AST-traversal order), and ``effective_schema`` derived from the
+            ACTUAL output frame (not the declared spec).
+        """
+        from mountainash.conform.drift import ConformCollection
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+
+        result, visitor = self._compile_and_execute_with_visitor(target=target)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _materialize_thunk() -> Any:
+            _guard_native_terminal(visitor.structured_field_plans)
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
+            )
+            return _unwrap_native(native.value, unwrap=True)
+
+        frame = _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _materialize_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ))
+        return ConformCollection(
+            frame=frame,
+            drifts=list(visitor.drift_reports),
+            effective_schema=_schema_from_dataframe(frame),
+        )
 
     def item(self, column: str, row: int = 0) -> Any:
         """Extract a single cell value as a Python scalar with strict semantics.
@@ -459,7 +944,7 @@ class Relation(RelationBase):
         """
         import mountainash as ma
 
-        counted = Relation(
+        counted = self._make(
             AggregateRelNode(
                 input=self._node,
                 keys=[],
@@ -467,6 +952,18 @@ class Relation(RelationBase):
             )
         )
         return int(counted.item("__count_rows__"))
+
+    def _count_rows(self, *, execution_context) -> int:
+        import mountainash as ma
+
+        counted = self._make(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[ma.count_records().alias("__count_rows__")],
+            )
+        )
+        return int(counted._to_polars(execution_context=execution_context).item(0, "__count_rows__"))
 
     # ------------------------------------------------------------------
     # Scalar aggregate terminals
@@ -477,16 +974,18 @@ class Relation(RelationBase):
     # via the existing visitor pipeline, extract via ``.item(...)``.
     # ------------------------------------------------------------------
 
-    def _scalar_aggregate(self, agg_expr: Any) -> Any:
+    def _scalar_aggregate(self, agg_expr: Any, *, execution_context=None) -> Any:
         """Internal helper: aggregate the relation to one row, extract scalar."""
-        aggregated = Relation(
+        aggregated = self._make(
             AggregateRelNode(
                 input=self._node,
                 keys=[],
                 measures=[agg_expr.alias("__value__")],
             )
         )
-        return aggregated.item("__value__")
+        if execution_context is None:
+            return aggregated.item("__value__")
+        return aggregated._to_polars(execution_context=execution_context).item(0, "__value__")
 
     def sum(self, col: str) -> Any:
         """Return the sum of ``col`` as a Python scalar."""
@@ -536,73 +1035,452 @@ class Relation(RelationBase):
         import mountainash as ma
         return self._scalar_aggregate(ma.col(col).any_value())
 
-    def to_polars(self) -> Any:
-        """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import is_polars_dataframe
+    # --- Egress delegation ---
 
-        result = self.collect()
-        if is_polars_dataframe(result):
-            return result
-        # Fallback for other backends (Ibis, narwhals, pandas)
-        import polars as pl
-        return pl.from_pandas(result.to_pandas())
+    @staticmethod
+    def _egress_strategy():
+        from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
+        return EgressFromPolars
+
+    def fingerprint(self, *, keys: Sequence[str], columns: Sequence[str], batch_size: int = 5_000) -> pl.DataFrame:
+        """Calculate version-tagged, per-column fingerprints of this relation.
+
+        Filter the relation first to select rows. ``keys`` is the complete ordered
+        logical key; ``columns`` names the value fields to check. Every selected
+        row contributes, including duplicates. The small Polars result includes
+        counts and schema/profile descriptors: compare only compatible domains.
+
+        Supports bounded native Polars and Ibis DuckDB ingestion.
+        Hash equality is probabilistic, not proof of identity or key uniqueness.
+        """
+        from .fingerprint import fingerprint_relation
+
+        return fingerprint_relation(self, keys=keys, columns=columns, batch_size=batch_size)
+
+    def to_polars(self) -> Any:
+        """Execute and return an eager Polars DataFrame.
+
+        A Polars-native result (including a Narwhals-over-Polars carrier,
+        unwrapped) is collected at its own location and returned. Every other
+        result moves through the transport envelope path to an eager Polars
+        location -- never through pandas.
+        """
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
+        return self._polars_from_compiled(result, visitor)
+
+    def _to_polars(self, *, execution_context) -> Any:
+        result, visitor = self._compile_and_execute_with_visitor(
+            execution_context=execution_context, retain_execution_scope=True,
+        )
+        return self._polars_from_compiled(result, visitor)
+
+    def _polars_from_compiled(self, result: Any, visitor: Any) -> Any:
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.materialization import (
+            ExecutionForm,
+            MaterializationPurpose,
+            materialize_native,
+        )
+
+        compiler_identity = _compiler_identity(visitor)
+        polars_native = compiler_identity.family is CONST_BACKEND.POLARS or (
+            compiler_identity.family is CONST_BACKEND.NARWHALS
+            and compiler_identity.dialect in ("narwhals-polars", "narwhals-lazy")
+        )
+
+        def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                from mountainash.relations.core.logical_snapshot import (
+                    resolved_snapshot_to_polars,
+                )
+
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_polars,
+                )
+            # Collect at the result's own location; an eager carrier is a pass-through.
+            if compiler_identity.family in _OWN_LOCATION_COLLECT_FAMILIES or (
+                compiler_identity.family is CONST_BACKEND.NARWHALS
+                and compiler_identity.dialect in _OWN_LOCATION_COLLECT_DIALECTS
+            ):
+                native = materialize_native(
+                    result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                    execution_context=visitor.execution_context,
+                )
+                if polars_native:
+                    return _unwrap_native(native.value, unwrap=True)
+            return visitor._egress_session.egress(
+                ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound"),
+            )
+
+        # The envelope egress discharges the root's residue checks at its source
+        # (transport); only a native or logical branch is checked here.
+        via_transport = not polars_native and not _blocking_structured_plans(
+            visitor.structured_field_plans
+        )
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=() if via_transport else visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ), release_owned_on_success=True)
 
     def to_pandas(self) -> Any:
-        """Execute and return a Pandas DataFrame."""
-        result = self._compile_and_execute()
-        if hasattr(result, "to_pandas"):
-            return result.to_pandas()
-        return result
+        """Execute and return a Pandas DataFrame.
+
+        A pandas-selected result (pandas or Narwhals-over-pandas) is an
+        approved native endpoint and is returned or unwrapped as is. Any
+        other native result goes through its family ``export`` to Arrow and
+        then ``to_pandas()``.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_narwhals_dataframe, is_pandas_dataframe
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                from mountainash.relations.core.logical_snapshot import (
+                    resolved_snapshot_to_pandas,
+                )
+
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_pandas,
+                )
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
+            )
+            value = native.value
+            if is_pandas_dataframe(value):
+                return value
+            if is_narwhals_dataframe(value) and native.value_identity.dialect == "narwhals-pandas":
+                return value.to_native()
+            # Polars' own pandas conversion kept dates as datetime64.
+            return _family_export(native).to_pandas(date_as_object=False)
+
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ), release_owned_on_success=True)
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
-        return self.to_polars().to_dict(as_series=False)
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_lists(df)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Execute and return a list of row dicts."""
-        return self.to_polars().to_dicts()
+        df = self.to_polars()
+        return self._egress_strategy().to_list_of_dictionaries(df)
 
     def to_tuples(self) -> list[tuple]:
         """Execute the plan and return rows as a list of tuples."""
         df = self.to_polars()
-        return df.rows()
+        return self._egress_strategy()._to_list_of_tuples(df)
 
-    def to_dataclasses(self, cls: type[_T]) -> list[_T]:
-        """Execute the plan and return rows as a list of dataclass instances.
+    def to_dataclasses(
+        self,
+        cls: type[_T],
+        *,
+        spec: Optional[Any] = None,
+        auto_derive_schema: bool = True,
+        apply_defaults: bool = False,
+    ) -> list[_T]:
+        """Execute the plan and return rows as dataclass instances.
 
         Args:
             cls: The dataclass type to instantiate for each row.
+            spec: Optional TableSchema for schema-aware transformations.
+            auto_derive_schema: Auto-derive TableSchema from the dataclass if
+                no *spec* is provided (default ``True``).
+            apply_defaults: Whether to apply dataclass field defaults.
 
         Returns:
             List of dataclass instances.
         """
-        rows = self.to_dicts()
-        return [cls(**row) for row in rows]
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_dataclasses(
+            df,
+            cls,
+            spec=spec,
+            auto_derive_schema=auto_derive_schema,
+            apply_defaults=apply_defaults,
+        )
 
-    def to_pydantic(self, cls: type[_T]) -> list[_T]:
-        """Execute the plan and return rows as a list of Pydantic model instances.
-
-        Uses model_validate for Pydantic models (proper validation),
-        falls back to direct construction for other types.
+    def to_pydantic(
+        self,
+        cls: type[_T],
+        *,
+        spec: Optional[Any] = None,
+        auto_derive_schema: bool = True,
+    ) -> list[_T]:
+        """Execute the plan and return rows as Pydantic model instances.
 
         Args:
             cls: The Pydantic model class to instantiate for each row.
+            spec: Optional TableSchema for schema-aware transformations.
+            auto_derive_schema: Auto-derive TableSchema from the model if
+                no *spec* is provided (default ``True``).
 
         Returns:
             List of Pydantic model instances.
         """
-        rows = self.to_dicts()
-        if hasattr(cls, "model_validate"):
-            return [cls.model_validate(row) for row in rows]
-        return [cls(**row) for row in rows]
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_pydantic(
+            df,
+            cls,
+            spec=spec,
+            auto_derive_schema=auto_derive_schema,
+        )
+
+    # --- Egress: collection terminals ---
+
+    def to_named_tuples(self) -> Sequence[tuple]:
+        """Execute and return rows as a list of named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_list_of_named_tuples(df)
+
+    def to_typed_named_tuples(self, *, preserve_dates: bool = False) -> Sequence[tuple]:
+        """Execute and return rows as typed named tuples with __annotations__."""
+        df = self.to_polars()
+        return self._egress_strategy()._to_list_of_typed_named_tuples(
+            df, preserve_dates=preserve_dates,
+        )
+
+    def to_pyarrow(self) -> Any:
+        """Execute and return a PyArrow Table.
+
+        A result with structured fields awaiting logical resolution goes
+        through the logical terminal snapshot; every other result is its
+        own family's Arrow ``export``.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.logical_snapshot import logical_to_arrow
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=logical_to_arrow,
+                )
+            return _family_export(materialize_native(
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
+            ))
+
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ), release_owned_on_success=True)
+
+    def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
+        """Execute and return a narwhals DataFrame or LazyFrame."""
+        df = self.to_polars()
+        return self._egress_strategy().to_narwhals(df, as_lazy=as_lazy)
+
+    def to_ibis(self) -> Any:
+        """Return an Ibis table.
+
+        An Ibis-native result is returned unchanged, keeping its connection.
+        Any other result is carried through the transport envelope path into
+        an in-memory (memtable) Ibis location. A result with structured fields
+        is first resolved to its logical Arrow table, which is imported the
+        same way; a value Arrow cannot represent raises ``BackendConversionError``.
+        """
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.logical_snapshot import logical_to_arrow
+        from mountainash.relations.core.materialization import ExecutionForm
+
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
+        compiler_identity = _compiler_identity(visitor)
+        memory = ExecutionLocation(CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "memory")
+        structured = bool(_blocking_structured_plans(visitor.structured_field_plans))
+        native = not structured and compiler_identity.family is CONST_BACKEND.IBIS
+
+        def _egress_thunk() -> Any:
+            if structured:
+                arrow = _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=logical_to_arrow,
+                )
+                return visitor._egress_session.egress(memory, arrow=arrow)
+            if native:
+                return result
+            return visitor._egress_session.egress(memory)
+
+        # Envelope egress discharges the root's residue checks at its source.
+        checked = native or structured
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks() if checked else (),
+            execution_context=visitor.execution_context,
+        ), release_owned_on_success=structured)
+
+    def to_dict_of_series_polars(self) -> dict[str, Any]:
+        """Execute and return a dict of column name -> Polars Series."""
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_series_polars(df)
+
+    def to_dict_of_series_pandas(self) -> dict[str, Any]:
+        """Execute and return a dict of column name -> Pandas Series."""
+        df = self.to_polars()
+        return self._egress_strategy().to_dictionary_of_series_pandas(df)
+
+    # --- Egress: indexed terminals ---
+
+    def to_index_of_dicts(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as dicts."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_dictionaries(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_tuples(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_named_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_named_tuples(
+            df, index_fields=index_fields,
+        )
+
+    def to_index_of_typed_named_tuples(
+        self,
+        index_fields: Union[str, list[str]],
+        *,
+        preserve_dates: bool = False,
+    ) -> dict[Any, list]:
+        """Execute and return rows grouped by index_fields as typed named tuples."""
+        df = self.to_polars()
+        return self._egress_strategy().to_index_of_typed_named_tuples(
+            df, index_fields=index_fields, preserve_dates=preserve_dates,
+        )
 
     # --- Introspection ---
 
     @property
     def columns(self) -> list[str]:
-        """Execute and return column names."""
-        result = self._compile_and_execute()
-        return list(result.columns)
+        """Return proven output names, using native inference only when needed."""
+        from mountainash.relations.schema_inference import _aggregate_input_names
+        from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+        identity_resolver = None
+        if getattr(self, "_dag", None) is not None:
+            from mountainash.relations.dag.introspection import _name_identity_resolver
+
+            identity_resolver = _name_identity_resolver(self._dag, self._node)
+        try:
+            names = _aggregate_input_names(self._node, identity_resolver=identity_resolver)
+        except IncompleteProjectionSchemaError:
+            names = None
+        return list(names) if names is not None else list(self.schema)
+
+    @property
+    def schema(self) -> dict[str, Any]:
+        """Best available output schema, including native dtype parameters.
+
+        Uses structural evidence and native schema inference, which may probe
+        sources or invoke documented inference callbacks. Does not deliberately
+        evaluate the result or transfer source rows. Unresolved types remain
+        explicit; use ``collect_schema()`` to require a complete schema.
+        """
+        from mountainash.relations.schema_resolution import resolve_schema
+        return resolve_schema(self)
+
+    def collect_schema(self, *, allow_execution: bool = False) -> dict[str, Any]:
+        """Resolve every output name and dtype or raise IncompleteSchemaError.
+
+        Native metadata is always tried first. ``allow_execution=True`` permits
+        ordinary execution only when metadata cannot establish the schema;
+        native inference errors are not retried through execution.
+        """
+        from mountainash.relations.schema_resolution import resolve_schema
+        return resolve_schema(self, require_complete=True, allow_execution=allow_execution)
+
+    @property
+    def dtypes(self) -> list:
+        """List of column data types in the output schema."""
+        return list(self.schema.values())
+
+    @property
+    def width(self) -> int:
+        """Number of columns in the output schema."""
+        return len(self.columns)
+
+    @property
+    def output_schema(self) -> Optional[dict]:
+        """Best-effort Frictionless schema dict for this relation, or None if no
+        columns are determinable.
+
+        Derived from ``self.schema`` using broad Frictionless type families.
+        DAG-bound relations resolve refs through their owning DAG; an unbound
+        ref has no source schema. Use ``dag.to_package()`` for package export.
+        """
+        from mountainash.relations.dag.packaging import _frictionless_from_inferred
+        return _frictionless_from_inferred(self.schema)
+
+    def assess_drift(self) -> "list[ConformDrift]":
+        """Schema-only pre-flight: assess drift at every conform node in the plan.
+
+        Walks the structural plan tree and evaluates
+        each ``ConformRelNode`` in infer mode with drift assembly enabled but
+        policy enforcement (raising/filtering) disabled -- folds item 17-P8
+        into a build-time pre-flight. Never raises ``SchemaDriftError``
+        (even for a ``freeze``-configured node -- that node is still
+        reported, not raised), never compiles, never touches a backend, and
+        never executes a frame.
+
+        Returns:
+            A list of :class:`~mountainash.conform.drift.ConformDrift`, one
+            per conform node that had assessable evidence, in AST-traversal
+            order. A node with no available columns and no actual-dtype
+            evidence contributes nothing (honest non-assessment -- mirrors
+            ``UnifiedRelationVisitor.drift_reports``).
+        """
+        from mountainash.relations.schema_inference import assess_drift as _assess_drift
+        return _assess_drift(self._node)
+
+    def describe(self) -> Any:
+        """Compute summary statistics (count, null_count, mean, std, min, max).
+
+        Returns a materialised DataFrame. Polars backend only.
+        """
+        collected = self.collect()
+        if hasattr(collected, "describe"):
+            return collected.describe()
+        raise NotImplementedError(
+            "describe() is currently only supported for the Polars backend."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -647,7 +1525,34 @@ def relation(data: Any) -> Relation:
     return Relation(ReadRelNode(dataframe=data))
 
 
-def concat(relations: Sequence[Relation]) -> Relation:
-    """Concatenate multiple Relations via UNION ALL."""
+def concat(
+    relations: Sequence[Relation], *, distinct: bool = False, timezone: str | None = None,
+) -> Relation:
+    """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT).
+
+    Timestamp precision widens without timezone conversion by default. An
+    explicit IANA ``timezone`` converts top-level aware timestamp columns,
+    preserving instants; naive and mixed-awareness columns are not localized.
+    SQLite retains native default behavior but does not support this explicit
+    aware normalization. Nested timestamp columns are not reconciled.
+
+    If any input is a ``DAGRelation``, all DAG-bound inputs must share one DAG
+    (else ``ValueError``) and the result is a ``DAGRelation`` bound to it;
+    plain-``Relation`` inputs mix in freely.
+    """
+    if timezone is not None:
+        from mountainash.core.capabilities.schema import ValueClass
+        from mountainash.expressions.core.expression_api.api_builders.api_builder_base import (
+            _reject_expression,
+        )
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import (
+            validate_open_value,
+        )
+
+        _reject_expression("timezone", timezone, "concat")
+        timezone = validate_open_value(ValueClass.IANA_TIMEZONE, "timezone", timezone, "concat")
     nodes = [r._node for r in relations]
-    return Relation(SetRelNode(inputs=nodes, set_type=SetType.UNION_ALL))
+    set_type = SetType.UNION_DISTINCT if distinct else SetType.UNION_ALL
+    return _combine_result(
+        SetRelNode(inputs=nodes, set_type=set_type, timezone=timezone), list(relations)
+    )

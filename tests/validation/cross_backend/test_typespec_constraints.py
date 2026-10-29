@@ -1,0 +1,176 @@
+"""Compiled Frictionless constraints execute against logical values on every backend."""
+
+import pytest
+
+import mountainash as ma
+from mountainash.datacontracts.compiler import compile_datacontract
+from mountainash.typespec import FieldConstraints, FieldDefinition, TableSchema, UniversalType
+from mountainash.validation import ValidationRunner
+
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
+
+def _status(result, check_id: str) -> str:
+    summary = result.check_summaries.filter(result.check_summaries["check_id"] == check_id)
+    assert summary.height == 1, f"missing check {check_id!r}: {result.check_summaries.to_dicts()}"
+    return summary.row(0, named=True)["status"]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("type_name", list(UniversalType))
+def test_empty_type_format_passes(backend_name, type_name, backend_factory):
+    """Every declared type retains a passing verdict after empty conformance."""
+    from datetime import datetime
+
+    seeds = {
+        "string": "x",
+        "integer": 1,
+        "number": 1.5,
+        "boolean": True,
+        "date": "2026-10-08",
+        "time": "12:34:56",
+        "datetime": datetime(2026, 10, 8, 12, 34, 56),
+        "duration": "P1D",
+        "year": "2026",
+        "yearmonth": "2026-10",
+        "list": "a,b",
+        "array": "[1, 2]",
+        "object": '{"a": 1}',
+        "geopoint": "1,2",
+        "geojson": '{"type":"Point","coordinates":[1,2]}',
+        "any": "x",
+    }
+    source = backend_factory.create({"value": [seeds[type_name.value]]}, backend_name)
+    plan = compile_datacontract(TableSchema(fields={
+        "value": FieldDefinition(type=type_name),
+    }))
+    result = ValidationRunner().validate_relation(
+        ma.relation(source).head(0), plan=plan, conform_contract={"data_type": "coerce"},
+    )
+    row = result.check_summaries.filter(
+        result.check_summaries["check_id"] == "value_type_format"
+    ).row(0, named=True)
+    # These conformance routes are unavailable before value validation runs.
+    # Keep the cases visible without accepting a different execution error.
+    unsupported = None
+    if type_name == UniversalType.GEOJSON and backend_name not in ("polars", "polars-lazy"):
+        unsupported = ("ConformTransformError", "GeoJSON parsing is unavailable outside Polars")
+    elif type_name == UniversalType.LIST and backend_name in ("pandas", "narwhals-pandas", "ibis-sqlite"):
+        unsupported = ("BackendCapabilityError", "this source does not support lexical list parsing")
+    elif backend_name == "ibis-sqlite":
+        if type_name in {
+            UniversalType.BOOLEAN, UniversalType.DURATION, UniversalType.YEAR,
+            UniversalType.YEARMONTH, UniversalType.GEOPOINT,
+        }:
+            unsupported = ("BackendCapabilityError", "SQLite does not support throwing lexical conversion")
+        elif type_name == UniversalType.TIME:
+            unsupported = ("ArrowNotImplementedError", "item 131 / IB-DT-17: Ibis SQLite time export produces a duration carrier")
+    if unsupported is not None and row["status"] == "error":
+        assert row["error"].startswith(unsupported[0] + ":"), row
+    with expect_call_failure(
+        when=unsupported is not None and row["status"] == "error",
+        errors=(AssertionError,),
+        reason=f"{backend_name}/{type_name}: {unsupported[1] if unsupported else ''}",
+    ):
+        assert (
+            row["status"], row["total_rows"], row["pass_count"],
+            row["fail_count"], row["unknown_count"], row["error"],
+        ) == ("passed", 0, 0, 0, 0, None), (backend_name, type_name, row)
+    assert result.passes is True
+    assert result.failure_cases.to_dicts() == []
+    if unsupported is not None:
+        pytest.fail(f"[XPASS(strict)] {backend_name}/{type_name}: {unsupported[1]}")
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_compiled_scalar_constraints_use_logical_values(backend_name, backend_factory):
+    """Range, XML Schema pattern, enum, and categories agree cross-backend."""
+    plan = compile_datacontract(
+        TableSchema(
+            fields={
+                "amount": FieldDefinition(
+                    type=UniversalType.INTEGER,
+                    constraints=FieldConstraints(minimum=1, exclusive_maximum=3),
+                ),
+                "code": FieldDefinition(
+                    type=UniversalType.STRING,
+                    categories=["AB12"],
+                    constraints=FieldConstraints(
+                        pattern="[A-Z]{2}[0-9]{2}", enum=["AB12"]
+                    ),
+                ),
+            }
+        )
+    )
+
+    result = ValidationRunner().validate_relation(
+        ma.relation(
+            backend_factory.create(
+                {"amount": [1, 3], "code": ["AB12", "bad"]}, backend_name
+            )
+        ),
+        plan=plan,
+    )
+
+    assert _status(result, "amount_range") == "failed", backend_name
+    assert _status(result, "code_pattern") == "failed", backend_name
+    assert _status(result, "code_enum_membership") == "failed", backend_name
+    assert _status(result, "code_category_membership") == "failed", backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_compiled_required_and_unique_constraints_share_null_semantics(
+    backend_name, backend_factory
+):
+    """Null fails required but does not enter a field-uniqueness comparison."""
+    plan = compile_datacontract(
+        TableSchema(
+            fields={
+                "id": FieldDefinition(
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(required=True, unique=True),
+                )
+            }
+        )
+    )
+
+    result = ValidationRunner().validate_relation(
+        ma.relation(backend_factory.create({"id": ["1", "1", None]}, backend_name)),
+        plan=plan,
+    )
+
+    assert _status(result, "id__not_null") == "failed", backend_name
+    assert _status(result, "id_unique") == "failed", backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_compiled_date_ranges_compare_conformed_logical_values(
+    backend_name, backend_factory
+):
+    """ISO date text becomes logical dates before the range validator runs."""
+    plan = compile_datacontract(
+        TableSchema(
+            fields={
+                "day": FieldDefinition(
+                    type=UniversalType.DATE,
+                    constraints=FieldConstraints(minimum="2024-01-01"),
+                )
+            }
+        )
+    )
+
+    result = ValidationRunner().validate_relation(
+        ma.relation(
+            backend_factory.create(
+                {"day": ["2024-01-01", "2023-12-31"]}, backend_name
+            )
+        ),
+        plan=plan,
+    )
+
+    assert _status(result, "day_range") == "failed", backend_name

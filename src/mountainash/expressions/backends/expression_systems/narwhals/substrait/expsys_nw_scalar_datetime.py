@@ -5,8 +5,12 @@ Implements datetime operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import TYPE_CHECKING
+from mountainash.expressions.core.datetime_components import (
+    BooleanComponent,
+    CALENDAR_COMPONENTS,
+    DatetimeComponent,
+)
+from typing import Any, TYPE_CHECKING
 
 import narwhals as nw
 
@@ -18,41 +22,47 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
+# round_temporal's in-scope units (v1): YEAR/MONTH/WEEK are declared
+# UNSUPPORTED there (ambiguous fixed-duration length) -- round_calendar
+# covers YEAR/MONTH but also declares WEEK unsupported (narwhals dt.truncate
+# rejects "1w" on both dialects).
+_ROUND_TEMPORAL_UNITS = frozenset(
+    {"DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND"}
+)
 
-class DatetimeComponent(Enum):
-    """Datetime component types for extraction."""
-
-    YEAR = "YEAR"
-    ISO_YEAR = "ISO_YEAR"
-    US_YEAR = "US_YEAR"
-    QUARTER = "QUARTER"
-    MONTH = "MONTH"
-    DAY = "DAY"
-    DAY_OF_YEAR = "DAY_OF_YEAR"
-    MONDAY_DAY_OF_WEEK = "MONDAY_DAY_OF_WEEK"
-    SUNDAY_DAY_OF_WEEK = "SUNDAY_DAY_OF_WEEK"
-    MONDAY_WEEK = "MONDAY_WEEK"
-    SUNDAY_WEEK = "SUNDAY_WEEK"
-    ISO_WEEK = "ISO_WEEK"
-    US_WEEK = "US_WEEK"
-    HOUR = "HOUR"
-    MINUTE = "MINUTE"
-    SECOND = "SECOND"
-    MILLISECOND = "MILLISECOND"
-    MICROSECOND = "MICROSECOND"
-    NANOSECOND = "NANOSECOND"
-    PICOSECOND = "PICOSECOND"
-    SUBSECOND = "SUBSECOND"
-    UNIX_TIME = "UNIX_TIME"
-    TIMEZONE_OFFSET = "TIMEZONE_OFFSET"
+# Substrait canonical unit name -> Polars-style duration-string suffix.
+# Narwhals dt.truncate/dt.offset_by use the same combined "<n><suffix>"
+# format as Polars (verified against narwhals 2.24.0 on both dialects) --
+# bare Substrait names ("YEAR") are NOT accepted, unlike ibis.
+_NARWHALS_UNIT_SUFFIX = {
+    "YEAR": "y", "MONTH": "mo", "DAY": "d",
+    "HOUR": "h", "MINUTE": "m", "SECOND": "s",
+    "MILLISECOND": "ms", "MICROSECOND": "us",
+}
 
 
-class BooleanComponent(Enum):
-    """Boolean component types for extraction."""
+def _round_datetime(x: NarwhalsExpr, rounding: str, unit: str, multiple: int) -> NarwhalsExpr:
+    """Shared round_temporal/round_calendar implementation (unit != WEEK).
 
-    IS_LEAP_YEAR = "IS_LEAP_YEAR"
-    IS_DST = "IS_DST"
-
+    Narwhals has no native round/ceil/tie primitive at all -- every mode
+    but FLOOR is hand-rolled from dt.truncate + dt.offset_by + duration
+    comparison via total_seconds() (verified against narwhals 2.24.0 on
+    both narwhals-polars and narwhals-pandas, including calendar units and
+    multiple > 1, e.g. "3mo" for a quarter).
+    """
+    every = f"{multiple}{_NARWHALS_UNIT_SUFFIX[unit]}"
+    floor = x.dt.truncate(every)
+    if rounding == "FLOOR":
+        return floor
+    ceiling = nw.when(floor == x).then(x).otherwise(floor.dt.offset_by(every))
+    if rounding == "CEIL":
+        return ceiling
+    diff_down = (x - floor).dt.total_seconds()
+    diff_up = (ceiling - x).dt.total_seconds()
+    if rounding == "ROUND_TIE_UP":
+        return nw.when(diff_up <= diff_down).then(ceiling).otherwise(floor)
+    # ROUND_TIE_DOWN: nearest, tying to the earlier point on equidistance.
+    return nw.when(diff_down <= diff_up).then(floor).otherwise(ceiling)
 
 class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarDatetimeExpressionProtocol.
@@ -75,67 +85,73 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        component: NarwhalsExpr,
+        component: str,
+        indexing: str = None,
         timezone: str = None,
     ) -> NarwhalsExpr:
-        """Extract portion of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
-        """
+        """Extract a date/time component (Substrait: extract)."""
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "QUARTER": lambda e: e.dt.month() // nw.lit(4) + nw.lit(1),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
+            "YEAR": lambda d: d.dt.year(),
+            "QUARTER": lambda d: (d.dt.month() - nw.lit(1)) // nw.lit(3) + nw.lit(1),
+            "MONTH": lambda d: d.dt.month(),
+            "DAY": lambda d: d.dt.day(),
+            "DAY_OF_YEAR": lambda d: d.dt.ordinal_day(),
+            "MONDAY_DAY_OF_WEEK": lambda d: d.dt.weekday(),
+            "SUNDAY_DAY_OF_WEEK": lambda d: (d.dt.weekday() % nw.lit(7)) + nw.lit(1),
+            "HOUR": lambda d: d.dt.hour(),
+            "MINUTE": lambda d: d.dt.minute(),
+            "SECOND": lambda d: d.dt.second(),
+            "MILLISECOND": lambda d: d.dt.millisecond(),
+            "MICROSECOND": lambda d: d.dt.microsecond() % nw.lit(1000),
+            "NANOSECOND": lambda d: d.dt.nanosecond() % nw.lit(1000),
+            "SUBSECOND": lambda d: d.dt.microsecond(),
         }
 
-        if comp in component_map:
-            return component_map[comp](x)
+        if comp not in component_map:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+            raise BackendCapabilityError(
+                f"extract component {comp!r} is not supported on narwhals",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            )
 
-        return x.dt.year()
+        result = component_map[comp](e)
+        if indexing == "ZERO" and comp in CALENDAR_COMPONENTS:
+            result = result - nw.lit(1)
+        return result
 
     def extract_boolean(
         self,
         x: NarwhalsExpr,
         /,
-        component: NarwhalsExpr,
+        component: str,
+        timezone: str = None,
     ) -> NarwhalsExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
+        """Extract a boolean date/time component (Substrait: extract_boolean)."""
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         if comp == "IS_LEAP_YEAR":
-            year = x.dt.year()
+            year = e.dt.year()
             return ((year % nw.lit(4) == nw.lit(0)) & (year % nw.lit(100) != nw.lit(0))) | (year % nw.lit(400) == nw.lit(0))
 
-        if comp == "IS_DST":
-            return nw.lit(False)
-
-        return nw.lit(False)
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+        raise BackendCapabilityError(
+            f"extract_boolean component {comp!r} is not supported on narwhals",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+        )
 
 
 
@@ -297,20 +313,22 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         timezone: str,
     ) -> NarwhalsExpr:
-        """Assume the timestamp is in the specified timezone.
+        """Refuse timezone assignment, which Narwhals cannot implement.
 
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Narwhals may not have timezone assignment. Returns input as fallback.
+        Narwhals has no timezone-assignment primitive. Returning ``x`` would
+        silently leave the timestamp timezone-naive.
         """
-        # Narwhals doesn't have replace_time_zone - fallback
-        return x
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        )
+
+        raise BackendCapabilityError(
+            "Narwhals does not implement assume_timezone; returning the input "
+            "would silently leave the timestamp timezone-naive.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+        )
 
 
     def local_timestamp(
@@ -327,12 +345,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
 
         Returns:
             Local timestamp in the given timezone.
-
-        Note:
-            Narwhals doesn't have timezone conversion. Falls back to input.
         """
-        # Narwhals doesn't have timezone conversion - fallback
-        return x
+        return x.dt.convert_time_zone(timezone).dt.replace_time_zone(None)
 
     # =========================================================================
     # Substrait Parsing Operations
@@ -343,19 +357,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
-        """
         raise NotImplementedError(
             "strptime_time() is not supported by the Narwhals backend."
         )
@@ -365,22 +368,22 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into date using provided format.
+        """Parse a date, refusing the unavailable null-on-failure mode."""
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
 
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
-        """
-        raise NotImplementedError(
-            "strptime_date() is not supported by the Narwhals backend."
-        )
+            raise BackendCapabilityError(
+                "Narwhals cannot implement failure_behavior='null' for "
+                "strptime_date; native parsing raises on invalid input.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            )
+        return x.str.to_date(format=format)
 
     def strptime_timestamp(
         self,
@@ -388,23 +391,97 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         format: str,
         timezone: str = None,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into timestamp using provided format.
+        """Parse a timestamp, refusing the unavailable null-on-failure mode."""
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
 
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
+            raise BackendCapabilityError(
+                "Narwhals cannot implement failure_behavior='null' for "
+                "strptime_timestamp; native parsing raises on invalid input.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            )
+        result = x.str.to_datetime(format=format)
+        if timezone is not None:
+            result = result.dt.replace_time_zone(timezone)
+        return result
+    def parse_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
 
-        Returns:
-            Parsed timestamp expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
-        """
-        raise NotImplementedError(
-            "strptime_timestamp() is not supported by the Narwhals backend."
+        raise BackendCapabilityError(
+            "Narwhals native datetime inference does not implement the strict default datetime lexical contract.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
         )
+    def parse_datetime_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
+    def parse_xsd_duration(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        if failure_behavior in {"null", "throw"}:
+            valid = x.str.contains(
+                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+            ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
+            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
+            return nw.when(valid).then(x).otherwise(None)
+        return x
+
+    def parse_xsd_partial_date(
+        self,
+        x: NarwhalsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        if failure_behavior in {"null", "throw"}:
+            pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+            if kind == "yearmonth":
+                pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
+            valid = valid & ~x.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+            return nw.when(valid).then(x).otherwise(None)
+        return x
+    def parse_temporal_any(
+        self,
+        x: NarwhalsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        """Refuse temporal-any parsing, which needs a row-wise native parser."""
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        )
+
+        raise BackendCapabilityError(
+            "Narwhals does not implement parse_temporal_any; it requires a "
+            "row-wise native parser.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+        )
+
 
     # =========================================================================
     # Formatting Methods
@@ -414,22 +491,10 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        format: str,
+        format: str,# = "%Y-%m-%d %H:%M:%S",
     ) -> NarwhalsExpr:
-        """Format datetime as string.
-
-        Args:
-            x: Datetime expression.
-            format: strftime format string.
-
-        Returns:
-            Formatted string.
-
-        Note:
-            Narwhals may not have strftime. Returns string representation.
-        """
-        # Narwhals doesn't have strftime - fallback to string conversion
-        return x.cast(nw.String)
+        """Format datetime as string."""
+        return x.dt.to_string(format)
 
 
     # =========================================================================
@@ -440,53 +505,78 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x: NarwhalsExpr,
         /,
-        rounding: NarwhalsExpr,
-        unit: NarwhalsExpr,
-        multiple: NarwhalsExpr = None,
-        origin: NarwhalsExpr = None,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
     ) -> NarwhalsExpr:
-        """Round datetime to a multiple of a time unit.
+        """Round datetime to a multiple of a fixed-duration time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Time unit string.
-            multiple: Multiple of unit (default 1).
-            origin: Origin timestamp for rounding.
+            unit: One of DAY, HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND.
+                YEAR/MONTH/WEEK are declared UNSUPPORTED here (ambiguous
+                fixed-duration length; see capabilities/datetime/rounding.py)
+                -- the raise below is defence in depth.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Narwhals only supports truncate. Falls back to truncate for all modes.
         """
-        # Narwhals only has truncate - use for all rounding modes
-        return x.dt.truncate(unit)
+        if unit not in _ROUND_TEMPORAL_UNITS:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                f"round_temporal unit={unit!r} is not supported -- fixed-duration "
+                "rounding is ambiguous for YEAR/MONTH/WEEK; use round_calendar",
+                backend="narwhals",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
+        return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
         self,
         x: NarwhalsExpr,
         /,
-        rounding: NarwhalsExpr,
-        unit: NarwhalsExpr,
-        origin: NarwhalsExpr = None,
-        multiple: NarwhalsExpr = None,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
     ) -> NarwhalsExpr:
-        """Round datetime to a calendar unit.
-
-        Similar to round_temporal but for calendar-aware rounding.
+        """Round datetime to a multiple of a calendar time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Calendar unit string.
-            origin: Origin timestamp.
-            multiple: Multiple of unit.
+            unit: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, or
+                MICROSECOND. WEEK is declared UNSUPPORTED (narwhals'
+                ``dt.truncate`` rejects the "1w" duration on both dialects,
+                verified 2026-08-16 -- matches the existing MA
+                truncate/floor_dt "1w" gap in capabilities/datetime/options.py)
+                -- the raise below is defence in depth.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
-
-        Note:
-            Narwhals only supports truncate. Falls back to truncate.
         """
-        return self.round_temporal(x, rounding, unit, multiple, origin)
+        if unit == "WEEK":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                "round_calendar unit='WEEK' is not supported on narwhals -- "
+                "dt.truncate rejects the '1w' duration on both dialects",
+                backend="narwhals",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            )
+        return _round_datetime(x, rounding, unit, multiple)

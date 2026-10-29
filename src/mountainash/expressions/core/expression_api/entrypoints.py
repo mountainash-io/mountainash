@@ -13,6 +13,7 @@ The api/ layer re-exports these for user convenience.
 """
 
 from __future__ import annotations
+from builtins import len as _builtin_len
 from typing import Any, Optional, Union, TYPE_CHECKING
 
 from ..expression_nodes import (
@@ -20,7 +21,12 @@ from ..expression_nodes import (
     LiteralNode,
     ScalarFunctionNode,
 )
-from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON
+from ..expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+    FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+)
 from .api_builders.substrait.api_bldr_conditional import SubstraitWhenAPIBuilder
 
 if TYPE_CHECKING:
@@ -56,7 +62,21 @@ def col(name: str) -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
-def lit(value: Any) -> BaseExpressionAPI:
+def element() -> BaseExpressionAPI:
+    """Create an expression referring to each item inside a native list body.
+
+    Use inside ``ma.col("xs").list.agg(...)`` or
+    ``ma.col("xs").list.filter(...)``; this is not a named-column reference.
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    return BooleanExpressionAPI(ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        arguments=[],
+    ))
+
+
+def lit(value: Any, *, dtype: Any = None) -> BaseExpressionAPI:
     """
     Create a literal value expression.
 
@@ -65,6 +85,9 @@ def lit(value: Any) -> BaseExpressionAPI:
 
     Args:
         value: Literal value (int, float, str, bool, None, etc.)
+        dtype: Optional canonical dtype, portable parameterized descriptor, or
+            UNKNOWN for ordinary inference. Aliases/Python types remain accepted.
+            Native backend dtype objects are not accepted.
 
     Returns:
         BooleanExpressionAPI for chaining operations
@@ -72,13 +95,62 @@ def lit(value: Any) -> BaseExpressionAPI:
     Example:
         >>> expr = lit(42)
         >>> expr = lit("hello")
+        >>> expr = lit(Decimal("0.004"), dtype=DecimalDtype(precision=10, scale=3))
         >>> expr = col("age").gt(lit(30))
         >>> expr = col("name").eq(lit(None))  # NULL check
     """
+    from mountainash.core.dtypes import DecimalDtype, SchemaTypeStatus, parse_dtype
+    from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+
     from ..expression_api import BooleanExpressionAPI
 
-    node = LiteralNode(value=value)
+    resolved = (
+        dtype if dtype is None or dtype is SchemaTypeStatus.UNKNOWN
+        or isinstance(dtype, (*PARAMETERIZED_DTYPES, DecimalDtype))
+        else parse_dtype(dtype)
+    )
+    node = LiteralNode(value=value, dtype=resolved)
     return BooleanExpressionAPI(node)
+
+
+def duration(
+    *,
+    weeks: int = 0,
+    days: int = 0,
+    hours: int = 0,
+    minutes: int = 0,
+    seconds: int = 0,
+    milliseconds: int = 0,
+    microseconds: int = 0,
+) -> BaseExpressionAPI:
+    """Create a duration literal expression.
+
+    All parameters are keyword-only and literal-only (int, not Expr).
+
+    Args:
+        weeks: Number of weeks.
+        days: Number of days.
+        hours: Number of hours.
+        minutes: Number of minutes.
+        seconds: Number of seconds.
+        milliseconds: Number of milliseconds.
+        microseconds: Number of microseconds.
+
+    Returns:
+        Expression wrapping a timedelta literal.
+    """
+    from datetime import timedelta
+
+    td = timedelta(
+        weeks=weeks,
+        days=days,
+        hours=hours,
+        minutes=minutes,
+        seconds=seconds,
+        milliseconds=milliseconds,
+        microseconds=microseconds,
+    )
+    return lit(td)
 
 
 # ============================================================================
@@ -117,7 +189,7 @@ def coalesce(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
         >>> expr = coalesce(col("phone_mobile"), col("phone_home"), col("phone_work"))
         >>> expr = coalesce(col("nickname"), col("name"), lit("Anonymous"))
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("coalesce requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -147,7 +219,7 @@ def greatest(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpre
         >>> expr = greatest(col("a"), col("b"), col("c"))
         >>> expr = greatest(col("price"), lit(0))  # Ensure non-negative
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("greatest requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -177,7 +249,7 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
         >>> expr = least(col("a"), col("b"), col("c"))
         >>> expr = least(col("price"), lit(100))  # Cap at 100
     """
-    if len(exprs) < 2:
+    if _builtin_len(exprs) < 2:
         raise ValueError("least requires at least 2 arguments")
 
     from ..expression_api import BooleanExpressionAPI
@@ -188,6 +260,70 @@ def least(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressi
         arguments=operands,
     )
     return BooleanExpressionAPI(node)
+
+
+# ============================================================================
+# Polars-compatible horizontal aliases
+# ============================================================================
+
+def min_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Return the minimum value across expressions (element-wise). Polars-compatible alias for least()."""
+    return least(*exprs)
+
+
+def max_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Return the maximum value across expressions (element-wise). Polars-compatible alias for greatest()."""
+    return greatest(*exprs)
+
+
+def all_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """True where all expressions are true (element-wise). Polars-compatible horizontal AND."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("all_horizontal requires at least 2 arguments")
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND,
+        arguments=operands,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def any_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """True where any expression is true (element-wise). Polars-compatible horizontal OR."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("any_horizontal requires at least 2 arguments")
+    from ..expression_api import BooleanExpressionAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    node = ScalarFunctionNode(
+        function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.OR,
+        arguments=operands,
+    )
+    return BooleanExpressionAPI(node)
+
+
+def len() -> BaseExpressionAPI:
+    """Count all rows including nulls. Polars-compatible alias for count_records()."""
+    return count_records()
+
+
+def sum_horizontal(*exprs: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    """Element-wise sum across expressions. Polars-compatible horizontal sum."""
+    if _builtin_len(exprs) < 2:
+        raise ValueError("sum_horizontal requires at least 2 arguments")
+    from ..expression_api import BaseExpressionAPI as _BaseAPI
+
+    operands = [_to_substrait_node(e) for e in exprs]
+    # Left-fold into nested binary ADD nodes
+    result = operands[0]
+    for operand in operands[1:]:
+        result = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            arguments=[result, operand],
+        )
+    return _BaseAPI(result)
 
 
 # ============================================================================
@@ -257,7 +393,7 @@ def native(expr: Any) -> BaseExpressionAPI:
 
     # Native expressions are stored as LiteralNode with a special dtype hint
     # The unified visitor will recognize this and pass it through
-    node = LiteralNode(value=expr, dtype="native")
+    node = LiteralNode(value=expr, is_native=True)
     return BooleanExpressionAPI(node)
 
 
@@ -487,6 +623,38 @@ def always_unknown() -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
+def today() -> "BaseExpressionAPI":
+    """Return today's date as a literal expression.
+
+    Example:
+        >>> expr = today()  # Current date for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY,
+        arguments=[],
+    )
+    return BooleanExpressionAPI(node)
+
+
+def now() -> "BaseExpressionAPI":
+    """Return the current datetime as a literal expression.
+
+    Example:
+        >>> expr = now()  # Current timestamp for all rows
+    """
+    from ..expression_api import BooleanExpressionAPI
+    from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+
+    node = ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW,
+        arguments=[],
+    )
+    return BooleanExpressionAPI(node)
+
+
 # ============================================================================
 # Exports
 # ============================================================================
@@ -495,10 +663,18 @@ __all__ = [
     # Core
     "col",
     "lit",
+    "duration",
     # Horizontal
     "coalesce",
     "greatest",
     "least",
+    # Polars-compatible horizontal aliases
+    "min_horizontal",
+    "max_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "len",
+    "sum_horizontal",
     # Aggregate
     "count_records",
     "corr",
@@ -513,4 +689,8 @@ __all__ = [
     "always_true",
     "always_false",
     "always_unknown",
+    # Datetime entry points
+    "today",
+    "now",
+    "element",
 ]

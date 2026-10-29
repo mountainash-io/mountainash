@@ -1,0 +1,14 @@
+{
+  "audience": "contributors",
+  "summary": "Where to add features, how modules fit together, naming conventions, test patterns, and what to update when making changes.",
+  "concepts": [
+    {"name": "File Organisation", "module_ids": ["expressions.core.expression_api", "relations.core.relation_api"], "recommended_docs": ["File prefix conventions (exn_, prtcl_, api_bldr_, expsys_)", "Backend prefixes (pl_, ib_, nw_)", "5-module package structure"], "evidence": ["Enforced principle: naming-conventions.md"]},
+    {"name": "Adding Operations", "module_ids": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols"], "recommended_docs": ["Six-step process: enum → protocol → API builder → all backends → function mapping → tests", "Wiring matrix"], "evidence": ["Adopted principle: adding-operations.md"]},
+    {"name": "Testing Philosophy", "module_ids": ["expressions.backends.polars", "expressions.backends.narwhals", "expressions.backends.ibis"], "recommended_docs": ["Cross-backend parametrized tests", "xfail for known quirks", "Never skip or disable"], "evidence": ["Enforced principle: testing-philosophy.md"]},
+    {"name": "Import Conventions", "module_ids": ["core"], "recommended_docs": ["Four import categories", "lazy_loader for __init__.py", "TYPE_CHECKING for annotations"], "evidence": ["Enforced principle: import-conventions.md"]}
+  ],
+  "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_api", "expressions.core.expression_protocols", "relations.core.relation_api", "typespec"],
+  "hidden_or_internal_modules": [],
+  "documentation_plan": ["Contributor onboarding guide", "Adding a new expression operation walkthrough", "Adding a new relation operation walkthrough", "Test writing guide"],
+  "open_questions": []
+}

@@ -10,8 +10,14 @@ from typing import TYPE_CHECKING, Any, Union
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_ARITHMETIC, FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_WINDOW,
+    SUBSTRAIT_ARITHMETIC_WINDOW,
+)
+from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode, LiteralNode
+from mountainash.expressions.core.expression_nodes.substrait.exn_window_function import WindowFunctionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarArithmeticAPIBuilderProtocol
 
 
@@ -153,5 +159,46 @@ class MountainAshScalarArithmeticAPIBuilder(BaseExpressionAPIBuilder, MountainAs
         node = ScalarFunctionNode(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
             arguments=[other_node, self._node],
+        )
+        return self._build(node)
+
+    # Composable convenience methods (AST-level, no new backend work)
+
+    def cot(self) -> BaseExpressionAPI:
+        """Cotangent. Equivalent to 1 / tan(x)."""
+        one_node = LiteralNode(value=1.0)
+        tan_node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            arguments=[self._node],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            arguments=[one_node, tan_node],
+        )
+        return self._build(node)
+
+    def cbrt(self) -> BaseExpressionAPI:
+        """Cube root. Equivalent to power(1/3)."""
+        exponent = LiteralNode(value=1.0 / 3.0)
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            arguments=[self._node, exponent],
+        )
+        return self._build(node)
+
+    def pct_change(self, n: int = 1) -> BaseExpressionAPI:
+        """Percentage change. Equivalent to diff(n) / lag(n)."""
+        diff_node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            arguments=[self._node],
+            options={"n": n} if n != 1 else {},
+        )
+        lag_node = WindowFunctionNode(
+            function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            arguments=[self._node, LiteralNode(value=n)],
+        )
+        node = ScalarFunctionNode(
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            arguments=[diff_node, lag_node],
         )
         return self._build(node)

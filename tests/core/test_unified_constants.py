@@ -9,7 +9,6 @@ from mountainash.core.constants import (
     CONST_BACKEND_SYSTEM,
     CONST_DATAFRAME_TYPE,
     CONST_IBIS_INMEMORY_BACKEND,
-    CONST_VISITOR_BACKENDS,
     backend_to_system,
 )
 
@@ -31,9 +30,15 @@ class TestConstBackend:
         assert CONST_BACKEND.IBIS == "ibis"
         assert CONST_BACKEND.NARWHALS == "narwhals"
 
-    def test_visitor_backends_alias(self):
-        """CONST_VISITOR_BACKENDS is an alias for CONST_BACKEND."""
-        assert CONST_VISITOR_BACKENDS is CONST_BACKEND
+    def test_const_visitor_backends_alias_removed(self):
+        """CONST_VISITOR_BACKENDS is retired — the alias must no longer exist."""
+        import mountainash.core.constants as c
+        assert not hasattr(c, "CONST_VISITOR_BACKENDS")
+
+    def test_const_visitor_backends_not_in_public_api(self):
+        """CONST_VISITOR_BACKENDS must not be re-exported from the top-level package."""
+        import mountainash
+        assert not hasattr(mountainash, "CONST_VISITOR_BACKENDS")
 
 
 class TestConstBackendSystem:
@@ -106,5 +111,5 @@ class TestShimImports:
     """Tests that old import paths resolve to the unified enums."""
 
     def test_expressions_visitor_backends(self):
-        from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
-        assert CONST_VISITOR_BACKENDS is CONST_BACKEND
+        from mountainash.expressions.core.constants import CONST_BACKEND as shimmed
+        assert shimmed is CONST_BACKEND

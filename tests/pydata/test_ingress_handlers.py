@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Optional
+from datetime import date
+from typing import Any
 
 import pandas as pd
 import polars as pl
@@ -12,6 +13,8 @@ from pydantic import BaseModel
 
 from mountainash.pydata.ingress.pydata_ingress import PydataIngress
 from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
+from mountainash.typespec.spec import FieldDefinition, TableSchema
+from mountainash.typespec.universal_types import UniversalType
 
 # ---------------------------------------------------------------------------
 # Inline test types (conftest types available as fixtures but not importable)
@@ -245,3 +248,114 @@ class TestIngressFromDefault:
         df_input = pl.DataFrame(SAMPLE_DICT_OF_LISTS)
         strategy = PydataIngressFactory.get_strategy(df_input)
         assert strategy is not None
+
+
+@dataclass
+class SourceCell:
+    amount: float | None
+    source_text: str | None
+
+
+class SourceCellModel(BaseModel):
+    amount: float | None
+    source_text: str | None
+
+
+@dataclass
+class AnnotatedSource:
+    code: int | None
+    label: str | None
+    inferred: Any
+
+
+@dataclass
+class MixedSource:
+    value: int | str | None
+
+
+class TestDeclaredIngress:
+    @pytest.mark.parametrize("model", [SourceCell, SourceCellModel])
+    @pytest.mark.parametrize("late_text", ["N/A", None])
+    def test_model_evidence_retains_late_and_all_null_columns(self, model, late_text):
+        rows = [model(amount=1.5, source_text=None) for _ in range(108)]
+        rows.append(model(amount=None, source_text=late_text))
+        result = PydataIngress.convert(rows)
+        assert result.schema == {"amount": pl.Float64, "source_text": pl.String}
+        assert result.to_dicts() == [
+            {"amount": 1.5, "source_text": None}
+        ] * 108 + [{"amount": None, "source_text": late_text}]
+
+    def test_explicit_source_precedence_is_per_column(self):
+        rows = [AnnotatedSource(None, None, 7)] * 100
+        rows.append(AnnotatedSource("00123", "N/A", 8))
+        source = TableSchema(fields={"code": FieldDefinition(type=UniversalType.STRING)})
+        result = PydataIngress.convert(rows, source_table_schema=source)
+        assert result.schema == {"code": pl.String, "label": pl.String, "inferred": pl.Int64}
+        assert result.to_dicts() == [
+            {"code": None, "label": None, "inferred": 7}
+        ] * 100 + [{"code": "00123", "label": "N/A", "inferred": 8}]
+
+    def test_any_source_falls_through_to_model_and_value_evidence(self):
+        source = TableSchema(fields={
+            "code": FieldDefinition(type=UniversalType.ANY),
+            "inferred": FieldDefinition(type=UniversalType.ANY),
+        })
+        result = PydataIngress.convert([AnnotatedSource(42, None, 7)], source_table_schema=source)
+        assert result.schema == {"code": pl.Int64, "label": pl.String, "inferred": pl.Int64}
+        assert result.to_dicts() == [{"code": 42, "label": None, "inferred": 7}]
+
+    def test_multi_type_model_union_leaves_native_inference(self):
+        result = PydataIngress.convert([MixedSource("00123"), MixedSource(None)])
+        assert result.schema == {"value": pl.String}
+        assert result.to_dicts() == [{"value": "00123"}, {"value": None}]
+
+    @pytest.mark.parametrize("columnar", [False, True])
+    @pytest.mark.parametrize("inline", [False, True])
+    def test_source_text_and_target_date_are_separate(self, columnar, inline):
+        values = [None] * 100 + ["2026-10-12"]
+        data = {"raw": values} if columnar else [{"raw": value} for value in values]
+        source = TableSchema(fields={"raw": FieldDefinition(type=UniversalType.STRING)})
+        target = TableSchema(fields={
+            "day": FieldDefinition(rename_from="raw", type=UniversalType.DATE)
+        })
+        result = PydataIngress.convert(
+            data, table_schema=target, source_table_schema=source, inline_conform=inline,
+        )
+        if inline:
+            assert result["day"].dtype == pl.Date
+            assert result["day"].to_list() == [None] * 100 + [date(2026, 10, 12)]
+        else:
+            assert result.schema == {"raw": pl.String}
+            assert result.to_dicts() == [{"raw": value} for value in values]
+
+    def test_target_does_not_supply_source_evidence(self):
+        target = TableSchema(fields={"x": FieldDefinition(type=UniversalType.DATE)})
+        rows = [{"x": None}] * 101
+        result = PydataIngress.convert(rows, table_schema=target, inline_conform=False)
+        assert result.schema == {"x": pl.Null}
+        assert result.to_dicts() == rows
+
+    def test_source_names_do_not_apply_target_transforms_or_drop_columns(self):
+        source = TableSchema(fields={
+            "renamed": FieldDefinition(rename_from="raw", type=UniversalType.STRING, null_fill="filled")
+        })
+        result = PydataIngress.convert([{"other": 7, "raw": None}], source_table_schema=source)
+        assert result.schema == {"other": pl.Int64, "raw": pl.String}
+        assert result.to_dicts() == [{"other": 7, "raw": None}]
+
+    def test_source_alias_cannot_replace_another_model_column_dtype(self):
+        source = TableSchema(fields={
+            "code": FieldDefinition(rename_from="label", type=UniversalType.STRING)
+        })
+        result = PydataIngress.convert([AnnotatedSource(42, "00123", 7)], source_table_schema=source)
+        assert result.schema == {"code": pl.Int64, "label": pl.String, "inferred": pl.Int64}
+        assert result.to_dicts() == [{"code": 42, "label": "00123", "inferred": 7}]
+
+    @pytest.mark.parametrize("series_type", [pl.Series, pd.Series])
+    def test_explicit_native_refinement_overrides_series_type(self, series_type):
+        source = TableSchema(fields={
+            "x": FieldDefinition(type=UniversalType.ANY, backend_type="Int8")
+        })
+        result = PydataIngress.convert({"x": series_type([1, 2])}, source_table_schema=source)
+        assert result.schema == {"x": pl.Int8}
+        assert result.to_dicts() == [{"x": 1}, {"x": 2}]

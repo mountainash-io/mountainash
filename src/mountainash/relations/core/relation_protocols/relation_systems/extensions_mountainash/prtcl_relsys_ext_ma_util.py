@@ -2,42 +2,130 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
+
+from mountainash.core.types import RelationT
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pyarrow as pa
+
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.execution.metadata import Imported
 
 
-class MountainashExtensionRelationSystemProtocol(Protocol):
+class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
     """Contract for Mountainash-specific relation operations."""
 
-    def drop_nulls(self, relation: Any, /, *, subset: Optional[list[str]] = None) -> Any: ...
+    def drop_nulls(self, relation: RelationT, /, *, subset: Optional[list[str]] = None) -> RelationT: ...
 
-    def with_row_index(self, relation: Any, /, *, name: str = "index") -> Any: ...
+    def drop_nans(self, relation: RelationT, /, *, subset: Optional[list[str]] = None) -> RelationT: ...
 
-    def explode(self, relation: Any, /, *, columns: list[str]) -> Any: ...
+    def with_row_index(self, relation: RelationT, /, *, name: str = "index") -> RelationT: ...
+
+    def explode(self, relation: RelationT, /, *, columns: list[str]) -> RelationT: ...
 
     def sample(
-        self, relation: Any, /, *, n: Optional[int] = None, fraction: Optional[float] = None
-    ) -> Any: ...
+        self,
+        relation: RelationT,
+        /,
+        *,
+        n: Optional[int] = None,
+        fraction: Optional[float] = None,
+        seed: Optional[int] = None,
+    ) -> RelationT: ...
 
     def unpivot(
         self,
-        relation: Any,
+        relation: RelationT,
         /,
         *,
         on: list[str],
         index: Optional[list[str]] = None,
         variable_name: str = "variable",
         value_name: str = "value",
-    ) -> Any: ...
+    ) -> RelationT: ...
 
     def pivot(
         self,
-        relation: Any,
+        relation: RelationT,
         /,
         *,
         on: str,
         index: Optional[list[str]] = None,
         values: Optional[str] = None,
         aggregate_function: str = "first",
-    ) -> Any: ...
+    ) -> RelationT: ...
 
-    def top_k(self, relation: Any, /, *, k: int, by: str, descending: bool = True) -> Any: ...
+    def top_k(self, relation: RelationT, /, *, k: int, by: str, descending: bool = True) -> RelationT: ...
+
+    def unnest(self, relation: RelationT, /, *, columns: list[str], separator: str) -> RelationT: ...
+
+    def read_resource(self, resource: Any, *, location: ExecutionLocation | None = None) -> RelationT:
+        """Load a DataResource into the backend's native relation type.
+
+        Called by the unified visitor for ResourceReadRelNode materialisation.
+        Each backend implements its own file I/O strategy.
+        """
+        ...
+
+    def empty_frame(self, spec: Any) -> RelationT:
+        """Build a typed-empty (0, N) native frame from a TableSchema.
+
+        Used by the resource-read path to materialise a zero-row resource
+        whose source carried no column information, reconstructing the
+        declared columns/dtypes from the schema. Accepts ONLY a TableSchema
+        (callers convert raw Frictionless dicts first).
+        """
+        ...
+
+    def fetch_from_end(self, relation: RelationT, count: int, /) -> RelationT:
+        """Fetch the last ``count`` rows (``tail``) — no Substrait FetchRel form.
+
+        Substrait ``FetchRel`` counts from the start (offset/count); fetching
+        from the end is a Mountainash convenience with no standard equivalent.
+        """
+        ...
+
+    def join_asof(
+        self,
+        left: RelationT,
+        right: RelationT,
+        *,
+        on: str,
+        by: Optional[list[str]],
+        strategy: str,
+        tolerance: Any,
+    ) -> RelationT:
+        """As-of (nearest-key) join — no Substrait JoinRel form.
+
+        Substrait's ``JoinRel`` join-type enum has no ``ASOF`` member; as-of
+        join is a Mountainash addition.
+        """
+        ...
+
+    def export(self, native: Any, *, source: ExecutionLocation) -> pa.Table:
+        """Export a native value of this family to Arrow."""
+        ...
+
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
+        """Raise ``ValueError`` for values the destination cannot store.
+
+        ``arrow`` is the table or a zero-argument callable producing it; a
+        destination with nothing to check never calls it, so the source is not
+        exported for no reason.
+        """
+        ...
+
+    def import_into(
+        self, arrow: pa.Table, *, location: ExecutionLocation, owned: bool = False,
+    ) -> Imported:
+        """Import Arrow at ``location``; ``owned`` alone selects an owned copy."""
+        ...
+
+    def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        """Non-executing decision whether ``read_resource`` scans natively."""
+        ...

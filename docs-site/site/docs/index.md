@@ -43,7 +43,7 @@ After working through this manual, you'll be able to:
 
 - Build fluent expression chains that compile to Polars, pandas, PyArrow, or SQL without rewriting
 - Construct relational pipelines with filters, joins, aggregations, window functions, and a dozen terminal output formats
-- Define portable schemas with TypeSpec and use `conform()` to clean messy data in a single call
+- Define portable schemas with TableSchema and use `conform()` to clean messy data in a single call
 - Set up data contracts that validate structure and business rules across environments
 - Orchestrate multi-step workflows with the pipeline framework and RelationDAG
 - Understand the architecture well enough to extend the library with new operations, backends, or node types
@@ -62,8 +62,8 @@ After working through this manual, you'll be able to:
 3. **Expression Backends** — Polars, Narwhals, and Ibis expression compilation with cross-backend consistency
 4. **Relation System** — Relational AST with Substrait-aligned node types, fluent relation builder, unified visitor
 5. **Relation Backends** — Polars LazyFrame, Narwhals, and Ibis SQL relation compilation
-6. **Type System (TypeSpec)** — Universal type metadata, Frictionless Table Schema alignment, schema extraction and validation
-7. **Data Conformance** — TypeSpec-driven column transformation via `Relation.conform()`
+6. **Type System (TableSchema)** — Universal type metadata, Frictionless Table Schema alignment, schema extraction and validation
+7. **Data Conformance** — TableSchema-driven column transformation via `Relation.conform()`
 8. **Ternary Logic** — Three-valued semantics (TRUE/FALSE/UNKNOWN) with sentinel integers and auto-booleanisation
 9. **DAG & DataPackage** — RelationDAG orchestrator, Frictionless DataPackage integration, two-edge graph model
 10. **Pipeline Framework** — Declarative multi-step pipelines with typed parameter binding and caching
@@ -82,14 +82,14 @@ After working through this manual, you'll be able to:
 
 **Pipelines that get data out your way** — The relation builder wraps expressions in a fluent pipeline API. Terminal methods deliver results as Polars DataFrames, pandas, dicts, dataclasses, Pydantic models, PyArrow tables, and more. Cross-type joins work transparently across different sources.
 
-**Schemas that conform messy data** — TypeSpec defines what your data should look like, aligned with the Frictionless Data standard. The conform pipeline handles missing value normalisation, boolean casting, numeric parsing, temporal parsing, category enforcement, and list delimiters.
+**Schemas that conform messy data** — TableSchema defines what your data should look like, aligned with the Frictionless Data standard. The conform pipeline handles missing value normalisation, boolean casting, numeric parsing, temporal parsing, category enforcement, and list delimiters.
 
 **Data quality woven into the pipeline** — Data contracts validate both physical structure and logical business rules. Both compile to the same expression engine and run on any backend. Context-aware rule exclusions let you vary strictness by environment.
 
 **Three-valued logic for real-world data** — The ternary expression layer (TRUE, FALSE, UNKNOWN) handles sentinel values, unreported fields, and the gap between "zero" and "missing" — essential for databases that recommend sentinel values over NULLs.
 
-**Frictionless Data as a first-class citizen** — TypeSpec aligns with Frictionless Table Schema. DataPackages and Resources work natively. Multi-resource DAGs validate foreign key integrity across tables.
+**Frictionless Data as a first-class citizen** — TableSchema aligns with Frictionless Table Schema. DataPackages and Resources work natively. Multi-resource DAGs validate foreign key integrity across tables.
 
 ## Context
 
-Mountainash positions itself as a backend-portable abstraction layer for data expressions and relational operations. Unlike Ibis (SQL-focused) or Narwhals (DataFrame-agnostic thin layer), mountainash provides a full Substrait-aligned AST with three-valued ternary logic, schema-first data quality via TypeSpec, and declarative pipeline orchestration — enabling "abstract data products" that run identically across Polars, pandas, and SQL backends.
+Mountainash positions itself as a backend-portable abstraction layer for data expressions and relational operations. Unlike Ibis (SQL-focused) or Narwhals (DataFrame-agnostic thin layer), mountainash provides a full Substrait-aligned AST with three-valued ternary logic, schema-first data quality via TableSchema, and declarative pipeline orchestration — enabling "abstract data products" that run identically across Polars, pandas, and SQL backends.

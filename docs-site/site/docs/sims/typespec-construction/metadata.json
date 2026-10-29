@@ -1,5 +1,5 @@
 {
-  "title": "TypeSpec Construction Sources",
+  "title": "TableSchema Construction Sources",
   "creator": "Dan McCreary",
   "subject": "High School Geometry",
   "description": "Interactive MicroSim for typespec construction sources",
@@ -12,7 +12,7 @@
       "12"
     ],
     "subjectArea": "Mathematics",
-    "topic": "TypeSpec Construction Sources",
+    "topic": "TableSchema Construction Sources",
     "learningObjectives": [
       "TODO: Add learning objectives"
     ],

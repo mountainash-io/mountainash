@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from uuid import UUID
+
+from mountainash.core.lowering_reuse import OCCURRENCE, ReuseCase, selected_lowering
 from typing import TYPE_CHECKING, Any, Optional
 import logging
 # from enum import Enum
@@ -12,26 +17,100 @@ from.pydata_ingress_factory import PydataIngressFactory
 
 if TYPE_CHECKING:
     from mountainash.core.types import PolarsFrame
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 logger = logging.getLogger(__name__)
 
+
+def repeatable_ingress_value(value: Any) -> bool:
+    """Qualify exact builtin values and stable native Series; callbacks stay conservative."""
+    if type(value) in {str, bytes, int, float, bool, type(None), date, datetime,
+                       time, timedelta, Decimal, UUID}:
+        return True
+    if type(value).__module__.startswith("numpy"):
+        import numpy as np
+        if isinstance(value, (np.ndarray, np.generic)):
+            return not value.dtype.hasobject
+    if type(value).__module__.startswith("polars") and type(value).__name__ == "Series":
+        from mountainash.core.lazy_imports import import_polars
+        pl = import_polars()
+        if pl is not None and type(value) is pl.Series:
+            return value.dtype != pl.Object
+    if type(value).__module__.startswith("pandas") and type(value).__name__ == "Series":
+        try:
+            import pandas as pd
+        except ImportError:
+            return False
+        if type(value) is pd.Series:
+            import numpy as np
+
+            # Extension arrays can supply their own conversion behavior.
+            return isinstance(value.dtype, np.dtype) and not value.dtype.hasobject
+    if type(value) in {list, tuple, set, frozenset}:
+        return all(repeatable_ingress_value(item) for item in value)
+    if type(value) is dict:
+        return all(repeatable_ingress_value(key) and repeatable_ingress_value(item)
+                   for key, item in value.items())
+    return False
+
+
+def schema_literal_ingress_safe(value: Any) -> bool:
+    """Whether schema inspection may safely convert this held literal value."""
+    from datetime import date, datetime, time, timedelta
+    from decimal import Decimal
+    from uuid import UUID
+
+    if type(value) in {str, bytes, int, float, bool, type(None)}:
+        return True
+    if isinstance(value, (date, datetime, time, timedelta, Decimal, UUID)):
+        return True
+    if type(value).__module__.startswith("numpy"):
+        import numpy as np
+
+        if isinstance(value, (np.ndarray, np.generic)):
+            return not value.dtype.hasobject
+    if type(value) in {list, tuple, set, frozenset}:
+        return all(schema_literal_ingress_safe(item) for item in value)
+    if type(value) is dict:
+        return all(
+            schema_literal_ingress_safe(key) and schema_literal_ingress_safe(item)
+            for key, item in value.items()
+        )
+    return False
+
 class PydataIngress():
     """Factory for creating appropriate Python data conversion strategies with lazy loading."""
+    @classmethod
+    def _convert_for_compilation(cls, data: Any, /):
+        """Convert selected ingress data and report its compilation reuse permission."""
+        strategy = PydataIngressFactory.get_strategy(data)
+        native = strategy.convert(data)
+        descriptor = selected_lowering(strategy.convert)
+        if descriptor.reuse is not ReuseCase.OCCURRENCE and not repeatable_ingress_value(data):
+            descriptor = OCCURRENCE
+        return native, descriptor
 
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                table_schema: Optional['TableSchema'] = None,
+                *,
+                source_table_schema: Optional['TableSchema'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert Python data structure to Polars DataFrame.
 
-        This is the main public interface for data conversion.
+        Source dtypes resolve per column: explicit source_table_schema, then model
+        annotations, then bounded native inference. Unrefined ANY is no override.
+        table_schema is a conversion target, never source-type evidence.
 
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
-            type_spec: Optional TypeSpec for column type coercion and renaming
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Optional input dtype declarations, not transformations.
+            inline_conform: Run target conversions (default True). False still
+                applies source typing during construction.
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -45,4 +124,7 @@ class PydataIngress():
             True
         """
         strategy = PydataIngressFactory.get_strategy(data)
-        return strategy.convert(data, type_spec=type_spec)
+        return strategy.convert(
+            data, table_schema=table_schema, source_table_schema=source_table_schema,
+            inline_conform=inline_conform,
+        )

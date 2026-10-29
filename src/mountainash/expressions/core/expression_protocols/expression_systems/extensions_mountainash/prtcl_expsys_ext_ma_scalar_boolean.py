@@ -9,7 +9,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -21,21 +21,29 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
     functions to provide additional boolean operations.
     """
 
+    def parse_boolean(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> ExpressionT:
+        """Parse configured literal tokens into a nullable boolean."""
+        ...
+
     def xor_parity(
         self,
-        *args: ExpressionT
+        a: ExpressionT,
+        b: ExpressionT,
+        /,
     ) -> ExpressionT:
-        """XOR parity check (odd number of TRUE values).
+        """Binary XOR parity check.
 
-        Returns TRUE if an odd number of operands are TRUE.
-        For two operands, this is equivalent to XOR.
+        Returns TRUE if exactly one operand is TRUE.
+        The API builder chains binary pairs for >2 operands.
 
         Returns null if either input is null.
-
-        Args:
-            a: boolean expressions.
-
-        Returns:
-            Boolean result of parity check.
         """
         ...

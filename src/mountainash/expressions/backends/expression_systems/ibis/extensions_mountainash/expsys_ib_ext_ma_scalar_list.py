@@ -1,0 +1,421 @@
+"""Ibis backend for mountainash list operations."""
+from __future__ import annotations
+
+from typing import Any, FrozenSet, Literal, Optional
+
+import ibis
+from ibis.common.deferred import deferrable
+from ibis.expr import datashape as ds
+from ibis.expr import operations as ops
+
+from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
+from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
+
+_T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
+_T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
+_T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
+
+
+class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
+    """Ibis implementation of list operations."""
+
+    def list_element(self):
+        scope = getattr(self, "_list_element_scope", ())
+        if scope:
+            return scope[-1].to_expr()
+        raise BackendCapabilityError(
+            f"Ibis {self.dialect}: element requires an enclosing list context.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        )
+
+    def _prepare_call_list_agg(self, operands):
+        return [operands.native(0), operands.body_compiler(1)]
+
+    def _prepare_call_list_filter(self, operands):
+        return [operands.native(0), operands.body_compiler(1)]
+
+    def _compile_list_body(self, array, compile_body, *, filtering=False):
+        """Bind the body through the visitor and lower native scoped reductions."""
+        previous = getattr(self, "_list_element_scope", ())
+        parameter = ops.Argument(
+            name=f"ma_element_{len(previous)}",
+            shape=ds.columnar,
+            dtype=array.type().value_type,
+        )
+        self._list_element_scope = (*previous, parameter)
+        try:
+            body = compile_body().op()
+        finally:
+            self._list_element_scope = previous
+
+        def uses_element(node):
+            # Inner list lambdas own their parameters; they are not free here.
+            return bool(node.find(
+                lambda value: value == parameter,
+                filter=lambda value: not (
+                    isinstance(value, (ops.ArrayMap, ops.ArrayFilter))
+                    and value.param == parameter
+                ),
+            ))
+
+        def mapped(node):
+            return ops.ArrayMap(
+                array, param=parameter, index=None, body=node.to_expr(),
+            ).to_expr()
+
+        reducers = {ops.Sum: "sums", ops.Mean: "means", ops.Min: "mins", ops.Max: "maxs"}
+        reduced = False
+
+        def lower_reduction(node, rewritten):
+            nonlocal reduced
+            if rewritten:
+                node = node.copy(**rewritten)
+            reducer = reducers.get(type(node))
+            if reducer is not None and node.where is None and uses_element(node):
+                reduced = True
+                return getattr(mapped(node.arg), reducer)().op()
+            return node
+
+        # Ibis's native rewrite API is experimental; keep its use at this boundary.
+        body = body.replace(lower_reduction)
+        if filtering:
+            return ops.ArrayFilter(
+                array, param=parameter, index=None, body=body.to_expr(),
+            ).to_expr()
+        if uses_element(body):
+            return mapped(body)
+        result = body.to_expr()
+        # A scalar body still belongs to this container. Null-filling inside
+        # the body must not replace a null list (unlike filling after agg).
+        return ibis.ifelse(array.isnull(), ibis.null(), result) if reduced else result
+
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        if self.dialect == "ibis-sqlite" or self.dialect == "ibis-polars" and item_type != "string":
+            raise BackendCapabilityError(
+                "The selected Ibis engine cannot compile this list parser.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            )
+        values = x.split(delimiter)
+        if item_type == "string":
+            return values
+        if item_type == "boolean":
+            true_values = ("true", "True", "TRUE", "1")
+            false_values = ("false", "False", "FALSE", "0")
+            invalid = (
+                ibis.null().cast("boolean")
+                if failure_behavior == "null"
+                else ibis.literal("__invalid_boolean_token__").cast("boolean")
+            )
+            parsed = values.map(
+                lambda item: ibis.cases(
+                    (item.isin(true_values), ibis.literal(True)),
+                    (item.isin(false_values), ibis.literal(False)),
+                    else_=invalid,
+                )
+            )
+            if failure_behavior == "null":
+                invalid_items = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+                return ibis.ifelse(
+                    x.isnull(), ibis.null(),
+                    ibis.ifelse(invalid_items, ibis.null(), parsed),
+                )
+            return parsed
+        target = {
+            "integer": "int64",
+            "number": "float64",
+            "datetime": "timestamp",
+            "date": "date",
+            "time": "time",
+        }[item_type]
+        caster = (
+            (lambda item: item.try_cast(target))
+            if failure_behavior == "null"
+            else (lambda item: item.cast(target))
+        )
+        parsed = values.map(caster)
+        if failure_behavior == "null":
+            invalid = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+            return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(invalid, ibis.null(), parsed))
+        return parsed
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        dtype: CastTarget,
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ):
+        if self.dialect == "ibis-sqlite" or failure_behavior == "null":
+            raise BackendCapabilityError(
+                "SQLite list casting is unavailable; other Ibis engines require throw mode "
+                "because native nested casts do not null the whole list on an invalid item.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            )
+        return x.cast(registry.to_native_cast(dtype, TypeTarget.IBIS))
+
+    def list_sum(self, x, /):
+        return x.sums()
+
+    def list_min(self, x, /):
+        return x.mins()
+
+    def list_max(self, x, /):
+        return x.maxs()
+
+    def list_mean(self, x, /):
+        return x.means()
+
+    def list_len(self, x, /):
+        return x.length()
+
+    def list_contains(self, x, /, item):
+        return x.contains(item)
+
+    def list_t_contains(
+        self,
+        x,
+        /,
+        item,
+        *,
+        item_unknown_values: Optional[FrozenSet[Any]] = None,
+    ):
+        """Ternary list-membership: UNKNOWN for null list / null or sentinel needle.
+
+        A null needle is ALWAYS an UNKNOWN trigger (independent of the declared
+        ``item_unknown_values`` sentinel set — the set only adds the equality
+        terms for declared sentinels). Each sentinel comparison is null-coalesced
+        to False via ``_ibis_fill_null_false`` so a null item row never leaks
+        SQL-null into the ``is_unknown`` accumulator (mirrors the same
+        null-normalisation discipline the Task 5 membership kernel enforces).
+        """
+        # Unconditional UNKNOWN triggers: null list row OR null needle row.
+        is_unknown = x.isnull() | item.isnull()
+        if item_unknown_values:
+            for val in item_unknown_values:
+                # Skip None — already covered by item.isnull() above. Each
+                # non-None sentinel becomes a null-safe equality term.
+                if val is None:
+                    continue
+                is_unknown = is_unknown | _ibis_fill_null_false(item == ibis.literal(val))
+        any_match = x.contains(item).fill_null(False)
+        return ibis.ifelse(
+            is_unknown,
+            ibis.literal(_T_UNKNOWN),
+            ibis.ifelse(any_match, ibis.literal(_T_TRUE), ibis.literal(_T_FALSE)),
+        )
+
+    def list_sort(self, x, /, *, descending: bool = False):
+        if descending:
+            raise BackendCapabilityError(
+                "Ibis ArrayValue.sort() does not support descending order. "
+                "Use ascending sort, or use Polars/Narwhals backend for descending list sort.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SORT,
+            )
+        return x.sort()
+
+    def list_unique(self, x, /):
+        return x.unique()
+
+    def list_explode(self, x, /):
+        return x.unnest()
+
+    def list_join(self, x, /, *, separator: str = ","):
+        return x.join(separator)
+
+    def list_get(self, x, /, *, index: int = 0):
+        return x[index]
+
+    def list_all(self, x, /):
+        return x.alls()
+
+    def list_any(self, x, /):
+        return x.anys()
+
+    def list_drop_nulls(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.drop_nulls(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+        )
+
+    def list_median(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.median(). Use Polars or Narwhals backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN,
+        )
+
+    def list_std(self, x, /, *, ddof: int = 1):
+        raise BackendCapabilityError(
+            "Ibis does not support array.std(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+        )
+
+    def list_var(self, x, /, *, ddof: int = 1):
+        raise BackendCapabilityError(
+            "Ibis does not support array.var(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+        )
+
+    def list_n_unique(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.n_unique(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+        )
+
+    def list_count_matches(self, x, /, item):
+        raise BackendCapabilityError(
+            "Ibis does not support array.count_matches(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+        )
+
+    def list_item(self, x, /, *, index: int = 0):
+        raise BackendCapabilityError(
+            "Ibis does not support array.item(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+        )
+
+    def list_reverse(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.reverse(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+        )
+
+    def list_head(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.head(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+        )
+
+    def list_tail(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.tail(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+        )
+
+    def list_slice(self, x, /, offset, *, length=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.slice(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+        )
+
+    def list_gather(self, x, /, indices, *, null_on_oob=False):
+        raise BackendCapabilityError(
+            "Ibis does not support array.gather(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+        )
+
+    def list_gather_every(self, x, /, n, *, offset=0):
+        raise BackendCapabilityError(
+            "Ibis does not support array.gather_every(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+        )
+
+    def list_shift(self, x, /, n):
+        raise BackendCapabilityError(
+            "Ibis does not support array.shift(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+        )
+
+    def list_diff(self, x, /, *, n=1, null_behavior="ignore"):
+        raise BackendCapabilityError(
+            "Ibis does not support array.diff(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+        )
+
+    def list_set_union(self, x, /, other):
+        return x.union(other)
+
+    def list_set_intersection(self, x, /, other):
+        return x.intersect(other)
+
+    def list_set_difference(self, x, /, other):
+        raise BackendCapabilityError(
+            "Ibis does not support array.set_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+        )
+
+    def list_set_symmetric_difference(self, x, /, other):
+        raise BackendCapabilityError(
+            "Ibis does not support array.set_symmetric_difference(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+        )
+
+    def list_concat(self, x, /, other):
+        return x.concat(other)
+
+    def list_filter(self, x, /, mask):
+        return deferrable(
+            lambda array: self._compile_list_body(array, mask, filtering=True)
+        )(x)
+
+    def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.to_struct(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+        )
+
+    def list_to_array(self, x, /, *, width):
+        raise BackendCapabilityError(
+            "Ibis does not support array.to_array(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+        )
+
+    def list_arg_min(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.arg_min(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+        )
+
+    def list_arg_max(self, x, /):
+        raise BackendCapabilityError(
+            "Ibis does not support array.arg_max(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+        )
+
+    def list_sample(self, x, /, n=None, *, fraction=None, with_replacement=False, shuffle=False, seed=None):
+        raise BackendCapabilityError(
+            "Ibis does not support array.sample(). Use Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+        )
+
+    def list_agg(self, x, /, expr):
+        return deferrable(lambda array: self._compile_list_body(array, expr))(x)

@@ -27,6 +27,10 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
     - modulus: Modulo/remainder
     - power: Exponentiation
     - negate: Negation
+
+    Omitted options use native Polars behavior. Explicit rounding is unsupported.
+    Integer overflow modes are validated here; native wrapping is available as
+    SILENT except for division, which has no implemented integer overflow mode.
     """
 
     def add(
@@ -35,17 +39,37 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Add two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
 
         Returns:
             Sum of x and y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
         return x + y
 
     def subtract(
@@ -54,17 +78,37 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Subtract y from x.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
 
         Returns:
             Difference x - y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
         return x - y
 
     def multiply(
@@ -73,17 +117,37 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         y: PolarsExpr,
         /,
         overflow: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Multiply two values.
 
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
 
         Returns:
             Product of x and y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
         return x * y
 
     def divide(
@@ -94,6 +158,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         overflow: Any = None,
         on_domain_error: Any = None,
         on_division_by_zero: Any = None,
+        rounding: Any = None,
     ) -> PolarsExpr:
         """Divide x by y.
 
@@ -102,13 +167,50 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Dividend.
             y: Divisor.
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
-            on_division_by_zero: Division by zero handling (ignored in Polars).
+            overflow: Explicit overflow handling is unsupported; omit it for native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+            on_division_by_zero: Omit it or use IEEE for native Polars behavior.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
 
         Returns:
             Quotient x / y.
         """
+        if overflow is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit overflow handling. Omit overflow to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_division_by_zero is not None and on_division_by_zero != "IEEE":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports IEEE division-by-zero handling. Omit on_division_by_zero or use IEEE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
         return x / y
 
     def modulus(
@@ -125,13 +227,40 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Dividend.
             y: Divisor.
-            division_type: TRUNCATE or FLOOR (Polars uses TRUNCATE by default).
-            overflow: Overflow handling (ignored in Polars).
-            on_domain_error: Domain error handling (ignored in Polars).
+            division_type: Omit it or use FLOOR for native Polars behavior.
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
+            on_domain_error: ERROR is unavailable; otherwise native remainder behavior.
 
         Returns:
             Remainder of x / y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if division_type is not None and division_type != "FLOOR":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports FLOOR remainder division mode. Omit division_type or use FLOOR for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if on_domain_error == "ERROR":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars remainder cannot raise on domain errors.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
         return x % y
 
     def power(
@@ -146,11 +275,20 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         Args:
             x: Base.
             y: Exponent.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
 
         Returns:
             x raised to the power y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            )
         return x.pow(y)
 
     def negate(
@@ -163,11 +301,20 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
 
         Args:
             x: Value to negate.
-            overflow: Overflow handling (ignored in Polars).
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
 
         Returns:
             Negated value (-x).
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            )
         return -x
 
     # =========================================================================
@@ -181,7 +328,31 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Square root of the value."""
+        """Square root of the value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
         return x.sqrt()
 
     def exp(
@@ -190,7 +361,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """The mathematical constant e raised to the power of x."""
+        """The mathematical constant e raised to the power of x.
+
+        Args:
+            x: Exponent value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            )
         return x.exp()
 
     def abs(
@@ -199,7 +384,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         overflow: Any = None,
     ) -> PolarsExpr:
-        """Calculate the absolute value."""
+        """Calculate the absolute value.
+
+        Args:
+            x: Input value.
+            overflow: Omit it or use SILENT for native Polars integer wrapping.
+        """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports SILENT overflow handling. Omit overflow or use SILENT for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            )
         return x.abs()
 
     def sign(
@@ -218,6 +417,10 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
     ) -> PolarsExpr:
         """Return the factorial of a given integer input.
 
+        Args:
+            n: Integer input.
+            overflow: Overflow mode (ignored in Polars).
+
         Note: Polars does not have native factorial support.
         """
         raise NotImplementedError(
@@ -235,7 +438,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the sine of a value in radians."""
+        """Get the sine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
+            )
         return x.sin()
 
     def cos(
@@ -244,7 +461,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the cosine of a value in radians."""
+        """Get the cosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
+            )
         return x.cos()
 
     def tan(
@@ -253,7 +484,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the tangent of a value in radians."""
+        """Get the tangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            )
         return x.tan()
 
     def sinh(
@@ -262,7 +507,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic sine of a value."""
+        """Get the hyperbolic sine of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
+            )
         return x.sinh()
 
     def cosh(
@@ -271,7 +530,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic cosine of a value."""
+        """Get the hyperbolic cosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
+            )
         return x.cosh()
 
     def tanh(
@@ -280,7 +553,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic tangent of a value."""
+        """Get the hyperbolic tangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
+            )
         return x.tanh()
 
     # =========================================================================
@@ -294,7 +581,31 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arcsine of a value in radians."""
+        """Get the arcsine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            )
         return x.arcsin()
 
     def acos(
@@ -304,7 +615,31 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arccosine of a value in radians."""
+        """Get the arccosine of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            )
         return x.arccos()
 
     def atan(
@@ -313,7 +648,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the arctangent of a value in radians."""
+        """Get the arctangent of a value in radians.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
+            )
         return x.arctan()
 
     def asinh(
@@ -322,7 +671,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arcsine of a value."""
+        """Get the hyperbolic arcsine of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
+            )
         return x.arcsinh()
 
     def acosh(
@@ -332,7 +695,31 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arccosine of a value."""
+        """Get the hyperbolic arccosine of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
+            )
         return x.arccosh()
 
     def atanh(
@@ -342,7 +729,31 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the hyperbolic arctangent of a value."""
+        """Get the hyperbolic arctangent of a value.
+
+        Args:
+            x: Input value.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
+            )
         return x.arctanh()
 
     def atan2(
@@ -353,7 +764,32 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         rounding: Any = None,
         on_domain_error: Any = None,
     ) -> PolarsExpr:
-        """Get the arctangent of y/x, using the signs to determine the quadrant."""
+        """Get the arctangent of y/x, using signs to determine the quadrant.
+
+        Args:
+            x: First coordinate.
+            y: Second coordinate.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+            on_domain_error: Omit it or use NAN for native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            )
+        if on_domain_error is not None and on_domain_error != "NAN":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars only supports NAN domain-error handling. Omit on_domain_error or use NAN for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            )
         return pl.arctan2(x, y)
 
     # =========================================================================
@@ -366,7 +802,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Convert angle from degrees to radians."""
+        """Convert angle from degrees to radians.
+
+        Args:
+            x: Input angle.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
+            )
         return x.radians()
 
     def degrees(
@@ -375,7 +825,21 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
         rounding: Any = None,
     ) -> PolarsExpr:
-        """Convert angle from radians to degrees."""
+        """Convert angle from radians to degrees.
+
+        Args:
+            x: Input angle.
+            rounding: Explicit rounding is unsupported; omit it to use native Polars behavior.
+        """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Polars does not support explicit rounding. Omit rounding to use native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
+            )
         return x.degrees()
 
     # =========================================================================
@@ -388,10 +852,7 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Return the bitwise NOT of an integer."""
-        raise NotImplementedError(
-            "bitwise_not() is not directly supported by the Polars backend. "
-            "Consider using XOR with -1 or a custom implementation."
-        )
+        return ~x
 
     def bitwise_and(
         self,
@@ -427,9 +888,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise shift left."""
-        raise NotImplementedError(
-            "shift_left() is not directly supported by the Polars backend. "
-            "Consider using multiplication by powers of 2."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Polars does not support bitwise shift_left. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
         )
 
     def shift_right(
@@ -439,9 +903,12 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise signed shift right."""
-        raise NotImplementedError(
-            "shift_right() is not directly supported by the Polars backend. "
-            "Consider using floor division by powers of 2."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "Polars does not support bitwise shift_right. Use Ibis backend for shift operations.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
         )
 
     def shift_right_unsigned(
@@ -451,6 +918,10 @@ class SubstraitPolarsScalarArithmeticExpressionSystem(PolarsBaseExpressionSystem
         /,
     ) -> PolarsExpr:
         """Bitwise unsigned shift right."""
-        raise NotImplementedError(
-            "shift_right_unsigned() is not directly supported by the Polars backend."
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+        raise BackendCapabilityError(
+            "No backend supports bitwise shift_right_unsigned.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
         )

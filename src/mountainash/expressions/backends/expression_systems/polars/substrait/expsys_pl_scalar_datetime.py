@@ -5,52 +5,88 @@ Implements datetime operations for the Polars backend.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from mountainash.expressions.core.datetime_components import (
+    BooleanComponent,
+    CALENDAR_COMPONENTS,
+    DatetimeComponent,
+)
+from typing import Any, TYPE_CHECKING, Optional
 
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarDatetimeExpressionSystemProtocol
-
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
-class DatetimeComponent(Enum):
-    """Datetime component types for extraction."""
-
-    # Core components
-    YEAR = "YEAR"
-    ISO_YEAR = "ISO_YEAR"
-    US_YEAR = "US_YEAR"
-    QUARTER = "QUARTER"
-    MONTH = "MONTH"
-    DAY = "DAY"
-    DAY_OF_YEAR = "DAY_OF_YEAR"
-    MONDAY_DAY_OF_WEEK = "MONDAY_DAY_OF_WEEK"
-    SUNDAY_DAY_OF_WEEK = "SUNDAY_DAY_OF_WEEK"
-    MONDAY_WEEK = "MONDAY_WEEK"
-    SUNDAY_WEEK = "SUNDAY_WEEK"
-    ISO_WEEK = "ISO_WEEK"
-    US_WEEK = "US_WEEK"
-    HOUR = "HOUR"
-    MINUTE = "MINUTE"
-    SECOND = "SECOND"
-    MILLISECOND = "MILLISECOND"
-    MICROSECOND = "MICROSECOND"
-    NANOSECOND = "NANOSECOND"
-    PICOSECOND = "PICOSECOND"
-    SUBSECOND = "SUBSECOND"
-    UNIX_TIME = "UNIX_TIME"
-    TIMEZONE_OFFSET = "TIMEZONE_OFFSET"
 
 
-class BooleanComponent(Enum):
-    """Boolean component types for extraction."""
+_DEFAULT_DATETIME_PATTERN = (
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]+)?(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+)
+_XSD_DURATION_PATTERN = (
+    r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?"
+    r"(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+)
+_XSD_PARTIAL_DATE_PATTERNS = {
+    "year": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+    "yearmonth": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"-(?:0[1-9]|1[0-2])(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+}
 
-    IS_LEAP_YEAR = "IS_LEAP_YEAR"
-    IS_DST = "IS_DST"
 
+def _throw_marker(valid: pl.Expr, source: pl.Expr) -> pl.Expr:
+    """Create a data-dependent cast marker for throw mode."""
+    return (
+        pl.when(valid | source.is_null())
+        .then(pl.lit("0"))
+        .otherwise(pl.lit("__invalid__"))
+        .cast(pl.Int8)
+    )
+
+
+# Substrait canonical unit name -> Polars duration-string suffix. Combined
+# with an integer multiplier (e.g. "2d", "3h", "1mo") this is accepted
+# natively by Polars' dt.truncate/dt.round/dt.offset_by -- verified against
+# polars 1.43.2 (item 74).
+_POLARS_UNIT_SUFFIX = {
+    "YEAR": "y", "MONTH": "mo", "WEEK": "w", "DAY": "d",
+    "HOUR": "h", "MINUTE": "m", "SECOND": "s",
+    "MILLISECOND": "ms", "MICROSECOND": "us",
+}
+
+# round_temporal's in-scope units (v1): YEAR/MONTH/WEEK are declared
+# UNSUPPORTED there (ambiguous fixed-duration length) -- round_calendar
+# covers all nine.
+_ROUND_TEMPORAL_UNITS = frozenset(
+    {"DAY", "HOUR", "MINUTE", "SECOND", "MILLISECOND", "MICROSECOND"}
+)
+
+
+def _round_datetime(x: PolarsExpr, rounding: str, unit: str, multiple: int) -> PolarsExpr:
+    """Shared round_temporal/round_calendar implementation.
+
+    FLOOR/CEIL/ROUND_TIE_DOWN are hand-rolled from dt.truncate + dt.offset_by
+    (Polars has no native CEIL or tie-down primitive). ROUND_TIE_UP uses
+    Polars' native dt.round -- verified empirically (2026-08-16) that its
+    tie rule IS tie-up (10:30 -> 11:00, not 10:00) and that it accepts every
+    combined multiplier/unit string used here, including calendar units.
+    """
+    every = f"{multiple}{_POLARS_UNIT_SUFFIX[unit]}"
+    floor = x.dt.truncate(every)
+    if rounding == "FLOOR":
+        return floor
+    if rounding == "ROUND_TIE_UP":
+        return x.dt.round(every)
+    ceiling = pl.when(floor == x).then(x).otherwise(floor.dt.offset_by(every))
+    if rounding == "CEIL":
+        return ceiling
+    # ROUND_TIE_DOWN: nearest, tying to the earlier point on equidistance.
+    diff_down = x - floor
+    diff_up = ceiling - x
+    return pl.when(diff_down <= diff_up).then(floor).otherwise(ceiling)
 
 class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, SubstraitScalarDatetimeExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of ScalarDatetimeExpressionProtocol.
@@ -75,79 +111,81 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        component: PolarsExpr,
+        component: str,
+        indexing: str = None,
         timezone: str = None,
     ) -> PolarsExpr:
-        """Extract portion of a date/time value.
+        """Extract a date/time component (Substrait: extract).
 
-        Args:
-            x: Datetime expression.
-            component: Component to extract (YEAR, MONTH, DAY, etc.).
-            timezone: Timezone string (IANA format).
-
-        Returns:
-            Extracted component as integer.
+        ``indexing`` (ONE/ZERO) applies only to calendar components; the
+        builder rejects it otherwise. ``timezone`` converts the value to the
+        target IANA zone before the component lookup.
         """
-        # Handle component as string or enum
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
-        # Map component to Polars extraction method
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         component_map = {
-            "YEAR": lambda e: e.dt.year(),
-            "ISO_YEAR": lambda e: e.dt.iso_year(),
-            "QUARTER": lambda e: e.dt.quarter(),
-            "MONTH": lambda e: e.dt.month(),
-            "DAY": lambda e: e.dt.day(),
-            "DAY_OF_YEAR": lambda e: e.dt.ordinal_day(),
-            "MONDAY_DAY_OF_WEEK": lambda e: e.dt.weekday(),  # 1=Monday to 7=Sunday
-            "SUNDAY_DAY_OF_WEEK": lambda e: (e.dt.weekday() % 7) + 1,  # 1=Sunday to 7=Saturday
-            "ISO_WEEK": lambda e: e.dt.week(),
-            "MONDAY_WEEK": lambda e: e.dt.week(),
-            "HOUR": lambda e: e.dt.hour(),
-            "MINUTE": lambda e: e.dt.minute(),
-            "SECOND": lambda e: e.dt.second(),
-            "MILLISECOND": lambda e: e.dt.millisecond(),
-            "MICROSECOND": lambda e: e.dt.microsecond(),
-            "NANOSECOND": lambda e: e.dt.nanosecond(),
-            "SUBSECOND": lambda e: e.dt.microsecond(),  # Microseconds since last second
-            "UNIX_TIME": lambda e: e.dt.epoch("s"),
+            "YEAR": lambda d: d.dt.year(),
+            "ISO_YEAR": lambda d: d.dt.iso_year(),
+            "QUARTER": lambda d: d.dt.quarter(),
+            "MONTH": lambda d: d.dt.month(),
+            "DAY": lambda d: d.dt.day(),
+            "DAY_OF_YEAR": lambda d: d.dt.ordinal_day(),
+            "MONDAY_DAY_OF_WEEK": lambda d: d.dt.weekday(),
+            "SUNDAY_DAY_OF_WEEK": lambda d: (d.dt.weekday() % 7) + 1,
+            "ISO_WEEK": lambda d: d.dt.week(),
+            "HOUR": lambda d: d.dt.hour(),
+            "MINUTE": lambda d: d.dt.minute(),
+            "SECOND": lambda d: d.dt.second(),
+            "MILLISECOND": lambda d: d.dt.millisecond(),
+            "MICROSECOND": lambda d: d.dt.microsecond() % 1000,
+            "NANOSECOND": lambda d: d.dt.nanosecond() % 1000,
+            "SUBSECOND": lambda d: d.dt.microsecond(),
+            "UNIX_TIME": lambda d: d.dt.epoch("s"),
         }
 
-        if comp in component_map:
-            return component_map[comp](x)
+        if comp not in component_map:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+            raise BackendCapabilityError(
+                f"extract component {comp!r} is not supported on polars",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            )
 
-        # Fallback for unhandled components
-        return x.dt.year()  # Default to year
+        result = component_map[comp](e)
+        if indexing == "ZERO" and comp in CALENDAR_COMPONENTS:
+            result = result - 1
+        return result
 
     def extract_boolean(
         self,
         x: PolarsExpr,
         /,
-        component: PolarsExpr,
+        component: str,
+        timezone: str = None,
     ) -> PolarsExpr:
-        """Extract boolean values of a date/time value.
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component (IS_LEAP_YEAR, IS_DST).
-
-        Returns:
-            Boolean expression.
-        """
+        """Extract a boolean date/time component (Substrait: extract_boolean)."""
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
+        e = x
+        if timezone is not None:
+            e = e.dt.convert_time_zone(timezone)
+
         if comp == "IS_LEAP_YEAR":
-            # A year is a leap year if divisible by 4, except centuries unless divisible by 400
-            year = x.dt.year()
+            year = e.dt.year()
             return ((year % 4 == 0) & (year % 100 != 0)) | (year % 400 == 0)
 
-        if comp == "IS_DST":
-            # Polars doesn't have direct DST detection
-            # Return a placeholder - would need timezone-aware implementation
-            return pl.lit(False)
-
-        return pl.lit(False)
-
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
+        raise BackendCapabilityError(
+            f"extract_boolean component {comp!r} is not supported on polars",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+        )
 
 
     # =========================================================================
@@ -343,34 +381,18 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-        """
-        return x.str.to_time(format)
+        return x.str.to_time(format, strict=failure_behavior != "null")
 
     def strptime_date(
         self,
         x: PolarsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
-        return x.str.to_date(format)
+        return x.str.to_date(format, strict=failure_behavior != "null")
 
     def strptime_timestamp(
         self,
@@ -378,21 +400,97 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         format: str,
         timezone: Optional[str] = None,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
-        result = x.str.to_datetime(format)
+        result = x.str.to_datetime(format, strict=failure_behavior != "null")
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        strict = failure_behavior != "null"
+        has_timezone = x.str.contains(r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$")
+        normalized = x.str.replace(r"Z$", "+00:00")
+        timezone_input = pl.when(has_timezone).then(normalized).otherwise(None)
+        with_timezone = timezone_input.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f%z",
+            strict=strict,
+        )
+        with_timezone = with_timezone.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
+        naive_input = pl.when(has_timezone).then(None).otherwise(x)
+        without_timezone = naive_input.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f",
+            strict=strict,
+        )
+        return pl.when(has_timezone).then(with_timezone).otherwise(without_timezone)
+
+    def parse_datetime_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
+    def parse_xsd_duration(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(_XSD_DURATION_PATTERN)
+        valid = valid & ~source.is_in(["P", "-P", "PT", "-PT"]) & ~source.str.ends_with("T")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+        if failure_behavior == "null":
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
+
+    def parse_xsd_partial_date(
+        self,
+        x: PolarsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        pattern = _XSD_PARTIAL_DATE_PATTERNS[kind]
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(pattern) & ~source.str.starts_with("-0000")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+        if failure_behavior == "null":
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
+
+    def parse_temporal_any(
+        self,
+        x: PolarsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        from mountainash.typespec.temporal import parse_temporal_any
+
+        dtype = {"date": pl.Date, "time": pl.Time, "datetime": pl.Datetime}[kind]
+
+        def parse(value):
+            try:
+                return parse_temporal_any(value, kind=kind)
+            except (TypeError, ValueError, OverflowError):
+                if failure_behavior == "null":
+                    return None
+                raise
+
+        return x.map_batches(
+            lambda series: series.map_elements(parse, return_dtype=dtype),
+            return_dtype=dtype,
+        )
+
 
     # =========================================================================
     # Formatting Methods
@@ -425,56 +523,67 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x: PolarsExpr,
         /,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        multiple: PolarsExpr = None,
-        origin: PolarsExpr = None,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
     ) -> PolarsExpr:
-        """Round datetime to a multiple of a time unit.
+        """Round datetime to a multiple of a fixed-duration time unit.
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Time unit string.
-            multiple: Multiple of unit (default 1).
-            origin: Origin timestamp for rounding.
+            unit: One of DAY, HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND.
+                YEAR/MONTH/WEEK are declared UNSUPPORTED here (ambiguous
+                fixed-duration length; see capabilities/datetime/rounding.py)
+                -- the raise below is defence in depth, the real gate is the
+                capability fact.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope; real Substrait origin is an
+                arguments-channel value, not a string option).
 
         Returns:
             Rounded datetime.
         """
-        rounding = rounding if rounding else "FLOOR"
+        if unit not in _ROUND_TEMPORAL_UNITS:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
 
-        if rounding == "FLOOR":
-            return x.dt.truncate(unit)
-        elif rounding == "CEIL":
-            truncated = x.dt.truncate(unit)
-            return pl.when(truncated == x).then(x).otherwise(truncated.dt.offset_by(unit))
-        else:
-            # ROUND_TIE_DOWN, ROUND_TIE_UP - use round
-            return x.dt.round(unit)
+            raise BackendCapabilityError(
+                f"round_temporal unit={unit!r} is not supported -- fixed-duration "
+                "rounding is ambiguous for YEAR/MONTH/WEEK; use round_calendar",
+                backend="polars",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
+        return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
         self,
         x: PolarsExpr,
         /,
-        rounding: PolarsExpr,
-        unit: PolarsExpr,
-        origin: PolarsExpr = None,
-        multiple: PolarsExpr = None,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
     ) -> PolarsExpr:
-        """Round datetime to a calendar unit.
+        """Round datetime to a multiple of a calendar time unit.
 
-        Similar to round_temporal but for calendar-aware rounding.
+        All nine Substrait units are in scope (calendar rounding is
+        unambiguous for every one, unlike round_temporal).
 
         Args:
             x: Datetime expression.
             rounding: FLOOR, CEIL, ROUND_TIE_DOWN, or ROUND_TIE_UP.
-            unit: Calendar unit string.
-            origin: Origin timestamp.
-            multiple: Multiple of unit.
+            unit: YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MILLISECOND,
+                or MICROSECOND.
+            multiple: Positive multiplier on unit. Defaults to 1.
+            origin: Never non-None here -- the API builder rejects it at
+                build time (v1 scope).
 
         Returns:
             Rounded datetime.
         """
-        # For Polars, calendar rounding uses the same approach
-        return self.round_temporal(x, rounding, unit, multiple, origin)
+        return _round_datetime(x, rounding, unit, multiple)

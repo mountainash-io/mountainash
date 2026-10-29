@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 import polars as pl
 
 from mountainash.core.constants import JoinType
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitJoinRelationSystemProtocol,
+)
 
 # Substrait/mountainash JoinType → Polars ``how`` parameter.
 # Polars uses "full" where Substrait says "outer".
@@ -21,7 +24,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitPolarsJoinRelationSystem:
+class SubstraitPolarsJoinRelationSystem(SubstraitJoinRelationSystemProtocol[pl.LazyFrame]):
     """Join operations on Polars LazyFrames."""
 
     def join(
@@ -41,6 +44,10 @@ class SubstraitPolarsJoinRelationSystem:
                 f"Unsupported join type for Polars: {join_type!r}. "
                 f"Supported: {list(_JOIN_TYPE_MAP.keys())}"
             )
+        # Keyed joins arrive from visit_join as disjoint ``left_on``/``right_on``
+        # names (see join_layout); keep both key columns -- visit_join owns any
+        # key merging. ``on=`` (semi/anti and direct protocol callers) keeps
+        # Polars' native single-key output.
         return left.join(
             right,
             on=on,
@@ -48,22 +55,5 @@ class SubstraitPolarsJoinRelationSystem:
             right_on=right_on,
             how=how,
             suffix=suffix,
-        )
-
-    def join_asof(
-        self,
-        left: pl.LazyFrame,
-        right: pl.LazyFrame,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
-    ) -> pl.LazyFrame:
-        return left.join_asof(
-            right,
-            on=on,
-            by=by if by else None,
-            strategy=strategy,
-            tolerance=tolerance,
+            coalesce=False if on is None else None,
         )

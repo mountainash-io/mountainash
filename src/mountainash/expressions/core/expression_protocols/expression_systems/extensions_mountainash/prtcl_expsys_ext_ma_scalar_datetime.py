@@ -8,7 +8,7 @@ Extensions providing convenient datetime operations beyond Substrait standard:
 - Boolean extraction (is_leap_year, is_dst) - wrappers for Substrait extract_boolean()
 - Date arithmetic (add_years, add_months, add_days, etc.) - wrappers for Substrait add()
 - Date difference (diff_years, diff_months, diff_days, etc.) - wrappers for Substrait subtract()
-- Truncation/rounding (truncate, round, ceil, floor) - wrappers for Substrait round_temporal()
+- Truncation/rounding (truncate, round_dt, ceil_dt, floor_dt) - wrappers for Substrait round_temporal()
 - Flexible duration offset (offset_by) - CUSTOM EXTENSION
 - Natural language filtering (within_last, older_than, etc.) - CUSTOM EXTENSION
 - Snapshot (today, now) - CUSTOM EXTENSION
@@ -19,7 +19,7 @@ are direct Substrait functions and defined in prtcl_scalar_datetime.py.
 
 from __future__ import annotations
 
-from typing import Optional, Protocol
+from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -187,7 +187,7 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        timezone: Optional[str] = None,
+        timezone: str,
     ) -> ExpressionT:
         """Check if DST is observed at this time."""
         ...
@@ -342,35 +342,39 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     def truncate(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Truncate datetime to the specified unit (floor)."""
         ...
 
-    def round(
+    def round_dt(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime to the nearest unit."""
         ...
 
-    def ceil(
+    def ceil_dt(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime up to the next unit."""
         ...
 
-    def floor(
+    def floor_dt(
         self,
         x: ExpressionT,
-        unit: ExpressionT,
         /,
+        *,
+        unit: str,
     ) -> ExpressionT:
         """Round datetime down to the previous unit."""
         ...
@@ -399,81 +403,16 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
         ...
 
     # =========================================================================
-    # Core Dispatch Methods (used by visitor)
-    # =========================================================================
-
-    def extract(
-        self,
-        x: ExpressionT,
-        component: ExpressionT,
-        timezone: ExpressionT = None,
-        /,
-    ) -> ExpressionT:
-        """Extract a datetime component by name.
-
-        Dispatches to backend-specific extraction (year, month, day, etc.).
-
-        Args:
-            x: Datetime expression.
-            component: Component identifier.
-
-        Returns:
-            Extracted component value.
-        """
-        ...
-
-    def extract_boolean(
-        self,
-        x: ExpressionT,
-        /,
-        component: ExpressionT,
-    ) -> ExpressionT:
-        """Extract a boolean datetime property.
-
-        Dispatches to backend-specific boolean extraction (is_leap_year, is_dst).
-
-        Args:
-            x: Datetime expression.
-            component: Boolean component identifier.
-
-        Returns:
-            Boolean expression.
-        """
-        ...
-
-    # =========================================================================
     # Timezone Operations
     # =========================================================================
 
     def to_timezone(
         self,
         x: ExpressionT,
-        timezone: ExpressionT,
         /,
+        timezone: str,
     ) -> ExpressionT:
         """Convert to specified timezone."""
-        ...
-
-    def assume_timezone(
-        self,
-        x: ExpressionT,
-        timezone: ExpressionT,
-        /,
-    ) -> ExpressionT:
-        """Assume the timestamp is in the specified timezone."""
-        ...
-
-    # =========================================================================
-    # Formatting
-    # =========================================================================
-
-    def strftime(
-        self,
-        x: ExpressionT,
-        format: ExpressionT,
-        /,
-    ) -> ExpressionT:
-        """Format datetime as string."""
         ...
 
     # =========================================================================
@@ -514,4 +453,36 @@ class MountainAshScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def days_in_month(self, input: ExpressionT, /) -> ExpressionT:
         """Return the number of days in the month of the datetime."""
+        ...
+
+    # =========================================================================
+    # Duration Extraction
+    # =========================================================================
+
+    def total_seconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total seconds in a duration."""
+        ...
+
+    def total_minutes(self, x: ExpressionT, /) -> ExpressionT:
+        """Total minutes in a duration."""
+        ...
+
+    def total_milliseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total milliseconds in a duration."""
+        ...
+
+    def total_microseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total microseconds in a duration."""
+        ...
+
+    def total_days(self, x: ExpressionT, /) -> ExpressionT:
+        """Total days in a duration."""
+        ...
+
+    def total_hours(self, x: ExpressionT, /) -> ExpressionT:
+        """Total hours in a duration."""
+        ...
+
+    def total_nanoseconds(self, x: ExpressionT, /) -> ExpressionT:
+        """Total nanoseconds in a duration."""
         ...

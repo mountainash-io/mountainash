@@ -6,7 +6,7 @@ IbisExpressionSystem class that can be registered with the visitor factory.
 
 from __future__ import annotations
 
-from mountainash.expressions.core.constants import CONST_VISITOR_BACKENDS
+from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.expsys_base import register_expression_system
 
 
@@ -42,14 +42,25 @@ from .extensions_mountainash.expsys_ib_ext_ma_null import MountainAshIbisNullExp
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_arithmetic import MountainAshIbisScalarArithmeticExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_datetime import MountainAshIbisScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_set import SubstraitIbisScalarSetExpressionSystem as MountainAshIbisScalarSetExpressionSystem
-from .extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import SubstraitIbisScalarBooleanExpressionSystem as MountainAshIbisScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_boolean import MountainAshIbisScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_value import MountainAshIbisScalarValueExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_comparison import MountainAshIbisScalarComparisonExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_string import SubstraitIbisScalarStringExpressionSystem as MountainAshIbisScalarStringExpressionSystem
 from .extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_window import MountainAshIbisWindowExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_struct import MountainAshIbisScalarStructExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_list import MountainAshIbisScalarListExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_categorical import MountainAshIbisScalarCategoricalExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_aggregate import MountainAshIbisScalarAggregateExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_scalar_geospatial import MountainAshIbisScalarGeospatialExpressionSystem
 
 
 
 
-@register_expression_system(CONST_VISITOR_BACKENDS.IBIS)
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
+@register_expression_system(CONST_BACKEND.IBIS)
 class IbisExpressionSystem(
     # Foundation protocols
     SubstraitIbisCastExpressionSystem,
@@ -79,9 +90,17 @@ class IbisExpressionSystem(
     MountainAshIbisScalarArithmeticExpressionSystem,
     MountainAshIbisScalarDatetimeExpressionSystem,
     MountainAshIbisScalarBooleanExpressionSystem,
+    MountainAshIbisScalarValueExpressionSystem,
+    MountainAshIbisScalarComparisonExpressionSystem,
     MountainAshIbisScalarStringExpressionSystem,
     MountainAshIbisScalarSetExpressionSystem,
     MountainAshIbisScalarTernaryExpressionSystem,
+    MountainAshIbisWindowExpressionSystem,
+    MountainAshIbisScalarStructExpressionSystem,
+    MountainAshIbisScalarListExpressionSystem,
+    MountainAshIbisScalarCategoricalExpressionSystem,
+    MountainAshIbisScalarGeospatialExpressionSystem,
+    MountainAshIbisScalarAggregateExpressionSystem,
 
 ):
     """Complete Ibis backend expression system.
@@ -91,6 +110,8 @@ class IbisExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(IbisExpressionSystem, "ibis")
 
 
 __all__ = [
@@ -123,5 +144,7 @@ __all__ = [
     "MountainAshIbisScalarArithmeticExpressionSystem",
     "MountainAshIbisScalarDatetimeExpressionSystem",
     "MountainAshIbisScalarSetExpressionSystem",
-    "MountainAshIbisScalarTernaryExpressionSystem"
+    "MountainAshIbisScalarComparisonExpressionSystem",
+    "MountainAshIbisScalarTernaryExpressionSystem",
+    "MountainAshIbisScalarValueExpressionSystem",
 ]

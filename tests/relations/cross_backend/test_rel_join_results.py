@@ -1,0 +1,678 @@
+"""Cross-backend result verification for join operations.
+
+Phase 2 of the relation result verification suite. Tests inner, left, right,
+outer, semi, anti, cross joins, suffix disambiguation, multi-key joins, and
+join_asof across all 7 backends.
+"""
+
+from __future__ import annotations
+
+import polars as pl
+import pytest
+
+import mountainash as ma
+
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+from mountainash.core.types import BackendCapabilityError
+
+
+# ALL_BACKENDS = [
+#     "polars",
+#     "pandas",
+#     "narwhals-polars",
+#     "narwhals-pandas",
+#     "ibis-duckdb",
+#     "ibis-sqlite",
+# ]
+
+
+def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
+    """Sort list of dicts by key(s) for order-independent comparison."""
+    if isinstance(by, str):
+        by = [by]
+    return sorted(dicts, key=lambda d: tuple((0, d[k]) if d[k] is not None else (1,) for k in by))
+
+
+# ---------------------------------------------------------------------------
+# Inner Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinInner:
+    def test_inner_matching_rows(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3, 4], "score": [20, 30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="inner").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 2, "val": "b", "score": 20},
+            {"id": 3, "val": "c", "score": 30},
+        ]
+
+    def test_inner_no_match(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2], "val": ["a", "b"]},
+            {"id": [3, 4], "score": [30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="inner").to_dicts()
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Left Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinLeft:
+    def test_left_null_fill(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3], "score": [20, 30]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="left").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": "a", "score": None},
+            {"id": 2, "val": "b", "score": 20},
+            {"id": 3, "val": "c", "score": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Right Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinRight:
+    def test_right_null_fill(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2], "val": ["a", "b"]},
+            {"id": [2, 3], "score": [20, 30]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="right").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 2, "val": "b", "score": 20},
+            {"id": 3, "val": None, "score": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Outer Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinOuter:
+    def test_outer_both_side_null_fill(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2], "val": ["a", "b"]},
+            {"id": [2, 3], "score": [20, 30]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="outer").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": "a", "score": None},
+            {"id": 2, "val": "b", "score": 20},
+            {"id": 3, "val": None, "score": 30},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Semi Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinSemi:
+    def test_semi_returns_left_columns_only(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3, 4], "score": [20, 30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="semi").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 2, "val": "b"},
+            {"id": 3, "val": "c"},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Anti Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinAnti:
+    def test_anti_excludes_matching(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2, 3], "val": ["a", "b", "c"]},
+            {"id": [2, 3, 4], "score": [20, 30, 40]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="anti").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": "a"},
+        ]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinValueEqualOperands:
+    @pytest.mark.parametrize("operand", ["same", "wrappers", "aggregates"])
+    @pytest.mark.parametrize("keys", [["k"], ["k", "v"]])
+    @pytest.mark.parametrize("key_style", ["on", "paired"])
+    @pytest.mark.parametrize("how", ["anti", "semi"])
+    def test_equal_operands(
+        self, backend_name, backend_factory, operand, keys, key_style, how
+    ):
+        source = backend_factory.create(
+            {"k": ["A", "A", "B"], "v": [7, 7, 2]}, backend_name
+        )
+        left = ma.relation(source)
+        right = left if operand == "same" else ma.relation(source)
+        expected = [
+            {"k": "A", "v": 7}, {"k": "A", "v": 7}, {"k": "B", "v": 2}
+        ]
+        if operand == "aggregates":
+            left = left.group_by("k").agg(ma.col("v").sum().alias("v"))
+            right = right.group_by("k").agg(ma.col("v").sum().alias("v"))
+            expected = [{"k": "A", "v": 14}, {"k": "B", "v": 2}]
+        kwargs = (
+            {"on": keys} if key_style == "on"
+            else {"left_on": keys, "right_on": keys}
+        )
+        result = left.join(right, how=how, **kwargs).to_polars()
+        assert result.columns == ["k", "v"]
+        assert sorted_dicts(result.to_dicts(), ["k", "v"]) == (
+            [] if how == "anti" else expected
+        )
+
+
+# ---------------------------------------------------------------------------
+# Cross Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinCross:
+    def test_cross_cartesian_product(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"a": [1, 2]},
+            {"b": ["x", "y"]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, how="cross").to_dicts()
+        result_sorted = sorted_dicts(result, ["a", "b"])
+        assert result_sorted == [
+            {"a": 1, "b": "x"},
+            {"a": 1, "b": "y"},
+            {"a": 2, "b": "x"},
+            {"a": 2, "b": "y"},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Join with Suffix (column disambiguation)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinSuffix:
+    def test_suffix_disambiguation(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"id": [1, 2], "val": [10, 20]},
+            {"id": [1, 2], "val": [100, 200]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on="id", how="inner", suffix="_r").to_dicts()
+        result_sorted = sorted_dicts(result, "id")
+        assert result_sorted == [
+            {"id": 1, "val": 10, "val_r": 100},
+            {"id": 2, "val": 20, "val_r": 200},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Multi-Key Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinMultiKey:
+    def test_join_on_two_columns(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"a": [1, 1, 2], "b": ["x", "y", "x"], "lv": [10, 20, 30]},
+            {"a": [1, 2], "b": ["x", "x"], "rv": [100, 200]},
+            backend_name,
+        )
+        result = ma.relation(left).join(right, on=["a", "b"], how="inner").to_dicts()
+        result_sorted = sorted_dicts(result, ["a", "b"])
+        assert result_sorted == [
+            {"a": 1, "b": "x", "lv": 10, "rv": 100},
+            {"a": 2, "b": "x", "lv": 30, "rv": 200},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Asof Join
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinAsof:
+    def test_asof_backward_strategy(self, backend_name, backend_factory):
+        """Test asof join with backward strategy.
+
+        join_asof matches each left row with the nearest right row where
+        right.on <= left.on (backward strategy).
+        """
+        left, right = backend_factory.create_pair(
+            {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]},
+            {"t": [2, 4, 6], "score": [20, 40, 60]},
+            backend_name,
+        )
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
+        # t=1: no right row <= 1, so score=None
+        # t=3: right t=2 <= 3, so score=20
+        # t=5: right t=4 <= 5, so score=40
+        # t=7: right t=6 <= 7, so score=60
+        assert len(result) == 4
+        assert result[0]["val"] == "a"
+        assert result[0]["score"] is None
+        assert result[1]["val"] == "b"
+        assert result[1]["score"] == 20
+        assert result[2]["val"] == "c"
+        assert result[2]["score"] == 40
+        assert result[3]["val"] == "d"
+        assert result[3]["score"] == 60
+
+    def test_asof_duplicate_left_rows(self, backend_name, backend_factory):
+        """Duplicate LEFT rows have no ambiguity in which right row matches
+        each left row, only in output ORDER among the two left rows sharing a
+        key — which Task 3's determinism fix pins deterministically and
+        correctly everywhere."""
+        left_data = {"t": [5, 5], "val": ["r1", "r2"]}
+        right_data = {"t": [4, 6], "score": [40, 60]}
+        oracle = pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), on="t", strategy="backward").to_dicts()
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
+        assert result == oracle
+
+    def test_asof_temporal_keys(self, backend_name, backend_factory):
+        """Temporal on-column, backward strategy (no distance computation needed —
+        works everywhere unlike nearest/tolerance, see the gated-cell tests below)."""
+        from datetime import datetime, timedelta
+
+        base = datetime(2026, 1, 1)
+        left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
+        oracle = pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), on="t", strategy="backward").to_dicts()
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
+        assert result == oracle
+
+
+@pytest.mark.cross_backend
+class TestJoinAsofGatedCells:
+    def _oracle(self, left_data, right_data, **kwargs):
+        return pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), **kwargs).to_dicts()
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_duplicate_right_keys(self, backend_name, backend_factory):
+        """DuckDB may choose either nearest-key tie; other backends keep last."""
+        left_data = {"t": [5], "val": ["x"]}
+        right_data = {"t": [4, 4, 6], "score": [41, 42, 60]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="backward")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
+        if backend_name == "ibis-duckdb":
+            # Physical ASOF plans may choose different equal-key right rows.
+            # Compare whole outputs: preserve the left row and exactly one
+            # eligible match, not a later key, NULL, or duplicate output.
+            assert result in (
+                [{"t": 5, "val": "x", "score": 41}],
+                [{"t": 5, "val": "x", "score": 42}],
+            )
+        else:
+            assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_by_grouping(self, backend_name, backend_factory):
+        """`by` groups are INTERLEAVED in the input (spec §7.1(5)) but `t` is
+        globally ascending — pandas merge_asof requires global sortedness of
+        `on` even with `by` set. IB-REL-17 declares that Ibis's SQL-backend
+        paths group output by `by` value rather than preserving this
+        interleaved order; every backend's matched VALUES are correct."""
+        left_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 4], "val": ["a1", "b2", "a3", "b4"]}
+        right_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 5], "score": [10, 20, 30, 50]}
+        oracle = self._oracle(left_data, right_data, on="t", by="g", strategy="backward")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("ibis-duckdb", "ibis-sqlite"),
+            errors=(AssertionError,),
+            reason="Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs",
+        ):
+            result = ma.relation(left).join_asof(right, on="t", by="g", strategy="backward").to_dicts()
+            assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_forward_strategy(self, backend_name, backend_factory):
+        left_data = {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]}
+        right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="forward")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="forward").to_dicts()
+        assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_nearest_strategy(self, backend_name, backend_factory):
+        left_data = {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]}
+        right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_nearest_forward_tie(self, backend_name, backend_factory):
+        """A GENUINE cross-side equidistant tie (right holds 4 and 6, left is
+        5 — two DIFFERENT-valued candidates at equal distance). This is the
+        core `nearest` correctness fix (Task 4) and has no declared
+        divergence anywhere — forward-wins here on every backend."""
+        left_data = {"t": [5], "val": ["x"]}
+        right_data = {"t": [4, 6], "score": [40, 60]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle  # forward-wins -> score 60
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_nearest_duplicate_right_keys(self, backend_name, backend_factory):
+        """An EXACT-match tie (right holds a duplicate exactly at the left
+        key) — a duplicate-tie-winner question, not a cross-side-tie
+        question. Declared via NW-REL-05 on narwhals-pandas/pandas rather
+        than fixed."""
+        left_data = {"t": [5], "val": ["x"]}
+        right_data = {"t": [5, 5, 7], "score": [51, 52, 70]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas", ),
+            errors=(AssertionError,),
+            reason=(
+                "Relation.join_asof(strategy='nearest') on narwhals-pandas/'pandas' may select a different (but still equally-near) right row than Polars when the right frame has duplicate keys at the winning distance"
+            ),
+        ):
+            result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+            assert result == oracle  # score 52, the LAST t=5 duplicate
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_nearest_colliding_payload_names(self, backend_name, backend_factory):
+        """Left and right share a non-key column name (`val`) — Polars-parity
+        schema suffixes the right one `val_right`, matching plain `join_asof`
+        on every backend. This is a genuine crash fix (narwhals nearest
+        previously raised `DuplicateError`), not a tie-break question — no
+        divergence needed once fixed."""
+        left_data = {"t": [1, 5], "val": ["L1", "L5"]}
+        right_data = {"t": [3, 4], "val": ["R3", "R4"]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_temporal_nearest_strategy(self, backend_name, backend_factory):
+        from datetime import datetime, timedelta
+
+        base = datetime(2026, 1, 1)
+        left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("ibis-sqlite",),
+            errors=(BackendCapabilityError,),
+            reason=(
+                "Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there"
+            ),
+        ):
+            result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+            assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_temporal_tolerance(self, backend_name, backend_factory):
+        """Natural/Polars-idiomatic calling convention: `tolerance` is a
+        `datetime.timedelta` for a temporal `on` column, with backward matching."""
+        from datetime import datetime, timedelta
+
+        base = datetime(2026, 1, 1)
+        left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
+        tol = timedelta(minutes=2)
+        oracle = self._oracle(left_data, right_data, on="t", strategy="backward", tolerance=tol)
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("narwhals-polars", "narwhals-pandas", "pandas", "narwhals-lazy", "ibis-sqlite"),
+            errors=(BackendCapabilityError,),
+            reason=(
+                "Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there"
+                if backend_name == "ibis-sqlite"
+                else "Relation.join_asof(tolerance=...) raises BackendCapabilityError on all narwhals-family dialects, including the 'pandas' test backend"
+            ),
+        ):
+            result = ma.relation(left).join_asof(right, on="t", strategy="backward", tolerance=tol).to_dicts()
+            assert result == oracle
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_tolerance(self, backend_name, backend_factory):
+        left_data = {"t": [10, 20, 30], "val": ["a", "b", "c"]}
+        right_data = {"t": [5, 27], "score": [50, 270]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="backward", tolerance=2)
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("narwhals-polars", "narwhals-pandas", "pandas", "narwhals-lazy"),
+            errors=(BackendCapabilityError,),
+            reason="Relation.join_asof(tolerance=...) raises BackendCapabilityError on all narwhals-family dialects, including the 'pandas' test backend",
+        ):
+            result = ma.relation(left).join_asof(right, on="t", strategy="backward", tolerance=2).to_dicts()
+            assert result == oracle  # distances 5 and 3 both exceed tolerance 2 -> no matches
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_asof_null_keys(self, backend_name, backend_factory):
+        """Order-insensitive comparison (`sorted_dicts` by the never-null `val`
+        column): DuckDB defaults to NULLS LAST on ASC, SQLite to NULLS FIRST —
+        a pre-existing, orthogonal engine divergence in null-sort defaults.
+        Values must still match exactly; only row position for the
+        null-containing row is exempted."""
+        left_data = {"t": [None, 3], "val": ["n", "b"]}
+        right_data = {"t": [None, 2], "score": [99, 20]}
+        oracle = self._oracle(left_data, right_data, on="t", strategy="backward")
+        left, right = backend_factory.create_pair(left_data, right_data, backend_name)
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas"),
+            errors=(ValueError,),
+            reason="Relation.join_asof() with null keys raises on narwhals-pandas and the 'pandas' test backend; polars/narwhals-polars/narwhals-lazy/ibis compute no-match rows",
+        ):
+            result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
+            assert sorted_dicts(result, "val") == sorted_dicts(oracle, "val")
+
+
+# ---------------------------------------------------------------------------
+# Output naming contract (backlog 245): `.columns`, collected data and
+# `select(*columns)` agree; left columns then right columns; `coalesce` option.
+# ---------------------------------------------------------------------------
+
+_LEFT = {"k": [1, 2, 3], "v": ["a", "b", "c"], "w": [0, 0, 0]}
+_RIGHT_KK = {"kk": [2, 3, 4], "w": [10, 20, 30]}
+_RIGHT_K = {"k": [2, 3, 4], "w": [10, 20, 30]}
+_CONTRACT_CASES = {
+    "lr": (dict(left_on="k", right_on="kk"), _RIGHT_KK,
+           ["k", "v", "w", "kk", "w_right"]),
+    "lr_same": (dict(left_on="k", right_on="k"), _RIGHT_K,
+                ["k", "v", "w", "k_right", "w_right"]),
+    "on": (dict(on="k"), _RIGHT_K, ["k", "v", "w", "w_right"]),
+    "on_keep": (dict(on="k", coalesce=False), _RIGHT_K,
+                ["k", "v", "w", "k_right", "w_right"]),
+    "lr_merge": (dict(left_on="k", right_on="kk", coalesce=True), _RIGHT_KK,
+                 ["k", "v", "w", "w_right"]),
+}
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("how", ["inner", "left", "right", "outer"])
+@pytest.mark.parametrize("case", list(_CONTRACT_CASES))
+class TestJoinOutputContract:
+    def test_columns_match_collected_and_selectable(self, backend_name, backend_factory, how, case):
+        kwargs, right_data, expected = _CONTRACT_CASES[case]
+        left, right = backend_factory.create_pair(_LEFT, right_data, backend_name)
+        rel = ma.relation(left).join(right, how=how, **kwargs)
+        assert rel.columns == expected
+        assert list(rel.to_polars().columns) == expected
+        assert list(rel.select(*rel.columns).to_polars().columns) == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinOutputValues:
+    def test_left_join_keeps_right_key_null_for_unmatched(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(_LEFT, _RIGHT_KK, backend_name)
+        rows = ma.relation(left).join(right, left_on="k", right_on="kk", how="left").to_dicts()
+        assert sorted_dicts(rows, "k") == [
+            {"k": 1, "v": "a", "w": 0, "kk": None, "w_right": None},
+            {"k": 2, "v": "b", "w": 0, "kk": 2, "w_right": 10},
+            {"k": 3, "v": "c", "w": 0, "kk": 3, "w_right": 20},
+        ]
+
+    @pytest.mark.parametrize("how", ["right", "outer"])
+    def test_merged_key_carries_right_only_values(self, backend_name, backend_factory, how):
+        left, right = backend_factory.create_pair(_LEFT, _RIGHT_KK, backend_name)
+        rows = ma.relation(left).join(
+            right, left_on="k", right_on="kk", how=how, coalesce=True,
+        ).to_dicts()
+        assert sorted(r["k"] for r in rows) == ([2, 3, 4] if how == "right" else [1, 2, 3, 4])
+
+    def test_multi_key_left_on_right_on(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"a": [1, 1], "b": ["x", "y"], "lv": [1, 2]},
+            {"ra": [1, 1], "b": ["y", "x"], "rv": [10, 20]},
+            backend_name,
+        )
+        rel = ma.relation(left).join(right, left_on=["a", "b"], right_on=["ra", "b"])
+        assert rel.columns == ["a", "b", "lv", "ra", "b_right", "rv"]
+        assert sorted_dicts(rel.to_dicts(), "b") == [
+            {"a": 1, "b": "x", "lv": 1, "ra": 1, "b_right": "x", "rv": 20},
+            {"a": 1, "b": "y", "lv": 2, "ra": 1, "b_right": "y", "rv": 10},
+        ]
+
+    def test_right_key_clashes_with_left_payload(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1, 2], "w": [5, 6]}, {"w": [1, 9], "x": ["p", "q"]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, left_on="k", right_on="w")
+        assert rel.columns == ["k", "w", "w_right", "x"]
+        assert rel.to_dicts() == [{"k": 1, "w": 5, "w_right": 1, "x": "p"}]
+
+    def test_triple_clash_increments(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        assert rel.columns == ["k", "w", "w_right", "w_right_1"]
+        assert rel.to_dicts() == [{"k": 1, "w": 0, "w_right": 7, "w_right_1": 9}]
+
+    def test_triple_clash_warns_on_collect(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        with pytest.warns(UserWarning, match="'w' renamed to 'w_right_1'"):
+            rel.to_polars()
+
+    def test_inference_does_not_warn(self, backend_name, backend_factory):
+        import warnings
+
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert rel.columns == ["k", "w", "w_right", "w_right_1"]
+
+    def test_reserved_alias_names_are_ordinary_payload(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1, 2], "__ma_lk_0": ["L1", "L2"]},
+            {"kk": [2], "__ma_rk_0": ["R2"]},
+            backend_name,
+        )
+        rows = ma.relation(left).join(right, left_on="k", right_on="kk", how="left").to_dicts()
+        assert sorted_dicts(rows, "k") == [
+            {"k": 1, "__ma_lk_0": "L1", "kk": None, "__ma_rk_0": None},
+            {"k": 2, "__ma_lk_0": "L2", "kk": 2, "__ma_rk_0": "R2"},
+        ]
+
+    def test_execute_on_right_keeps_canonical_order(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(_LEFT, {"kk": [2], "w": [10]}, backend_name)
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", execute_on="right")
+        assert list(rel.to_polars().columns) == ["k", "v", "w", "kk", "w_right"]
+
+    @pytest.mark.parametrize("how", ["inner", "left", "outer"])
+    def test_nested_joins_on_same_fields(self, backend_name, backend_factory, how):
+        # Same lookup joined twice on the same key (shared Ibis connection via create_pair).
+        left, lookup = backend_factory.create_pair(
+            {"k": [1, 2], "w": [0, 0]}, {"k": [1, 3], "w": [10, 30]}, backend_name,
+        )
+        kept = (
+            ma.relation(left)
+            .join(lookup, on="k", how=how, coalesce=False)
+            .join(lookup, on="k", how=how, coalesce=False)
+        )
+        expected = ["k", "w", "k_right", "w_right", "k_right_1", "w_right_1"]
+        assert kept.columns == expected
+        assert list(kept.to_polars().columns) == expected
+        assert list(kept.select(*kept.columns).to_polars().columns) == expected
+        merged = ma.relation(left).join(lookup, on="k", how=how).join(lookup, on="k", how=how)
+        assert merged.columns == ["k", "w", "w_right", "w_right_1"]
+        assert list(merged.to_polars().columns) == merged.columns
+
+    def test_raw_dict_right_side_parity(self, backend_name, backend_factory):
+        left = backend_factory.create(_LEFT, backend_name)
+        rel = ma.relation(left).join({"kk": [2], "w": [10]}, left_on="k", right_on="kk", how="left")
+        assert rel.columns == ["k", "v", "w", "kk", "w_right"]
+        assert list(rel.to_polars().columns) == rel.columns
+
+    def test_ragged_row_dict_operand_keeps_every_column(self, backend_name, backend_factory):
+        left = backend_factory.create({"k": [1, 2]}, backend_name)
+        rows = [{"kk": 1}, {"kk": 2, "extra": 9}]
+        rel = ma.relation(left).join(rows, left_on="k", right_on="kk", how="left")
+        assert rel.columns == ["k", "kk", "extra"]
+        assert sorted_dicts(rel.to_dicts(), "k") == [
+            {"k": 1, "kk": 1, "extra": None},
+            {"k": 2, "kk": 2, "extra": 9},
+        ]

@@ -59,3 +59,11 @@ class SubstraitScalarAggregateAPIBuilderProtocol(Protocol):
     def mode(self) -> "BaseExpressionAPI":
         """Most common value. Substrait ``mode(x)``."""
         ...
+
+    def all(self) -> "BaseExpressionAPI":
+        """True if all values are true. Substrait ``bool_and(x)``."""
+        ...
+
+    def any(self) -> "BaseExpressionAPI":
+        """True if any value is true. Substrait ``bool_or(x)``."""
+        ...

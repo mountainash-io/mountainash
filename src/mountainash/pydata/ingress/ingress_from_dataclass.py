@@ -8,9 +8,10 @@ import logging
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
+from mountainash.core.lowering_reuse import OCCURRENCE, declare_lowering
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,10 @@ class DataframeFromDataclass(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
+                *,
+                source_table_schema: Optional['TableSchema'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert dataclass instance(s) to Polars DataFrame.
@@ -42,7 +46,9 @@ class DataframeFromDataclass(BasePydataIngressHandler):
 
         Args:
             data: Single dataclass instance or list of dataclass instances
-            type_spec: Optional TypeSpec for column type coercion and renaming
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Explicit source dtypes, overriding scalar model declarations.
+            inline_conform: Apply table_schema conversions after source extraction.
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -62,16 +68,16 @@ class DataframeFromDataclass(BasePydataIngressHandler):
                 field.name: getattr(data, field.name) for field in fields(data)
             }]
 
-        # Apply hybrid conversion strategy if spec provided
-        if type_spec is not None:
-            from .custom_type_helpers import apply_hybrid_conversion
+        from mountainash.typespec.extraction import extract_from_dataclass
+        from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
-            # HYBRID STRATEGY:
-            # 1. Custom converters at edges (Python layer)
-            # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data_dicts, type_spec)
-        else:
-            # No spec - just create DataFrame
-            df = pl.DataFrame(data_dicts, strict=False)
+        model_type = type(data[0]) if isinstance(data, list) and data else type(data)
+        model_schema = extract_from_dataclass(model_type) if data_dicts else None
+        overrides = _source_schema_overrides(source_table_schema, model_table_schema=model_schema)
+        df = apply_hybrid_conversion(
+            data_dicts, table_schema, schema_overrides=overrides,
+            inline_conform=inline_conform,
+        )
 
         return df
+declare_lowering(DataframeFromDataclass.convert.__func__, OCCURRENCE)

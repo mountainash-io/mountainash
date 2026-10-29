@@ -1,0 +1,414 @@
+"""Shared helpers for introspection-driven expression construction.
+
+Builds minimal valid expressions for any FKEY by introspecting the protocol
+method signature. Used by test_signature_conformance.py (A2) and
+test_compile_smoke.py (Gap B).
+"""
+from __future__ import annotations
+
+import inspect
+import typing
+from enum import Enum
+from typing import Any, Callable
+
+import mountainash as ma
+from mountainash.expressions.core.expression_system.function_mapping.registry import (
+    ExpressionFunctionDef,
+    ExpressionFunctionRegistry,
+)
+import sys
+from pathlib import Path
+
+_TESTS_DIR = str(Path(__file__).resolve().parent.parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
+
+from expressions.argument_types._introspection import _classify_annotation
+
+_STRING_CATEGORIES = {"string"}
+_BOOLEAN_CATEGORIES = {"boolean"}
+
+_DEFAULT_COLS = ["a", "b", "f", "g", "h"]
+_STRING_COLS = ["c"]
+_FLOAT_COLS = ["d"]
+_BOOL_COLS = ["e"]
+
+def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+        FKEY_MOUNTAINASH_SCALAR_STRING,
+        FKEY_SUBSTRAIT_CAST,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+    )
+
+    return {
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS: (
+            [ma.col("c")],
+            {
+                "true_values": ("true",),
+                "false_values": ("false",),
+                "field_name": "c",
+                "failure_behavior": ma.CaseFailureBehaviour.NULL,
+            },
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION: (
+            [ma.col("c")],
+            {"field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE: (
+            [ma.col("c")],
+            {"kind": "year", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY: (
+            [ma.col("c"), "datetime"],
+            {"field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: (
+            [ma.col("c")],
+            {"item_type": "string", "delimiter": ",", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME: (
+            [ma.col("c"), "%H:%M:%S"],
+            {"field_name": "c"},
+        ),
+        FKEY_SUBSTRAIT_CAST.CAST: ([ma.col("a")], {"dtype": "str"}),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE: ([ma.col("a"), "UTC"], {}),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE: ([ma.col("a"), "UTC"], {}),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST: ([ma.col("a"), "UTC"], {}),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP: ([ma.col("a"), "UTC"], {}),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL: (
+            [ma.col("a")],
+            {"rounding": "FLOOR", "unit": "DAY"},
+        ),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR: (
+            [ma.col("a")],
+            {"rounding": "FLOOR", "unit": "MONTH"},
+        ),
+    }
+
+
+_SMOKE_ARG_OVERRIDES: dict[Enum, tuple[list[Any], dict[str, Any]]] = _init_smoke_overrides()
+
+
+def _get_category_for_fkey(fkey: Enum) -> str | None:
+    from expressions.argument_types._introspection import _CATEGORY_MAP
+
+    fdef = ExpressionFunctionRegistry.get(fkey)
+    if fdef.protocol_method is None:
+        return None
+    qualname = fdef.protocol_method.__qualname__
+    class_name = qualname.split(".")[0] if "." in qualname else None
+    if class_name:
+        return _CATEGORY_MAP.get(class_name)
+    return None
+
+
+def _pick_col(category: str | None, idx: int) -> Any:
+    if category in _STRING_CATEGORIES:
+        return ma.col(_STRING_COLS[0])
+    if category in _BOOLEAN_CATEGORIES:
+        return ma.col(_BOOL_COLS[0])
+    if idx < len(_DEFAULT_COLS):
+        return ma.col(_DEFAULT_COLS[idx])
+    return ma.col("a")
+
+
+def _default_for_option(name: str) -> Any:
+    _OPTION_DEFAULTS: dict[str, Any] = {
+        "overflow": "SILENT",
+        "rounding": "TIE_TO_EVEN",
+        "closed": "both",
+        "separator": ",",
+        "pattern": ".*",
+        "format": "%Y-%m-%d",
+        "component": "year",
+        "base": 10,
+        "encoding": "utf-8",
+        "strict": True,
+        "ignore_nulls": True,
+        "json_path": "$.a",
+        "dtype": "str",
+        "suffix": "x",
+        "s": 0,
+        "negative_start": None,
+    }
+    return _OPTION_DEFAULTS.get(name)
+
+
+def build_args_for_fkey(
+    fkey: Enum,
+    fdef: ExpressionFunctionDef,
+) -> tuple[list[Any], dict[str, Any]]:
+    """Build (positional_args, options) for a FKEY via introspection.
+
+    Raises ValueError if the FKEY needs a manual override.
+    """
+    if fkey in _SMOKE_ARG_OVERRIDES:
+        return _SMOKE_ARG_OVERRIDES[fkey]
+
+    if fdef.protocol_method is None:
+        raise ValueError(f"{fkey} has no protocol_method")
+
+    sig = inspect.signature(fdef.protocol_method)
+    hints = typing.get_type_hints(fdef.protocol_method)
+    category = _get_category_for_fkey(fkey)
+
+    args: list[Any] = []
+    options: dict[str, Any] = {}
+    col_idx = 0
+
+    for pname, param in sig.parameters.items():
+        if pname == "self":
+            continue
+
+        ann = hints.get(pname, param.annotation)
+        kind = _classify_annotation(ann)
+
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            args.append(_pick_col(category, 0))
+            args.append(_pick_col(category, 1))
+            continue
+
+        if param.kind == inspect.Parameter.KEYWORD_ONLY:
+            default = _default_for_option(pname)
+            if default is not None:
+                options[pname] = default
+            continue
+
+        if kind == "argument":
+            if col_idx == 0:
+                args.append(_pick_col(category, 0))
+            elif category == "datetime" and pname == "other":
+                args.append(ma.col("a"))
+            elif category == "list" and pname in {"other", "y"}:
+                args.append(ma.col("a"))
+            else:
+                numeric = {
+                    "length", "width", "start", "end", "offset", "count", "n",
+                    "index", "position", "times", "precision", "places",
+                }
+                value = 1 if pname in numeric or category not in _STRING_CATEGORIES else "x"
+                args.append(ma.lit(value))
+            col_idx += 1
+            continue
+
+        if param.default is not inspect.Parameter.empty:
+            continue
+
+        ann_str = str(ann)
+        if "int" in ann_str:
+            args.append(1)
+        elif "float" in ann_str:
+            args.append(1.0)
+        elif "str" in ann_str:
+            args.append("x")
+        elif "bool" in ann_str:
+            args.append(True)
+        else:
+            raise ValueError(
+                f"{fkey}: cannot auto-construct arg '{pname}' with annotation "
+                f"'{ann}'. Add an entry to _SMOKE_ARG_OVERRIDES."
+            )
+
+    return args, options
+
+
+_SENTINEL_MISSING = object()
+
+_SMOKE_EXPR_BUILDERS: dict[Enum, Any] | None = None
+
+
+def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
+    # retirement-verdict: front-4.3 — shared source for the byte-identical FKEY->public-call entries formerly duplicated in test_api_reachability + _smoke_helpers.
+    """FKEY -> public-call entries that are byte-identical between
+    `tests/core/test_api_reachability._builders()` and
+    `_smoke_helpers._init_smoke_expr_builders()`. Each consumer merges this
+    base with its own argument-construction or composite-call patterns.
+    """
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        FKEY_MOUNTAINASH_SCALAR_VALUE,
+        FKEY_MOUNTAINASH_WINDOW,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+
+    c = ma.col("a")
+    s = ma.col("c")
+    b = ma.col("e")
+
+    return {
+        # Explicit: annotation-driven construction would pass an invalid ``rounding``.
+        FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST: lambda: s.cast(
+            ma.DecimalDtype(precision=10, scale=3), rounding="half_to_even"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE: lambda: c.t_is_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE: lambda: c.t_is_false(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN: lambda: c.t_is_unknown(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN: lambda: c.t_is_known(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE: lambda: c.t_maybe_true(),
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE: lambda: c.t_maybe_false(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND: lambda: b.all(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR: lambda: b.any(),
+        FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER: lambda: c.row_number().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK: lambda: c.dense_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK: lambda: c.percent_rank().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST: lambda: c.cume_dist().over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_MAX: lambda: c.rank(method="max").over("b"),
+        FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE: lambda: c.rank(method="average").over("b"),
+    }
+
+
+def _init_smoke_expr_builders() -> dict[Enum, Any]:
+    """Return hand-authored public calls where signature inference is insufficient."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+        FKEY_MOUNTAINASH_SCALAR_STRING,
+        FKEY_MOUNTAINASH_SCALAR_STRUCT,
+        FKEY_MOUNTAINASH_SCALAR_VALUE,
+        FKEY_SUBSTRAIT_CONDITIONAL,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+        FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+    from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
+    import polars as pl
+
+    c = ma.col("a")
+    s = ma.col("c")
+    b = ma.col("e")
+    l = c
+    r = c
+    item_dtype = StructDtype((("id", D.I64),))
+
+    return {
+        **_init_shared_fkey_builders(),
+        # Composite API pattern: reachable from a multi-step public call.
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
+        FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: lambda: s.dt.parse_default(field_name="c"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND: lambda: c.dt.round("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL: lambda: c.dt.ceil("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR: lambda: c.dt.floor("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by("1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE: lambda: c.dt.truncate("1d"),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: s.geo.parse_geopoint(
+            format="default", source_representation="lexical", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: lambda: s.geo.parse_geojson(
+            format="default", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: lambda: s.geo.serialize_geojson(
+            format="default", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: l.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT: lambda: l.list.agg(ma.element()),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GATHER: lambda: l.list.gather(ma.col("b")),
+        FKEY_MOUNTAINASH_SCALAR_LIST.FILTER: lambda: l.list.filter(ma.lit(True)),
+        FKEY_MOUNTAINASH_SCALAR_LIST.AGG: lambda: l.list.agg(ma.lit(1)),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: l.list.to_array(width=2),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT: lambda: l.list.to_struct(upper_bound=2),
+        FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: l.list.cast_items(
+            dtype=ListDtype(item_dtype), field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: r.struct.field("a"),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: r.struct.cast(
+            dtype=item_dtype, field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
+            value_type="integer", categories=(1, 2), ordered=True, field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE: lambda: s.str.json_decode(pl.Int64),
+        FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE: lambda: s.str.encode("hex"),
+        FKEY_MOUNTAINASH_SCALAR_STRING.DECODE: lambda: s.str.decode("hex"),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.VALUE_KIND: lambda: ma.col("number").value_kind(),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.BOOLEAN_VALUE: lambda: ma.col("number").boolean_value(
+            source="binary_number"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.TEXT_VALUE: lambda: ma.col("text").text_value(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN: lambda: ma.median(0, c),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile(
+            [0.5], 2, 1, "LINEAR"
+        ),
+        SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE: lambda: c.first_value().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE: lambda: c.last_value().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE: lambda: c.nth_value(1).over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LEAD: lambda: c.lead().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LAG: lambda: c.lag().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank(method="min").over("b"),
+    }
+
+
+def get_smoke_expr_builder(fkey: Enum) -> Any:
+    """Return an expression builder for fkey, or _SENTINEL_MISSING if not mapped."""
+    global _SMOKE_EXPR_BUILDERS
+    if _SMOKE_EXPR_BUILDERS is None:
+        _SMOKE_EXPR_BUILDERS = _init_smoke_expr_builders()
+    return _SMOKE_EXPR_BUILDERS.get(fkey, _SENTINEL_MISSING)
+
+
+def _init_smoke_non_expression_fkeys() -> set[Enum]:
+    """FKEYs that are AST-internal markers and don't produce compilable expressions."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_TERNARY,
+    )
+    return {
+        FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
+    }
+
+
+_SMOKE_NON_EXPRESSION_FKEYS: set[Enum] | None = None
+
+
+def is_non_expression_fkey(fkey: Enum) -> bool:
+    """Return True if fkey is an AST-internal marker that cannot be compiled."""
+    global _SMOKE_NON_EXPRESSION_FKEYS
+    if _SMOKE_NON_EXPRESSION_FKEYS is None:
+        _SMOKE_NON_EXPRESSION_FKEYS = _init_smoke_non_expression_fkeys()
+    return fkey in _SMOKE_NON_EXPRESSION_FKEYS
+
+
+def is_variadic(fdef: ExpressionFunctionDef) -> bool:
+    if fdef.protocol_method is None:
+        return False
+    sig = inspect.signature(fdef.protocol_method)
+    return any(
+        p.kind == inspect.Parameter.VAR_POSITIONAL
+        for p in sig.parameters.values()
+    )
+
+
+def count_protocol_arguments(fdef: ExpressionFunctionDef) -> int:
+    """Count ExpressionT params in the protocol method (excluding self only).
+
+    Returns -1 for variadic methods.
+    """
+    if fdef.protocol_method is None:
+        return 0
+    sig = inspect.signature(fdef.protocol_method)
+    hints = typing.get_type_hints(fdef.protocol_method)
+
+    count = 0
+    for pname, param in sig.parameters.items():
+        if pname == "self":
+            continue
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            return -1
+        ann = hints.get(pname, param.annotation)
+        if _classify_annotation(ann) == "argument":
+            count += 1
+    return count

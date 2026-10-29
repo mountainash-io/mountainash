@@ -1,6 +1,6 @@
-"""Narwhals ScalarBooleanExpressionProtocol implementation.
+"""Narwhals MountainAsh boolean extension implementation.
 
-Implements boolean logical operations for the Narwhals backend.
+Implements xor_parity for the Narwhals backend.
 """
 
 from __future__ import annotations
@@ -10,23 +10,53 @@ from typing import TYPE_CHECKING
 import narwhals as nw
 
 from ..base import NarwhalsBaseExpressionSystem
-
-from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarBooleanExpressionSystemProtocol
+from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarBooleanExpressionSystemProtocol
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-class SubstraitNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarBooleanExpressionSystemProtocol[nw.Expr]):
-    """Narwhals implementation of ScalarBooleanExpressionProtocol.
+class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarBooleanExpressionSystemProtocol[nw.Expr]):
+    """Narwhals implementation of MountainAsh boolean extensions."""
 
-    Implements 5 boolean methods using Kleene (three-valued) logic:
-    - and_: Boolean AND (returns false if any false, null if any null and no false)
-    - or_: Boolean OR (returns true if any true, null if any null and no true)
-    - not_: Boolean NOT (negation)
-    - xor: Boolean XOR (exclusive or)
-    - and_not: Boolean AND of first value with negation of second
-    """
+    def parse_boolean(
+        self,
+        x: NarwhalsExpr,
+        /,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        text = x.cast(nw.String)
+        if failure_behavior == "null":
+            result = (
+                nw.when(text.is_in(true_values)).then(nw.lit(True))
+                .when(text.is_in(false_values)).then(nw.lit(False))
+                .otherwise(nw.lit(None))
+            )
+            if self.dialect == "narwhals-pandas":
+                from mountainash.core.lazy_imports import import_pandas
+
+                return self._pandas_typed_expression(
+                    result, import_pandas().BooleanDtype()
+                )
+            return result
+        mapped = (
+            nw.when(text.is_in(true_values)).then(nw.lit(1))
+            .when(text.is_in(false_values)).then(nw.lit(0))
+            .when(text.is_null()).then(nw.lit(None))
+            .otherwise(nw.lit("__invalid_boolean_token__"))
+        )
+        if self.dialect == "narwhals-pandas":
+            from mountainash.core.lazy_imports import import_pandas
+
+            pandas = import_pandas()
+            result = self._pandas_typed_expression(mapped, pandas.Int8Dtype())
+            return self._pandas_typed_expression(
+                result, pandas.BooleanDtype()
+            )
+        return mapped.cast(nw.Int8).cast(nw.Boolean)
 
 
     def xor_parity(self, a: NarwhalsExpr, b: NarwhalsExpr, /) -> NarwhalsExpr:

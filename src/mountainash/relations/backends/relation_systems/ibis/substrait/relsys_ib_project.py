@@ -6,8 +6,12 @@ from typing import Any
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitProjectRelationSystemProtocol,
+)
 
-class SubstraitIbisProjectRelationSystem:
+
+class SubstraitIbisProjectRelationSystem(SubstraitProjectRelationSystemProtocol[ir.Table, ir.Value]):
     """Projection operations on Ibis table expressions."""
 
     def project_select(self, relation: ir.Table, columns: list[Any], /) -> ir.Table:
@@ -24,4 +28,5 @@ class SubstraitIbisProjectRelationSystem:
     def project_rename(
         self, relation: ir.Table, mapping: dict[str, str], /
     ) -> ir.Table:
-        return relation.rename(mapping)
+        # Ibis rename() uses {new_name: old_name}; mountainash convention is {old_name: new_name}
+        return relation.rename({v: k for k, v in mapping.items()})

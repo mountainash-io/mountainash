@@ -5,6 +5,7 @@ Implements literal/constant value operations for the Ibis backend.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, TYPE_CHECKING
 
 import ibis
@@ -20,13 +21,27 @@ if TYPE_CHECKING:
 class SubstraitIbisLiteralExpressionSystem(IbisBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol["IbisScalarExpr"]):
     """Ibis implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any, /) -> IbisScalarExpr:
-        """Create a literal value expression.
+    def lit(self, x: Any, /, *, dtype: Any = None) -> IbisScalarExpr:
+        """Create a literal value expression with its declared native dtype."""
+        from mountainash.core.dtypes import (
+            SchemaTypeStatus, TypeTarget, dtype_is_complete, registry,
+            resolve_dtype_parameters,
+        )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
 
-        Args:
-            x: The constant value to wrap as an expression.
-
-        Returns:
-            An Ibis expression containing the literal value.
-        """
-        return ibis.literal(x)
+        if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
+            if isinstance(x, Decimal) and x.is_finite():
+                # The value supplies its precision. An unparameterized Ibis
+                # Decimal lets SQL defaults round it before the requested cast.
+                _, digits, exponent = x.as_tuple()
+                scale = max(-exponent, 0)
+                integer_digits = 0 if x.is_zero() else max(len(digits) + exponent, 0)
+                native_type = ibis.expr.datatypes.Decimal(
+                    precision=max(1, integer_digits + scale), scale=scale
+                )
+                return ibis.literal(x, type=native_type)
+            return ibis.literal(x)
+        if isinstance(dtype, PARAMETERIZED_DTYPES) and dtype.native is None and not dtype_is_complete(dtype):
+            source = registry.from_native(ibis.literal(x).type(), TypeTarget.IBIS)
+            dtype = resolve_dtype_parameters(dtype, source)
+        return ibis.literal(x, type=registry.to_native_cast(dtype, TypeTarget.IBIS))

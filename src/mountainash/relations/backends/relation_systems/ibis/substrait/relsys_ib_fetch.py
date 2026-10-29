@@ -6,8 +6,12 @@ from typing import Optional
 
 import ibis.expr.types as ir
 
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitFetchRelationSystemProtocol,
+)
 
-class SubstraitIbisFetchRelationSystem:
+
+class SubstraitIbisFetchRelationSystem(SubstraitFetchRelationSystemProtocol[ir.Table]):
     """Offset/limit row retrieval on Ibis table expressions."""
 
     def fetch(
@@ -20,10 +24,3 @@ class SubstraitIbisFetchRelationSystem:
         if offset > 0:
             return relation.limit(None, offset=offset)
         return relation
-
-    def fetch_from_end(self, relation: ir.Table, count: int, /) -> ir.Table:
-        # Ibis does not have a native .tail() method.
-        # Materialise the total row count and compute the offset.
-        n = relation.count().execute()
-        offset = max(0, n - count)
-        return relation.limit(count, offset=offset)

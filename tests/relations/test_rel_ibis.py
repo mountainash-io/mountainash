@@ -1,7 +1,7 @@
 """Ibis integration tests for the Relation API.
 
 Exercises the full pipeline: relation(ibis_table) -> operations -> result.
-Uses ibis.polars.connect() as the in-memory backend.
+Uses ibis.duckdb.connect() as the in-memory backend.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ import mountainash.expressions.backends.expression_systems.ibis  # noqa: F401
 
 @pytest.fixture
 def ibis_con():
-    """Shared Ibis Polars connection for all tests in a function."""
-    return ibis.polars.connect()
+    """Shared Ibis DuckDB connection for all tests in a function."""
+    return ibis.duckdb.connect()
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def join_data() -> pl.DataFrame:
 
 @pytest.fixture
 def ibis_table(ibis_con, sample_data: pl.DataFrame):
-    """Create an Ibis table using the Polars backend (in-memory)."""
+    """Create an Ibis table using the DuckDB backend (in-memory)."""
     return ibis_con.create_table("test_data", sample_data)
 
 
@@ -99,11 +99,6 @@ class TestDrop:
 
 
 class TestRename:
-    @pytest.mark.xfail(
-        reason="Ibis backend rename mapping is inverted: Ibis expects {new: old} "
-               "but the Relation API passes {old: new}. See relsys_ib_project.py.",
-        strict=True,
-    )
     def test_rename_columns(self, ibis_table):
         result = _to_polars(relation(ibis_table).rename({"name": "full_name", "score": "grade"}))
         assert "full_name" in result.columns
@@ -157,11 +152,6 @@ class TestHead:
 
 
 class TestJoinInner:
-    @pytest.mark.xfail(
-        reason="Ibis backend passes unsupported 'suffixes' kwarg to Table.join(). "
-               "See relsys_ib_join.py — needs to use 'lname'/'rname' or drop 'suffixes'.",
-        strict=True,
-    )
     def test_inner_join(self, ibis_table, ibis_join_table):
         result = _to_polars(
             relation(ibis_table).join(relation(ibis_join_table), on="id")
@@ -221,11 +211,6 @@ class TestPipeline:
         assert scores == sorted(scores, reverse=True)
         assert all(s > 70 for s in scores)
 
-    @pytest.mark.xfail(
-        reason="Ibis backend rename mapping is inverted: Ibis expects {new: old} "
-               "but the Relation API passes {old: new}. See relsys_ib_project.py.",
-        strict=True,
-    )
     def test_select_rename_sort(self, ibis_table):
         """Chain select -> rename -> sort."""
         result = _to_polars(

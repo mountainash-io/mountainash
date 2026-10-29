@@ -1,0 +1,49 @@
+{
+  "id": "expressions.core.expression_nodes",
+  "path": "src/mountainash/expressions/core/expression_nodes/",
+  "summary": "Pydantic-based AST nodes: 7 Substrait-aligned types (ScalarFunctionNode, FieldReferenceNode, LiteralNode, CastNode, IfThenNode, SingularOrListNode, WindowFunctionNode) plus OverNode extension.",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "contributors", "backend-architecture"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "ExpressionNode",
+    "ScalarFunctionNode",
+    "FieldReferenceNode",
+    "LiteralNode",
+    "CastNode",
+    "IfThenNode",
+    "SingularOrListNode",
+    "WindowFunctionNode",
+    "WindowSpec",
+    "WindowBound",
+    "OverNode"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "core.constants"
+  ],
+  "dependents": [
+    "expressions.core.expression_api",
+    "expressions.core.unified_visitor",
+    "expressions.backends"
+  ],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

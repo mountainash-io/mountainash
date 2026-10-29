@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 import ibis.expr.types as ir
 
 from mountainash.core.constants import JoinType
+from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+    SubstraitJoinRelationSystemProtocol,
+)
 
 # Mapping from mountainash JoinType to Ibis ``how`` parameter values.
 _JOIN_TYPE_MAP: dict[JoinType, str] = {
@@ -20,7 +23,7 @@ _JOIN_TYPE_MAP: dict[JoinType, str] = {
 }
 
 
-class SubstraitIbisJoinRelationSystem:
+class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol[ir.Table]):
     """Join operations on Ibis table expressions."""
 
     def join(
@@ -41,33 +44,17 @@ class SubstraitIbisJoinRelationSystem:
                 f"Supported: {list(_JOIN_TYPE_MAP.keys())}"
             )
 
-        # Build predicates.
+        # Resolve keys against their own sides; bound expressions are ambiguous
+        # when Ibis operands are structurally equal.
         if on is not None:
-            # Simple equi-join on shared column names.
-            predicates = [left[col] == right[col] for col in on]
+            predicates = [(col, col) for col in on]
         elif left_on is not None and right_on is not None:
-            predicates = [
-                left[lc] == right[rc] for lc, rc in zip(left_on, right_on)
-            ]
+            predicates = list(zip(left_on, right_on))
         else:
             # Cross join or no predicate.
             predicates = []
 
-        return left.join(right, predicates=predicates, how=how, suffixes=("", suffix))
-
-    def join_asof(
-        self,
-        left: ir.Table,
-        right: ir.Table,
-        *,
-        on: str,
-        by: Optional[list[str]],
-        strategy: str,
-        tolerance: Any,
-    ) -> ir.Table:
-        kwargs: dict[str, Any] = {"on": on}
-        if by is not None:
-            kwargs["by"] = by
-        if tolerance is not None:
-            kwargs["tolerance"] = tolerance
-        return left.asof_join(right, **kwargs)
+        # Keyed joins arrive with disjoint names (see join_layout), so Ibis keeps
+        # both key columns; visit_join owns any key merging.
+        rname = "{name}" + suffix if suffix else "{name}_right"
+        return left.join(right, predicates=predicates, how=how, lname="", rname=rname)

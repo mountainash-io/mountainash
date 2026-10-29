@@ -1,0 +1,108 @@
+"""Cross-backend tests for the 9 fluent aggregate reducers."""
+
+from __future__ import annotations
+
+import pytest
+
+import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
+from mountainash.relations import relation
+from fixtures.backend_registry import ALL_BACKENDS
+from narwhals.exceptions import InvalidOperationError
+from fixtures.call_expectations import expect_call_failure
+
+
+def _agg(df, expr_factory):
+    """Group by 'g', aggregate 'x' with expr_factory, sort by 'g', return dict."""
+    return relation(df).group_by("g").agg(expr_factory(ma.col("x")).alias("v")).sort("g").to_dict()
+
+
+@pytest.mark.cross_backend
+class TestFluentReducers:
+    def _df(self, backend_name, backend_factory):
+        return backend_factory.create(
+            {"g": ["a", "a", "a", "b", "b"], "x": [1, 2, 3, 4, 6]},
+            backend_name,
+        )
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_sum(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.sum())
+        assert result["v"] == [6, 10], f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_avg(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.avg())
+        assert result["v"] == pytest.approx([2.0, 5.0]), f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_min(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.min())
+        assert result["v"] == [1, 4], f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_max(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.max())
+        assert result["v"] == [3, 6], f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_product(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        if backend_name.startswith("polars"):
+            result = _agg(df, lambda c: c.product())
+            assert result["v"] == [6, 24], f"[{backend_name}]"
+        else:
+            with pytest.raises(BackendCapabilityError):
+                _agg(df, lambda c: c.product())
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_std_dev(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.std_dev())
+        assert result["v"][0] == pytest.approx(1.0), f"[{backend_name}]"
+        assert result["v"][1] == pytest.approx(1.4142135623730951), f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_variance(self, backend_name, backend_factory):
+        result = _agg(self._df(backend_name, backend_factory), lambda c: c.variance())
+        assert result["v"][0] == pytest.approx(1.0), f"[{backend_name}]"
+        assert result["v"][1] == pytest.approx(2.0), f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_mode(self, backend_name, backend_factory):
+        df = backend_factory.create(
+            {"g": ["a", "a", "a", "b"], "x": [1, 1, 2, 5]},
+            backend_name,
+        )
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            result = _agg(df, lambda c: c.mode())
+            a_val = result["v"][0]
+            b_val = result["v"][1]
+            if isinstance(a_val, list):
+                assert 1 in a_val, f"[{backend_name}]"
+                assert 5 in b_val, f"[{backend_name}]"
+            else:
+                assert a_val == 1, f"[{backend_name}]"
+                assert b_val == 5, f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_any_value(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            result = _agg(df, lambda c: c.any_value())
+            assert result["v"][0] in {1, 2, 3}, f"[{backend_name}]"
+            assert result["v"][1] in {4, 6}, f"[{backend_name}]"
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_mean_alias_for_avg(self, backend_name, backend_factory):
+        df = self._df(backend_name, backend_factory)
+        avg_result = _agg(df, lambda c: c.avg())
+        mean_result = _agg(df, lambda c: c.mean())
+        assert avg_result["v"] == mean_result["v"], f"[{backend_name}]"

@@ -40,9 +40,14 @@ def import_pandas() -> Any:
     return require_module("pandas", "pip install 'mountainash[pandas]'")
 
 
+def import_numpy() -> Any:
+    """Lazy import of NumPy."""
+    return require_module("numpy", "pip install numpy")
+
+
 def import_polars() -> Any:
     """Lazy import of polars."""
-    return require_module("polars", "pip install polars>=1.35.1")
+    return require_module("polars", "pip install 'polars>=2,<3'")
 
 
 def import_pyarrow() -> Any:
@@ -53,6 +58,11 @@ def import_pyarrow() -> Any:
 def import_ibis() -> Any:
     """Lazy import of ibis."""
     return require_module("ibis", "pip install 'mountainash[ibis]'")
+
+
+def import_mountainash_data() -> Any:
+    """Load optional physical Ibis transaction support only when needed."""
+    return require_module("mountainash_data", "pip install 'mountainash[ibis]'")
 
 
 def import_ibis_expr_types() -> Any:
@@ -108,7 +118,7 @@ def get_available_backends() -> Dict[str, bool]:
 
 INSTALL_COMMANDS = {
     "pandas": "pip install 'mountainash[pandas]'",
-    "polars": "pip install polars>=1.35.1",
+    "polars": "pip install 'polars>=2,<3'",
     "pyarrow": "pip install 'mountainash[pyarrow]'",
     "ibis": "pip install 'mountainash[ibis]'",
     "ibis.expr.types": "pip install 'mountainash[ibis]'",

@@ -8,7 +8,7 @@ Many functions are not implemented and will raise NotImplementedError.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import narwhals as nw
 
@@ -36,34 +36,72 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self) -> NarwhalsExpr:
+    @staticmethod
+    def _rank_key(order_by: Sequence[Tuple[NarwhalsExpr, bool]]) -> Tuple[NarwhalsExpr, bool]:
+        """One rankable key for several sort keys (backlog 364).
+
+        Dense ranks are folded lexicographically, then compressed at each step.
+        UInt64 arithmetic avoids overflowing Polars' UInt32 ranks. A null key
+        ranks last at the row count: when nulls exist, every non-null dense rank
+        is strictly smaller. Unsupported dialects are gated before lowering.
+        """
+        if len(order_by) == 1:
+            return order_by[0]
+        size = nw.len().cast(nw.UInt64)
+        base = size + 1
+        key = None
+        for col, desc in order_by:
+            r = col.rank("dense", descending=desc).fill_null(size)
+            key = r if key is None else (key * base + r).rank("dense")
+        return key, False
+
+    def row_number(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = ()) -> NarwhalsExpr:
         """The number of the current row within its partition, starting at 1.
 
+        Args:
+            order_by: (key, descending) pairs in priority order.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support row_number.
+            NotImplementedError: When no order_by is provided.
         """
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method="ordinal", descending=descending)
         raise NotImplementedError(
-            "row_number() is not supported by the Narwhals backend."
+            "row_number() is not supported by the Narwhals backend without order_by."
         )
 
-    def rank(self) -> NarwhalsExpr:
+    def rank(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = (), rank_method: str = "min", **kwargs: Any) -> NarwhalsExpr:
         """The rank of the current row, with gaps.
 
+        Args:
+            order_by: (key, descending) pairs in priority order.
+            rank_method: Rank method — 'average', 'min', 'max', 'dense', 'ordinal'.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support rank.
+            NotImplementedError: When no order_by is provided.
         """
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method=rank_method, descending=descending)
         raise NotImplementedError(
-            "rank() is not supported by the Narwhals backend."
+            "rank() is not supported by the Narwhals backend without order_by."
         )
 
-    def dense_rank(self) -> NarwhalsExpr:
+    def dense_rank(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = ()) -> NarwhalsExpr:
         """The rank of the current row, without gaps.
 
+        Args:
+            order_by: (key, descending) pairs in priority order.
+
         Raises:
-            NotImplementedError: Narwhals doesn't support dense_rank.
+            NotImplementedError: When no order_by is provided.
         """
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method="dense", descending=descending)
         raise NotImplementedError(
-            "dense_rank() is not supported by the Narwhals backend."
+            "dense_rank() is not supported by the Narwhals backend without order_by."
         )
 
     def percent_rank(self) -> NarwhalsExpr:
@@ -133,15 +171,9 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         self,
         x: NarwhalsExpr,
         /,
-        window_offset: NarwhalsExpr,
-        on_domain_error: Any = None,
+        window_offset: Any = 1,
     ) -> NarwhalsExpr:
         """Returns a value from the nth row based on the window_offset.
-
-        Args:
-            x: Expression to evaluate.
-            window_offset: Position in window (1-indexed).
-            on_domain_error: Error handling mode.
 
         Raises:
             NotImplementedError: Narwhals doesn't support nth_value.
@@ -150,11 +182,26 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             "nth_value() is not supported by the Narwhals backend."
         )
 
+    @staticmethod
+    def _coerce_int(value: Any) -> int:
+        """Extract plain int from a narwhals literal expression.
+
+        narwhals shift() requires int, but the visitor may pass nw.lit(n).
+        """
+        if isinstance(value, int):
+            return value
+        if isinstance(value, nw.Expr) and value._nodes:
+            node = value._nodes[0]
+            lit_value = getattr(node, "kwargs", {}).get("value")
+            if isinstance(lit_value, int):
+                return lit_value
+        raise TypeError(f"Expected int for row offset, got {type(value).__name__}")
+
     def lead(
         self,
         x: NarwhalsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> NarwhalsExpr:
         """Return a value from a following row based on physical offset.
@@ -167,15 +214,16 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Value from following row.
         """
+        n = self._coerce_int(row_offset)
         if default is not None:
-            return x.shift(-row_offset).fill_null(nw.lit(default))
-        return x.shift(-row_offset)
+            return x.shift(-n).fill_null(nw.lit(default))
+        return x.shift(-n)
 
     def lag(
         self,
         x: NarwhalsExpr,
         /,
-        row_offset: int = 1,
+        row_offset: Any = 1,
         default: Any = None,
     ) -> NarwhalsExpr:
         """Return a value from a previous row based on physical offset.
@@ -188,13 +236,33 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Returns:
             Value from previous row.
         """
+        n = self._coerce_int(row_offset)
         if default is not None:
-            return x.shift(row_offset).fill_null(nw.lit(default))
-        return x.shift(row_offset)
+            return x.shift(n).fill_null(nw.lit(default))
+        return x.shift(n)
 
     # =========================================================================
     # Window Application
     # =========================================================================
+
+    @staticmethod
+    def _expr_to_col_name(expr: Any) -> str:
+        """Extract column name from a narwhals Expr created via nw.col().
+
+        Narwhals .over() accepts strings, not Expr objects. The expression
+        visitor produces nw.Expr from FieldReferenceNode — convert back.
+        """
+        if isinstance(expr, str):
+            return expr
+        if isinstance(expr, nw.Expr) and expr._nodes:
+            node = expr._nodes[0]
+            names = getattr(node, "kwargs", {}).get("names")
+            if names:
+                return names[0]
+        raise TypeError(
+            f"Cannot extract column name from {type(expr).__name__} for narwhals .over(). "
+            f"Narwhals .over() only accepts string column names."
+        )
 
     def apply_window(
         self,
@@ -206,9 +274,12 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     ) -> NarwhalsExpr:
         """Apply window context to a Narwhals expression.
 
+        Narwhals .over() accepts string column names, not Expr objects.
+        Partition and order expressions are converted to column name strings.
+
         Args:
             expr: The native Narwhals expression to apply windowing to.
-            partition_by: List of native partition expressions.
+            partition_by: List of native partition expressions or column names.
             order_by: List of (expression, descending) tuples.
             lower_bound: Optional frame lower bound.
             upper_bound: Optional frame upper bound.
@@ -218,7 +289,8 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """
         if not partition_by:
             return expr
+        str_partition = [self._expr_to_col_name(p) for p in partition_by]
         over_kwargs: dict[str, Any] = {}
         if order_by:
-            over_kwargs["order_by"] = [col for col, _ in order_by]
-        return expr.over(*partition_by, **over_kwargs)
+            over_kwargs["order_by"] = [self._expr_to_col_name(col) for col, _ in order_by]
+        return expr.over(*str_partition, **over_kwargs)

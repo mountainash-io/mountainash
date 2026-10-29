@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 # class PydataInputType(Enum):
@@ -31,14 +31,19 @@ class BasePydataIngressHandler(ABC):
     @abstractmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                table_schema: Optional['TableSchema'] = None,
+                *,
+                source_table_schema: Optional['TableSchema'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert input data to a Polars DataFrame.
 
         Args:
             data: Input data to convert
-            column_mapping: Optional column mapping dictionary
+            table_schema: Optional conversion target, not source evidence.
+            source_table_schema: Optional source dtype declarations.
+            inline_conform: Whether to apply target conversions.
 
         Returns:
             pl.DataFrame: Converted data

@@ -7,6 +7,10 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from mountainash.core.constants import ExecutionTarget, JoinType
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+    RKEY_SUBSTRAIT_REL,
+)
 
 from ..reln_base import RelationNode
 
@@ -25,6 +29,8 @@ class JoinRelNode(RelationNode):
         left_on: Left-side join key columns
         right_on: Right-side join key columns
         suffix: Suffix for disambiguating duplicate column names
+        coalesce: Merge each key pair into the left key column; ``None``
+            merges iff keys were declared with ``on`` (see ``join_layout``)
         strategy: Join strategy hint (e.g., for asof joins)
         tolerance: Tolerance for asof joins
         execute_on: Which side to execute the join on
@@ -36,11 +42,15 @@ class JoinRelNode(RelationNode):
     on: Optional[list[str]] = None
     left_on: Optional[list[str]] = None
     right_on: Optional[list[str]] = None
+    by: Optional[list[str]] = None
     suffix: str = "_right"
+    coalesce: Optional[bool] = None
     strategy: Optional[str] = None
     tolerance: Any = None
     execute_on: Optional[ExecutionTarget] = None
 
-    def accept(self, visitor: Any) -> Any:
-        """Accept a visitor for double-dispatch."""
-        return visitor.visit_join_rel(self)
+    @property
+    def operation_key(self):
+        if self.join_type == JoinType.ASOF:
+            return RKEY_MOUNTAINASH_REL.JOIN_ASOF
+        return RKEY_SUBSTRAIT_REL.JOIN

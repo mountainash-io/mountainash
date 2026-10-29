@@ -25,42 +25,42 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
 
 
 
-    def lower(self) -> BaseExpressionAPI:
+    def lower(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to lowercase.
 
         Substrait: lower
         """
         ...
 
-    def upper(self) -> BaseExpressionAPI:
+    def upper(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to uppercase.
 
         Substrait: upper
         """
         ...
 
-    def swapcase(self) -> BaseExpressionAPI:
+    def swapcase(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Swap case of characters.
 
         Substrait: swapcase
         """
         ...
 
-    def capitalize(self) -> BaseExpressionAPI:
+    def capitalize(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Capitalize first character.
 
         Substrait: capitalize
         """
         ...
 
-    def title(self) -> BaseExpressionAPI:
+    def title(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Convert to title case (except articles).
 
         Substrait: title
         """
         ...
 
-    def initcap(self) -> BaseExpressionAPI:
+    def initcap(self, *, char_set: Optional[str] = None) -> BaseExpressionAPI:
         """Capitalize first character of each word.
 
         Substrait: initcap
@@ -124,6 +124,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         length: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         character: Optional[Union[BaseExpressionAPI, ExpressionNode, Any]] = None,
+        *,
+        padding: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Center string by padding sides.
 
@@ -135,6 +137,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         start: Union[BaseExpressionAPI, ExpressionNode, Any, int],
         length: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        *,
+        negative_start: Optional[str] = None,
     ) -> BaseExpressionAPI:
         """Extract a substring.
 
@@ -256,7 +260,11 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def concat(self, *others: Union[BaseExpressionAPI, ExpressionNode, Any]) -> BaseExpressionAPI:
+    def concat(
+        self,
+        *others: Union[BaseExpressionAPI, ExpressionNode, Any],
+        null_handling: Optional[str] = None,
+    ) -> BaseExpressionAPI:
         """Concatenate strings.
 
         Substrait: concat
@@ -325,9 +333,9 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_match_substring(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -344,8 +352,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_match_substring_all(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        group: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        group: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -360,8 +368,8 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_strpos(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -376,7 +384,7 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
     def regexp_count_substring(
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
         *,
         case_sensitive: bool = True,
         multiline: bool = None,
@@ -392,9 +400,12 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
         replacement: Union[BaseExpressionAPI, ExpressionNode, Any],
-        position: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
-        occurrence: Optional[Union[BaseExpressionAPI, ExpressionNode, Any, int]] = None,
+        position: Optional[int] = None,
+        occurrence: Optional[int] = None,
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """Replace occurrences matching regex pattern.
 
@@ -419,6 +430,9 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         self,
         pattern: Union[BaseExpressionAPI, ExpressionNode, Any],
         case_sensitive: bool = True,
+        *,
+        multiline: bool = None,
+        dotall: bool = None,
     ) -> BaseExpressionAPI:
         """Split string by regex pattern.
 
@@ -426,12 +440,12 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def regex_contains(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
-        """Test if pattern matches. Alias for regexp_match_substring (returns bool)."""
+    def regex_contains(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+        """Search for a literal or expression-valued regex; native limits apply."""
         ...
 
     def regex_match(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
-        """Alias for regexp_match_substring."""
+        """Match a literal regex anchored with ^ and $."""
         ...
 
     def regex_replace(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], replacement: Union[BaseExpressionAPI, ExpressionNode, Any], case_sensitive: bool = True) -> BaseExpressionAPI:

@@ -1,0 +1,654 @@
+"""Predicate policy publication, resolution, and metadata boundaries."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+
+import polars as pl
+import pytest
+
+import mountainash as ma
+from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
+from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.predicates import BoundCall
+from mountainash.core.capabilities.schema import (
+    Clause,
+    ClauseOp,
+    PolicyAction,
+    PolicyConsumer,
+    Predicate,
+    ValueClass,
+)
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.dtypes.metadata import OperandType
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+)
+
+_OP = FK_ARITH.ABS
+_SCOPE = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
+
+
+def _policy(subject, action, predicate, *, message=None):
+    return CapabilityPolicyRule(
+        key=CapabilityKey(_OP, subject, Selector("predicate", predicate)),
+        level=(CapabilityLevel.UNSUPPORTED if action is PolicyAction.BLOCK else CapabilityLevel.EXPR_CAPABLE),
+        message=message or f"{subject} {action.value}",
+        consumer=PolicyConsumer.GATE,
+        action=action,
+        applicability=unbounded,
+    )
+
+
+def _segment(*policies, suffix=""):
+    return BoundSegment(
+        f"mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic{suffix}",
+        _SCOPE,
+        CapabilitySegment(Domain.ARITHMETIC, policies=policies),
+    )
+
+
+def _call(**bindings):
+    return BoundCall(
+        operation_key=_OP,
+        backend=CONST_BACKEND.POLARS,
+        dialect="polars",
+        bindings=bindings,
+        supplied=frozenset(bindings),
+    )
+
+
+@pytest.fixture()
+def isolated():
+    snap = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    try:
+        yield
+    finally:
+        CapabilityRegistry.restore(snap)
+
+
+def test_initial_ambiguous_policy_segment_rolls_back_every_rule(isolated):
+    broad_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="all literals are blocked",
+    )
+    narrow_permit = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+        message="minus seven is permitted",
+    )
+    segment = _segment(broad_block, narrow_permit, suffix=".ambiguous_initial")
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(segment)
+
+    assert CapabilityRegistry.segments() == ()
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy_optional(broad_block.key) is None
+    assert reader.policy_optional(narrow_permit.key) is None
+
+
+def test_later_cross_segment_ambiguity_rolls_back_and_names_both_origins(isolated):
+    broad_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="all literals are blocked",
+    )
+    initial = _segment(broad_block, suffix=".initial_block")
+    narrow_permit = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+        message="minus seven is permitted",
+    )
+    later = _segment(narrow_permit, suffix=".later_permit")
+    CapabilityRegistry.register_segment(initial)
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    # The origin addresses, rather than formatter-owned error prose, make the
+    # failed publication actionable to declaration authors.
+    assert initial.module in str(raised.value)
+    assert later.module in str(raised.value)
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(broad_block.key).assertion is broad_block
+    assert reader.policy_optional(narrow_permit.key) is None
+
+
+def test_duplicate_predicate_blocker_rejects_later_segment_and_preserves_prior(isolated):
+    predicate = Predicate((Clause("x", ClauseOp.IS_LITERAL),))
+    prior = replace(
+        _policy("x", PolicyAction.BLOCK, predicate, message="literal abs is blocked"),
+        key=replace(
+            CapabilityKey(_OP, "x", Selector("predicate", predicate)),
+            variant="initial-literal-block",
+        ),
+    )
+    initial = _segment(prior, suffix=".duplicate_block_initial")
+    CapabilityRegistry.register_segment(initial)
+    duplicate = replace(
+        prior,
+        key=replace(prior.key, variant="duplicate-literal-block"),
+        message="the same literal restriction is repeated",
+    )
+    later = _segment(duplicate, suffix=".duplicate_block_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    assert initial.module in str(raised.value)
+    assert later.module in str(raised.value)
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion is prior
+    assert reader.policy_optional(duplicate.key) is None
+
+
+def test_null_predicate_and_value_class_partition_publish_as_independent_domains(isolated):
+    null_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_NULL),)),
+        message="null abs input is blocked",
+    )
+    value_class_block = CapabilityPolicyRule(
+        key=CapabilityKey(
+            _OP,
+            "x",
+            Selector("value_class", ValueClass.DURATION_MULTIPLIER),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="duration multiplier abs input is blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    segment = _segment(
+        null_block,
+        value_class_block,
+        suffix=".null_value_class_partition",
+    )
+
+    CapabilityRegistry.register_segment(segment)
+
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert CapabilityRegistry.segments() == (segment,)
+    assert reader.policy(null_block.key).assertion is null_block
+    assert reader.policy(value_class_block.key).assertion is value_class_block
+
+
+def test_exact_string_and_null_predicate_cannot_cancel_after_normalization(isolated):
+    literal_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.EQ, "None"),)),
+    )
+    literal_block = replace(
+        literal_block,
+        key=CapabilityKey(_OP, "x", Selector("exact", "None")),
+    )
+    initial = _segment(literal_block, suffix=".normalized_null_block")
+    CapabilityRegistry.register_segment(initial)
+    null_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_NULL),)))
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(null_permit, suffix=".normalized_null_permit"))
+
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(null_permit.key) is None
+
+
+def test_trusted_scope_cannot_publish_ambiguous_policy_alternatives(isolated):
+    from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy
+
+    broad = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="all literal inputs are protected",
+    )
+    broad = replace(broad, key=replace(broad.key, variant="trusted-broad"))
+    initial = _segment(broad, suffix=".trusted_initial")
+    CapabilityRegistry.register_segment(initial)
+    narrow = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+        message="minus seven would cancel the protection",
+    )
+    narrow = replace(narrow, key=replace(narrow.key, variant="trusted-narrow"))
+    later = _segment(narrow, suffix=".trusted_rejected")
+
+    with capability_policy(CapabilityPolicy.trusted()):
+        with pytest.raises(ValueError) as raised:
+            CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=overlap" in message
+    assert "environment=overlap" in message
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy(broad.key).assertion == broad
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(narrow.key) is None
+
+
+def test_not_proven_predicate_intersection_rejects_later_segment_without_inventing_witness(isolated):
+    prior = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="literals remain protected",
+    )
+    initial = _segment(prior, suffix=".not_proven_initial")
+    CapabilityRegistry.register_segment(initial)
+    nested_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x.logical_kind", ClauseOp.EQ, "integer"),)),
+        message="nested logical-kind policy",
+    )
+    nested_permit = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x.storage_kind", ClauseOp.EQ, "native"),)),
+        message="nested storage-kind policy",
+    )
+    later = _segment(nested_block, nested_permit, suffix=".not_proven_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=not_proven" in message
+    assert "environment=overlap" in message
+    assert "call_witness" not in message
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion == prior
+    assert reader.policy_optional(nested_block.key) is None
+    assert reader.policy_optional(nested_permit.key) is None
+
+
+def test_opposing_predicate_policies_compete_across_subject_labels(isolated):
+    broad_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+    )
+    other_subject_permit = _policy(
+        "overflow",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+    )
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(broad_block, other_subject_permit, suffix=".cross_subject"))
+
+
+def test_same_subject_single_answer_selectors_compete(isolated):
+    block_all = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="all overflow modes are blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    permit_error = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+        level=CapabilityLevel.EXPR_CAPABLE,
+        message="ERROR mode is permitted",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.PERMIT,
+        applicability=unbounded,
+    )
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(block_all, permit_error, suffix=".single_answer"))
+
+
+def test_literal_only_protection_and_literal_permit_have_disjoint_call_shapes(isolated):
+    dynamic_block = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "x"),
+        level=CapabilityLevel.LITERAL_ONLY,
+        message="Dynamic arguments are refused",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    literal_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_LITERAL),)))
+    CapabilityRegistry.register_segment(_segment(dynamic_block, literal_permit, suffix=".call_shapes"))
+
+    dataframe = pl.DataFrame({"value": [-7, -8]})
+    assert dataframe.select(ma.lit(-7).abs().compile(dataframe)).to_series().to_list() == [7]
+    with pytest.raises(BackendCapabilityError):
+        ma.col("value").abs().compile(dataframe)
+
+
+def test_disjoint_finite_expression_partition_executes_allowed_literal_and_blocks_remainder(isolated):
+    permitted = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+    )
+    blocked = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IN, frozenset({-8, -6})),)),
+        message="the finite remainder is blocked",
+    )
+    CapabilityRegistry.register_segment(_segment(permitted, blocked, suffix=".finite_partition"))
+
+    dataframe = pl.DataFrame({"value": [1, 2]})
+    allowed = ma.lit(-7).abs().compile(dataframe)
+    assert dataframe.select(allowed.alias("result"))["result"].to_list() == [7]
+    with pytest.raises(BackendCapabilityError):
+        ma.lit(-8).abs().compile(dataframe)
+
+
+def test_multiple_independent_predicate_blockers_remain_visible_to_expression_visitor(isolated):
+    x_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.EQ, -8),)),
+    )
+    overflow_block = _policy(
+        "overflow",
+        PolicyAction.BLOCK,
+        Predicate((Clause("overflow", ClauseOp.EQ, "ERROR"),)),
+    )
+    CapabilityRegistry.register_segment(_segment(x_block, overflow_block, suffix=".collecting"))
+
+    with pytest.raises(BackendCapabilityError) as raised:
+        ma.lit(-8).abs(overflow="ERROR").compile(pl.DataFrame({"value": [1]}))
+    assert set(raised.value.candidate_fact_keys) == {
+        x_block.qualify(_SCOPE).fact_key,
+        overflow_block.qualify(_SCOPE).fact_key,
+    }
+
+
+def _metadata_policy():
+    return _policy(
+        "overflow",
+        PolicyAction.BLOCK,
+        Predicate(
+            (
+                Clause("overflow", ClauseOp.EQ, "saturating"),
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+            )
+        ),
+        message="floating saturating abs is blocked",
+    )
+
+
+def test_raw_metadata_gate_defers_and_complete_gate_requires_descriptors(isolated):
+    policy = _metadata_policy()
+    CapabilityRegistry.register_segment(_segment(policy, suffix=".metadata_raw"))
+
+    assert CapabilityRegistry.violations_for(_call(x=1, overflow="saturating"), phase="raw") == frozenset()
+    with pytest.raises(ValueError):
+        CapabilityRegistry.violations_for(_call(x=1, overflow="saturating"))
+
+
+def test_complete_metadata_gate_distinguishes_operand_type_and_option(isolated):
+    policy = _metadata_policy()
+    CapabilityRegistry.register_segment(_segment(policy, suffix=".metadata_complete"))
+    call = _call(x=1, overflow="saturating")
+    floating = replace(call, operand_types={"x": OperandType("float", "native", True)})
+    integer = replace(call, operand_types={"x": OperandType("integer", "native", True)})
+
+    assert CapabilityRegistry.violations_for(floating) == frozenset({policy.qualify(_SCOPE)})
+    assert CapabilityRegistry.violations_for(integer) == frozenset()
+    assert CapabilityRegistry.violations_for(replace(floating, bindings={"x": 1, "overflow": "other"})) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "path, operand",
+    [
+        ("__operand_types__", "float"),
+        ("__operand_types__.x", "float"),
+        ("__operand_types__.x.native_dtype", "float"),
+        ("__operand_types__.overflow.logical_kind", "float"),
+        ("__operand_types__.missing.logical_kind", "float"),
+        ("__operand_types__.x.logical_kind", "decimal"),
+        ("__operand_types__.x.storage_kind", "arbitrary"),
+        ("__operand_types__.x.nullable", 1),
+    ],
+)
+def test_policy_publication_rejects_invalid_metadata_selectors(isolated, path, operand):
+    policy = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_SET), Clause(path, ClauseOp.EQ, operand))),
+    )
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(policy, suffix=".invalid_metadata"))
+
+
+def test_metadata_predicate_policy_cannot_permit(isolated):
+    policy = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+    )
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(policy, suffix=".metadata_permit"))
+
+
+def test_metadata_names_are_exact_scope_declaration_data(isolated):
+    policy = _metadata_policy()
+    CapabilityRegistry.register_segment(_segment(policy, suffix=".metadata_names"))
+
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.POLARS, "polars") == frozenset({"x"})
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.POLARS, "unknown") == frozenset()
+    assert CapabilityRegistry.metadata_operand_names(FK_STR.LPAD, CONST_BACKEND.POLARS, "polars") == frozenset()
+
+
+def test_whole_operation_policy_is_not_a_parameter_fallback(isolated):
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="The operation is refused in this concrete scope",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    CapabilityRegistry.register_segment(_segment(policy, suffix=".whole_operation"))
+
+    assert CapabilityRegistry.capability_for(_OP, "x", CONST_BACKEND.POLARS, "polars") is None
+    assert CapabilityRegistry.capability_for(_OP, "*", CONST_BACKEND.POLARS, "polars") == policy.qualify(_SCOPE)
+    assert CapabilityRegistry.capability_for(_OP, "*", CONST_BACKEND.POLARS) is None
+    assert CapabilityRegistry.capability_for(_OP, "*", CONST_BACKEND.POLARS, "unknown") is None
+    assert [
+        violation.operation_key
+        for violation in CapabilityRegistry.validate_plan_capabilities([_OP], CONST_BACKEND.POLARS, "polars")
+    ] == [_OP]
+
+
+def test_single_answer_queries_select_the_named_consumer_without_selector_priority(isolated):
+    gate = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="ERROR mode is refused",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    enrichment = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="An identified native failure can be explained",
+        consumer=PolicyConsumer.IMMEDIATE_ERROR,
+        action=PolicyAction.ENRICH,
+        native_errors=(TypeError,),
+        native_issue="test:overflow-native-failure",
+        applicability=unbounded,
+    )
+    CapabilityRegistry.register_segment(_segment(gate, enrichment, suffix=".named_consumers"))
+
+    assert CapabilityRegistry.capability_for(
+        _OP, "overflow", CONST_BACKEND.POLARS, "polars", option_value="ERROR"
+    ) == gate.qualify(_SCOPE)
+    assert (
+        CapabilityRegistry.capability_for(_OP, "overflow", CONST_BACKEND.POLARS, "polars", option_value="NULL") is None
+    )
+    assert CapabilityRegistry.capability_for(
+        _OP,
+        "overflow",
+        CONST_BACKEND.POLARS,
+        "polars",
+        option_value="ERROR",
+        consumer=PolicyConsumer.IMMEDIATE_ERROR,
+    ) == enrichment.qualify(_SCOPE)
+
+
+@pytest.mark.parametrize("later_kind", ["duplicate", "broad", "nested", "eq", "in", "null"])
+def test_dynamic_policy_rejects_ambiguous_publication_and_retains_protection(isolated, later_kind):
+    dynamic = Predicate((Clause("x", ClauseOp.IS_DYNAMIC),))
+    prior = _policy("x", PolicyAction.BLOCK, dynamic)
+    CapabilityRegistry.register_segment(_segment(prior, suffix=".dynamic_initial"))
+    if later_kind == "duplicate":
+        later = replace(prior, key=replace(prior.key, variant="duplicate"))
+    else:
+        clause = {
+            "broad": Clause("x", ClauseOp.IS_SET),
+            "nested": Clause("x.value", ClauseOp.EQ, -7),
+            "eq": Clause("x", ClauseOp.EQ, -7),
+            "in": Clause("x", ClauseOp.IN, frozenset({-7})),
+            "null": Clause("x", ClauseOp.IS_NULL),
+        }[later_kind]
+        later = _policy("x", PolicyAction.PERMIT, Predicate((clause,)))
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(later, suffix=".dynamic_later"))
+    assert CapabilityRegistry.violations_for(_call(x=ma.col("value").node)) == frozenset({prior.qualify(_SCOPE)})
+
+
+@pytest.mark.parametrize("partition", ["form", "option"])
+def test_dynamic_policy_accepts_proven_disjoint_partition(isolated, partition):
+    clauses = (Clause("x", ClauseOp.IS_DYNAMIC),)
+    permit_clauses = (Clause("x", ClauseOp.IS_LITERAL),)
+    if partition == "option":
+        clauses += (Clause("overflow", ClauseOp.EQ, "ERROR"),)
+        permit_clauses = (Clause("x", ClauseOp.IS_DYNAMIC), Clause("overflow", ClauseOp.EQ, "SATURATE"))
+    block = _policy("x", PolicyAction.BLOCK, Predicate(clauses))
+    permit = _policy("x", PolicyAction.PERMIT, Predicate(permit_clauses))
+    CapabilityRegistry.register_segment(_segment(block, permit, suffix=".dynamic_partition"))
+    assert CapabilityRegistry.violations_for(_call(x=ma.col("value").node, overflow="ERROR")) == frozenset({
+        block.qualify(_SCOPE),
+    })
+    allowed = ma.lit(-7).node if partition == "form" else ma.col("value").node
+    assert CapabilityRegistry.violations_for(_call(x=allowed, overflow="SATURATE")) == frozenset()
+
+
+def _window_shape_policy(operation, field):
+    from mountainash.core.capabilities.predicates import WINDOW_ROOT
+
+    return CapabilityPolicyRule(
+        key=CapabilityKey(
+            operation, WINDOW_ROOT,
+            Selector("predicate", Predicate((Clause(f"{WINDOW_ROOT}.{field}", ClauseOp.EQ, True),))),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        message=f"window {field} blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+
+
+def _window_segment(*policies):
+    return BoundSegment(
+        "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.window.shape",
+        _SCOPE,
+        CapabilitySegment(Domain.WINDOW, policies=policies),
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "order_by", "blocked"),
+    [
+        ("multi_key", ["a", "b"], True),
+        ("multi_key", "-b", False),
+        ("any_descending", ["a", "-b"], True),
+        ("any_descending", ["a", "b"], False),
+    ],
+)
+def test_window_shape_policy_gates_on_effective_window(isolated, field, order_by, blocked):
+    from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+
+    CapabilityRegistry.register_segment(
+        _window_segment(_window_shape_policy(SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER, field))
+    )
+    expr = ma.col("a").row_number().over("g", order_by=order_by)
+    df = pl.DataFrame({"g": [1, 1], "a": [1, 2], "b": [2, 1]})
+    if blocked:
+        with pytest.raises(BackendCapabilityError, match=f"window {field} blocked"):
+            expr.compile(df)
+    else:
+        expr.compile(df)
+
+
+def test_shared_window_success_does_not_bypass_later_refusal(isolated):
+    """This synthetic declaration is Polars-scoped; generic windows cover all backends."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+
+    CapabilityRegistry.register_segment(
+        _window_segment(_window_shape_policy(SUBSTRAIT_ARITHMETIC_WINDOW.LAG, "any_descending"))
+    )
+    frame = pl.DataFrame({"g": [1, 1], "a": [1, 2]})
+    shared = ma.col("a").lag().is_null()
+    expression = shared.over("g", order_by="a") | shared.over("g", order_by="-a")
+    with pytest.raises(BackendCapabilityError, match="window any_descending blocked"):
+        expression.compile(frame)
+
+
+def test_window_shape_policy_rejected_on_non_window_operation(isolated):
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_window_segment(_window_shape_policy(_OP, "multi_key")))
+
+
+def test_window_root_is_reserved_as_call_binding():
+    from mountainash.core.capabilities.predicates import WINDOW_ROOT, bind_expression_call
+
+    with pytest.raises(ValueError, match="reserved"):
+        bind_expression_call(
+            operation_key=_OP, backend=CONST_BACKEND.POLARS, dialect="polars",
+            protocol_method=lambda x: None, arguments=[], options={WINDOW_ROOT: True},
+        )
+
+
+@pytest.mark.parametrize("location", ["option", "parameter"])
+def test_window_root_is_reserved_in_function_definition(location):
+    from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionDef
+
+    with pytest.raises(ValueError, match="reserved"):
+        ExpressionFunctionDef(
+            function_key=_OP,
+            substrait_uri=None,
+            substrait_name=None,
+            options=("__window__",) if location == "option" else (),
+            protocol_method=(lambda __window__: None) if location == "parameter" else None,
+        )

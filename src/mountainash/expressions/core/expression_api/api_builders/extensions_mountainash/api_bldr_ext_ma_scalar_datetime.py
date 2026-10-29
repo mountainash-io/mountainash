@@ -8,16 +8,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from ..api_builder_base import BaseExpressionAPIBuilder
+from ..api_builder_base import BaseExpressionAPIBuilder, _reject_expression
 
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+from ._ma_option_domains import validate_ma_option
+
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+)
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, ExpressionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarDatetimeAPIBuilderProtocol
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from ....expression_nodes import ExpressionNode
 
 
 class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarDatetimeAPIBuilderProtocol):
@@ -341,18 +345,27 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: extract_boolean (IS_DST)
 
         Args:
-            timezone: IANA timezone name (e.g., "America/New_York").
+            timezone: IANA timezone name (e.g., "America/New_York"). Required.
 
         Returns:
             New ExpressionAPI with is_dst node.
         """
-        options = {}
-        if timezone is not None:
-            options["timezone"] = timezone
+        if timezone is None:
+            from mountainash.core.errors import InvalidOptionValueError
+
+            raise InvalidOptionValueError("is_dst requires a timezone")
+
+        from ._ma_option_domains import validate_open_value
+        from mountainash.core.capabilities.schema import ValueClass
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "is_dst"
+        )
+        options = {"timezone": timezone}
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
             arguments=[self._node],
-            options=options if options else None,
+            options=options,
         )
         return self._build(node)
 
@@ -672,6 +685,28 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         )
         return self._build(node)
 
+    def diff_milliseconds(
+        self,
+        other: Union[BaseExpressionAPI, "ExpressionNode", Any],
+    ) -> BaseExpressionAPI:
+        """
+        Calculate difference in milliseconds.
+
+        Substrait: subtract
+
+        Args:
+            other: Datetime to compare with.
+
+        Returns:
+            New ExpressionAPI with diff_milliseconds node.
+        """
+        other_node = self._to_substrait_node(other)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MILLISECONDS,
+            arguments=[self._node, other_node],
+        )
+        return self._build(node)
+
     # ========================================
     # Truncation / Rounding
     # ========================================
@@ -686,15 +721,28 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (FLOOR)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with truncate node.
         """
+        _reject_expression("unit", unit, "truncate")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -708,15 +756,28 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (ROUND_TIE_UP)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with round node.
         """
+        _reject_expression("unit", unit, "round")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -730,15 +791,28 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (CEIL)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with ceil node.
         """
+        _reject_expression("unit", unit, "ceil")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, "unit", unit
+                )
+            },
         )
         return self._build(node)
 
@@ -752,15 +826,46 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Substrait: round_temporal (FLOOR)
 
         Args:
-            unit: Time unit (year, quarter, month, week, day, hour, minute, second).
+            unit: Accepted values are Polars-style duration strings (``"1y"``,
+                ``"1mo"``, ``"1d"``, ``"1h"``, ``"1m"``, ``"1s"``, ``"1ms"``,
+                ``"1us"``, ``"1w"``, ``"1q"``, ``"1ns"``) or the equivalent
+                friendly words (``"year"``, ``"month"``, …). The portable core
+                ``{1y,1mo,1d,1h,1m,1s,1ms,1us}`` is honored on all backends;
+                ``"1w"`` (not narwhals) and ``"1q"``/``"1ns"`` (not ibis) are
+                declared per-backend. Integer multipliers ≥ 2 (e.g. ``"2d"``,
+                ``"3h"``) are accepted and honored where the backend supports
+                them, declared per-backend otherwise.
 
         Returns:
             New ExpressionAPI with floor node.
         """
+        _reject_expression("unit", unit, "floor")
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
             arguments=[self._node],
-            options={"unit": unit},
+            options={
+                "unit": validate_ma_option(
+                    FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR, "unit", unit
+                )
+            },
+        )
+        return self._build(node)
+
+    # ========================================
+    # Snapshot
+    # ========================================
+
+    def today(self) -> BaseExpressionAPI:
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY,
+            arguments=[],
+        )
+        return self._build(node)
+
+    def now(self) -> BaseExpressionAPI:
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW,
+            arguments=[],
         )
         return self._build(node)
 
@@ -783,65 +888,109 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         Returns:
             New ExpressionAPI with to_timezone node.
         """
+        _reject_expression("timezone", timezone, "to_timezone")
+        from mountainash.core.capabilities.schema import ValueClass
+        from ._ma_option_domains import validate_open_value
+
+        timezone = validate_open_value(
+            ValueClass.IANA_TIMEZONE, "timezone", timezone, "to_timezone"
+        )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
             arguments=[self._node],
             options={"timezone": timezone},
         )
         return self._build(node)
-
-    def assume_timezone(
+    def _parse_temporal(
         self,
-        timezone: str,
+        function_key,
+        *,
+        kind: str | None = None,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """
-        Assume the timestamp is in the specified timezone.
+        from ._operation_options import validate_failure_behavior, validate_field_name
 
-        Converts a local timestamp to UTC-relative timestamp
-        using the given timezone.
-
-        Substrait: assume_timezone
-
-        Args:
-            timezone: IANA timezone name (e.g., "America/New_York", "UTC").
-
-        Returns:
-            New ExpressionAPI with assume_timezone node.
-        """
+        field_name = validate_field_name(function_key.name.lower(), field_name)
+        failure_behavior = validate_failure_behavior(function_key.name.lower(), failure_behavior)
+        options = {"failure_behavior": failure_behavior.value}
+        if kind is not None:
+            options["kind"] = kind
+        diagnostic_context = {
+            "field_name": field_name,
+            "logical_type": kind or function_key.name.lower(),
+            "format": kind or "default",
+        }
         node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ASSUME_TIMEZONE,
+            function_key=function_key,
             arguments=[self._node],
-            options={"timezone": timezone},
+            options=options,
+            diagnostic_context=diagnostic_context,
         )
         return self._build(node)
 
-    # ========================================
-    # Formatting
-    # ========================================
-
-    def strftime(
+    def parse_default(
         self,
-        format: str,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """
-        Format datetime as string.
-
-        Uses strftime format codes.
-
-        Substrait: strftime
-
-        Args:
-            format: Format string (e.g., "%Y-%m-%d %H:%M:%S").
-
-        Returns:
-            New ExpressionAPI with strftime node.
-        """
-        node = ScalarFunctionNode(
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.STRFTIME,
-            arguments=[self._node],
-            options={"format": format},
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
         )
-        return self._build(node)
+
+    def parse_xsd_duration(
+        self,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    def parse_xsd_partial_date(
+        self,
+        *,
+        kind: str,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        if kind not in {"year", "yearmonth"}:
+            from ._operation_options import invalid
+            invalid("parse_xsd_partial_date", "kind", "must be year or yearmonth")
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            kind=kind,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    def parse_temporal_any(
+        self,
+        kind: str,
+        *,
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        if kind not in {"date", "time", "datetime"}:
+            from ._operation_options import invalid
+            invalid("parse_temporal_any", "kind", "must be date, time, or datetime")
+        return self._parse_temporal(
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+            kind=kind,
+            field_name=field_name,
+            failure_behavior=failure_behavior,
+        )
+
+    # assume_timezone / strftime are official Substrait functions_datetime.yaml
+    # ops — their canonical definitions live on SubstraitScalarDatetimeAPIBuilder
+    # (resolved here via MRO). The Polars-compat `replace_time_zone` alias below
+    # delegates to the inherited assume_timezone.
 
     # ========================================
     # Flexible Duration Offset
@@ -871,6 +1020,13 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
             from ....utils.temporal import to_offset_string
 
             offset = to_offset_string(offset)
+
+        from ._ma_option_domains import validate_open_value
+        from mountainash.core.capabilities.schema import ValueClass
+
+        offset = validate_open_value(
+            ValueClass.POLARS_OFFSET, "offset", offset, "offset_by"
+        )
 
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY,
@@ -1058,10 +1214,77 @@ class MountainAshScalarDatetimeAPIBuilder(BaseExpressionAPIBuilder, MountainAshS
         )
         return self._build(node)
 
+    # ========================================
+    # Duration Extraction
+    # ========================================
+
+    def total_seconds(self) -> BaseExpressionAPI:
+        """Total seconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_minutes(self) -> BaseExpressionAPI:
+        """Total minutes in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_milliseconds(self) -> BaseExpressionAPI:
+        """Total milliseconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_microseconds(self) -> BaseExpressionAPI:
+        """Total microseconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_days(self) -> BaseExpressionAPI:
+        """Total days in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_hours(self) -> BaseExpressionAPI:
+        """Total hours in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
+    def total_nanoseconds(self) -> BaseExpressionAPI:
+        """Total nanoseconds in a duration."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS,
+            arguments=[self._node],
+        )
+        return self._build(node)
+
     # Polars-compatible aliases
     week = week_of_year
     weekday = day_of_week
     ordinal_day = day_of_year
     convert_time_zone = to_timezone
-    replace_time_zone = assume_timezone
     epoch = unix_timestamp
+
+    def replace_time_zone(self, timezone: str, /) -> BaseExpressionAPI:
+        """Alias for assume_timezone() — Polars compatibility.
+
+        Delegates to the inherited (Substrait) assume_timezone, which owns the
+        canonical definition of this official functions_datetime.yaml op.
+        """
+        return self.assume_timezone(timezone)

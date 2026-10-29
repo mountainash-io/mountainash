@@ -12,13 +12,15 @@ from typing import Protocol
 
 from mountainash.core.types import ExpressionT
 
+from mountainash.core.dtypes import ConstructionDtype  # noqa: TC001 - runtime get_type_hints() resolution
+
 class SubstraitLiteralExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for rounding operations.
 
     Auto-generated from Substrait rounding extension.
     """
 
-    def lit(self, x: object, /) -> ExpressionT:
+    def lit(self, x: object, /, *, dtype: ConstructionDtype | None = None) -> ExpressionT:
         """Literal Value.
 
         Substrait: lit

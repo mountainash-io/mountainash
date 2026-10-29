@@ -1,0 +1,126 @@
+"""DAG validation — delegates to the mountainash.validation runner (spec §10).
+
+FK check generation has exactly one owner: validation.fk.build_fk_checks
+(dag.constraint_metadata + spec-supplied TableSchema.foreign_keys, deduplicated;
+invalid declarations surface as status="error" check summaries). Every
+planned and dependency relation compiles exactly once, through the requested
+backend, via ONE shared DAGMaterializationSession (spec §10/§18) — never a
+bare `dag.collect()`. dependency_edges are never read as FK metadata;
+constraint_edges alone never create FK checks (two-edge-graph-model).
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from mountainash.validation.result import DAGValidationResult
+
+if TYPE_CHECKING:
+    from mountainash.relations.dag.dag import RelationDAG
+
+__all__ = ["DAGValidationResult", "validate", "validate_quick"]
+
+
+def validate(
+    dag: "RelationDAG",
+    specs: "dict[str, Any]",
+    *,
+    context: "dict[str, Any] | None" = None,
+    backend: str | None = None,
+    failure_sample: int | None = None,
+    allow_imperfect_key: bool = False,
+    execution_policy: Any = None,
+) -> DAGValidationResult:
+    """Full validation — all per-resource checks, then all FK checks."""
+    return _run(
+        dag, specs, context=context, backend=backend,
+        fail_fast=False, failure_sample=failure_sample,
+        allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
+    )
+
+
+def validate_quick(
+    dag: "RelationDAG",
+    specs: "dict[str, Any]",
+    *,
+    context: "dict[str, Any] | None" = None,
+    backend: str | None = None,
+    failure_sample: int | None = None,
+    allow_imperfect_key: bool = False,
+    execution_policy: Any = None,
+) -> DAGValidationResult:
+    """Fast validation — same runner, fail_fast=True. Identical shapes."""
+    return _run(
+        dag, specs, context=context, backend=backend,
+        fail_fast=True, failure_sample=failure_sample,
+        allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
+    )
+
+
+def _run(
+    dag: "RelationDAG",
+    specs: "dict[str, Any]",
+    *,
+    context: "dict[str, Any] | None",
+    backend: str | None,
+    fail_fast: bool,
+    failure_sample: int | None,
+    allow_imperfect_key: bool = False,
+    execution_policy: Any,
+) -> DAGValidationResult:
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.datacontracts.contract import BaseDataContract
+    from mountainash.typespec.spec import TableSchema
+    from mountainash.validation.fk import build_fk_checks
+    from mountainash.validation.identity import resolve_identity
+    from mountainash.validation.runner import ValidationRunner
+
+    checks_by_resource: dict[str, list[Any]] = {}
+    plans_by_resource: dict[str, Any] = {}
+    identity_by_resource: dict[str, Any] = {}
+    fk_specs: dict[str, TableSchema] = {}
+
+    for name, spec in specs.items():
+        if name not in dag.relations:
+            raise KeyError(f"relation {name!r} not in DAG")
+        if isinstance(spec, TableSchema):
+            plan = compile_datacontract(spec)
+            checks = []
+            plans_by_resource[name] = plan
+            spec_for_identity = spec
+            natural_key = None
+        elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
+            spec_for_identity = spec.to_table_schema()
+            plan = compile_datacontract(spec_for_identity)
+            checks = []
+            plans_by_resource[name] = plan
+            natural_key = getattr(spec.Config, "natural_key", None)
+        else:
+            raise TypeError(
+                f"specs[{name!r}] must be TableSchema or BaseDataContract subclass, "
+                f"got {type(spec).__name__}"
+            )
+        checks_by_resource[name] = checks
+        fk_specs[name] = spec_for_identity
+        identity_by_resource[name] = resolve_identity(
+            natural_key=natural_key, spec=spec_for_identity
+        )
+
+    fk_rules, fk_errors = build_fk_checks(dag, fk_specs)
+    for rule in fk_rules:
+        checks_by_resource.setdefault(rule.child, []).append(rule)
+
+    return ValidationRunner()._validate_dag(
+        dag,
+        checks_by_resource,
+        identity_by_resource=identity_by_resource,
+        plans_by_resource=plans_by_resource,
+        context=context,
+        fail_fast=fail_fast,
+        failure_sample=failure_sample,
+        backend=backend,
+        fk_error_summaries=fk_errors,
+        allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
+    )

@@ -1,0 +1,4965 @@
+{
+  "scope": "instrumented attribution only; True-True case; not benchmark timings",
+  "source": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/__init__.py",
+  "rows": [
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 658,
+      "function": "collect",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.00464698,
+      "cumulative_seconds": 7.790363482
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation_base.py",
+      "line": 36,
+      "function": "_compile_and_execute_with_visitor",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.014009198,
+      "cumulative_seconds": 7.717260893000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 197,
+      "function": "visit",
+      "primitive_calls": 1175,
+      "calls": 7812,
+      "self_seconds": 0.040431225,
+      "cumulative_seconds": 7.3878049500000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 428,
+      "function": "_dispatch",
+      "primitive_calls": 1175,
+      "calls": 7812,
+      "self_seconds": 0.108146743,
+      "cumulative_seconds": 7.370949485000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 489,
+      "function": "_bind",
+      "primitive_calls": 2619,
+      "calls": 12863,
+      "self_seconds": 0.020327071000000002,
+      "cumulative_seconds": 6.623021093
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 103,
+      "function": "build",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.006490424000000001,
+      "cumulative_seconds": 4.384495635
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 207,
+      "function": "evaluate",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.010396682,
+      "cumulative_seconds": 4.034757553
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 703,
+      "function": "_evaluate",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.014037366,
+      "cumulative_seconds": 4.007074339
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_system/relation_mapping/handlers.py",
+      "line": 19,
+      "function": "visit_join",
+      "primitive_calls": 182,
+      "calls": 273,
+      "self_seconds": 0.00114445,
+      "cumulative_seconds": 3.257824035
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 889,
+      "function": "compile_expression",
+      "primitive_calls": 9436,
+      "calls": 9436,
+      "self_seconds": 0.008055746,
+      "cumulative_seconds": 2.806218529
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 179,
+      "function": "visit",
+      "primitive_calls": 8625,
+      "calls": 43773,
+      "self_seconds": 0.028342869000000003,
+      "cumulative_seconds": 2.761202657
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_scalar_function.py",
+      "line": 69,
+      "function": "accept",
+      "primitive_calls": 5967,
+      "calls": 17878,
+      "self_seconds": 0.019886840000000003,
+      "cumulative_seconds": 2.741623895
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 375,
+      "function": "visit_scalar_function",
+      "primitive_calls": 5967,
+      "calls": 17878,
+      "self_seconds": 0.21926083100000002,
+      "cumulative_seconds": 2.7349758200000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 244,
+      "function": "_gate_and_resolve_args",
+      "primitive_calls": 5967,
+      "calls": 17878,
+      "self_seconds": 0.09549987600000001,
+      "cumulative_seconds": 2.1133000010000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 809,
+      "function": "_visit_and_coerce_right",
+      "primitive_calls": 182,
+      "calls": 273,
+      "self_seconds": 0.000466806,
+      "cumulative_seconds": 2.0448571810000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 288,
+      "function": "propagate_structured_plans",
+      "primitive_calls": 15624,
+      "calls": 15624,
+      "self_seconds": 0.06722192,
+      "cumulative_seconds": 1.4342076080000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 293,
+      "function": "_authoritative_dialect",
+      "primitive_calls": 15624,
+      "calls": 15624,
+      "self_seconds": 0.018992892,
+      "cumulative_seconds": 1.382074735
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py",
+      "line": 268,
+      "function": "__instancecheck__",
+      "primitive_calls": 908049,
+      "calls": 908049,
+      "self_seconds": 0.5678405510000001,
+      "cumulative_seconds": 1.2336196590000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/transit.py",
+      "line": 992,
+      "function": "transit_call",
+      "primitive_calls": 1175,
+      "calls": 1717,
+      "self_seconds": 0.008827674,
+      "cumulative_seconds": 1.203529255
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_ifthen.py",
+      "line": 46,
+      "function": "accept",
+      "primitive_calls": 810,
+      "calls": 810,
+      "self_seconds": 0.001127566,
+      "cumulative_seconds": 1.1225297950000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 502,
+      "function": "visit_if_then",
+      "primitive_calls": 810,
+      "calls": 810,
+      "self_seconds": 0.007763029,
+      "cumulative_seconds": 1.121402229
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 302,
+      "function": "_physical_identity",
+      "primitive_calls": 12278,
+      "calls": 51862,
+      "self_seconds": 0.13344407,
+      "cumulative_seconds": 1.1062315040000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 225,
+      "function": "_gate_capabilities",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.078523625,
+      "cumulative_seconds": 1.078826659
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 174,
+      "function": "_reject_consumed_fields",
+      "primitive_calls": 11824,
+      "calls": 11824,
+      "self_seconds": 0.019295247,
+      "cumulative_seconds": 1.036787056
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 145,
+      "function": "enrich_materialization",
+      "primitive_calls": 8987,
+      "calls": 8987,
+      "self_seconds": 0.047936398000000005,
+      "cumulative_seconds": 0.999259022
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 352,
+      "function": "_expand_level",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.004709901000000001,
+      "cumulative_seconds": 0.916491279
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 377,
+      "function": "_prepare_transport_lineage",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.028908487,
+      "cumulative_seconds": 0.868100245
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 110,
+      "function": "_referenced_fields",
+      "primitive_calls": 11824,
+      "calls": 87106,
+      "self_seconds": 0.24738204600000002,
+      "cumulative_seconds": 0.866374462
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 396,
+      "function": "_complete_transport_lineage",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.040419298,
+      "cumulative_seconds": 0.822622748
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 659,
+      "function": "capability_for",
+      "primitive_calls": 77236,
+      "calls": 77236,
+      "self_seconds": 0.065349855,
+      "cumulative_seconds": 0.7880247760000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 128,
+      "function": "_first_input_node",
+      "primitive_calls": 55208,
+      "calls": 55208,
+      "self_seconds": 0.082885554,
+      "cumulative_seconds": 0.758937505
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 150,
+      "function": "materialize_native",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.007761471000000001,
+      "cumulative_seconds": 0.681978869
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 889,
+      "function": "to_polars",
+      "primitive_calls": 633,
+      "calls": 633,
+      "self_seconds": 0.004259097,
+      "cumulative_seconds": 0.677023031
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/deprecation.py",
+      "line": 84,
+      "function": "wrapper",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001959055,
+      "cumulative_seconds": 0.6580894810000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 345,
+      "function": "wrapper",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.007163387,
+      "cumulative_seconds": 0.656130426
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 2382,
+      "function": "collect",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.004593093,
+      "cumulative_seconds": 0.644186141
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine.py",
+      "line": 423,
+      "function": "collect",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.0070017560000000005,
+      "cumulative_seconds": 0.6378923240000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 687,
+      "function": "_materialize_thunk",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.0017798120000000002,
+      "cumulative_seconds": 0.6143060260000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 122,
+      "function": "<genexpr>",
+      "primitive_calls": 17508,
+      "calls": 105852,
+      "self_seconds": 0.029148153000000003,
+      "cumulative_seconds": 0.6093727560000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 786,
+      "function": "count_rows",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.006871670000000001,
+      "cumulative_seconds": 0.602749925
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 625,
+      "function": "_capability_for",
+      "primitive_calls": 77236,
+      "calls": 77236,
+      "self_seconds": 0.15660467,
+      "cumulative_seconds": 0.592884178
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 750,
+      "function": "item",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.00237329,
+      "cumulative_seconds": 0.564871733
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/result.py",
+      "line": 105,
+      "function": "count",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.0021646490000000003,
+      "cumulative_seconds": 0.49126226700000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 89,
+      "function": "_present_operation_keys",
+      "primitive_calls": 7539,
+      "calls": 7539,
+      "self_seconds": 0.018338561,
+      "cumulative_seconds": 0.46920058600000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_cast.py",
+      "line": 35,
+      "function": "accept",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.000913404,
+      "cumulative_seconds": 0.434690287
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 615,
+      "function": "visit_cast",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.005099139,
+      "cumulative_seconds": 0.433776883
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 69,
+      "function": "_iter_function_keys",
+      "primitive_calls": 19512,
+      "calls": 92155,
+      "self_seconds": 0.090243476,
+      "cumulative_seconds": 0.428415321
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 40,
+      "function": "_expression_children",
+      "primitive_calls": 81071,
+      "calls": 81071,
+      "self_seconds": 0.061407659,
+      "cumulative_seconds": 0.383674346
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 316,
+      "function": "_bound_call",
+      "primitive_calls": 17878,
+      "calls": 17878,
+      "self_seconds": 0.027333358000000002,
+      "cumulative_seconds": 0.324206459
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/predicates.py",
+      "line": 44,
+      "function": "bind_expression_call",
+      "primitive_calls": 17878,
+      "calls": 17878,
+      "self_seconds": 0.12080942600000001,
+      "cumulative_seconds": 0.290440756
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation_base.py",
+      "line": 160,
+      "function": "_find_leaf_read_node",
+      "primitive_calls": 2350,
+      "calls": 15624,
+      "self_seconds": 0.024221383000000003,
+      "cumulative_seconds": 0.269659762
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/main.py",
+      "line": 202,
+      "function": "__init__",
+      "primitive_calls": 25873,
+      "calls": 25873,
+      "self_seconds": 0.015730069,
+      "cumulative_seconds": 0.24093717
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 328,
+      "function": "_gate_predicate_violations",
+      "primitive_calls": 35756,
+      "calls": 35756,
+      "self_seconds": 0.058425542000000004,
+      "cumulative_seconds": 0.219376228
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_scalar_ternary.py",
+      "line": 59,
+      "function": "_ternary_comparison",
+      "primitive_calls": 1440,
+      "calls": 1440,
+      "self_seconds": 0.010918334,
+      "cumulative_seconds": 0.214542387
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 497,
+      "function": "_acquire_state",
+      "primitive_calls": 150019,
+      "calls": 150019,
+      "self_seconds": 0.148277146,
+      "cumulative_seconds": 0.20837944600000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/lit.py",
+      "line": 31,
+      "function": "lit",
+      "primitive_calls": 17974,
+      "calls": 22294,
+      "self_seconds": 0.08694287,
+      "cumulative_seconds": 0.20112954700000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 466,
+      "function": "<lambda>",
+      "primitive_calls": 7539,
+      "calls": 7539,
+      "self_seconds": 0.008488429,
+      "cumulative_seconds": 0.183161401
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/main.py",
+      "line": 826,
+      "function": "__getattr__",
+      "primitive_calls": 46872,
+      "calls": 46872,
+      "self_seconds": 0.08296125800000001,
+      "cumulative_seconds": 0.182147578
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/reln_base.py",
+      "line": 59,
+      "function": "children",
+      "primitive_calls": 12278,
+      "calls": 12278,
+      "self_seconds": 0.018762110000000002,
+      "cumulative_seconds": 0.178160645
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 124,
+      "function": "<genexpr>",
+      "primitive_calls": 11180,
+      "calls": 11180,
+      "self_seconds": 0.0042001420000000005,
+      "cumulative_seconds": 0.17631154300000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 51,
+      "function": "_param_name_for",
+      "primitive_calls": 58138,
+      "calls": 58138,
+      "self_seconds": 0.06844781300000001,
+      "cumulative_seconds": 0.160438193
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 664,
+      "function": "_scored_relation",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.008441477000000001,
+      "cumulative_seconds": 0.15792704000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 739,
+      "function": "violations_for",
+      "primitive_calls": 43568,
+      "calls": 43568,
+      "self_seconds": 0.066504609,
+      "cumulative_seconds": 0.15661903800000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 154,
+      "function": "_named_values",
+      "primitive_calls": 12726,
+      "calls": 32056,
+      "self_seconds": 0.061543407,
+      "cumulative_seconds": 0.154172962
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation_base.py",
+      "line": 150,
+      "function": "_detect_backend_from",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.0018651660000000001,
+      "cumulative_seconds": 0.149980904
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 104,
+      "function": "_expression_node",
+      "primitive_calls": 102370,
+      "calls": 102370,
+      "self_seconds": 0.049968771,
+      "cumulative_seconds": 0.13902033600000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 130,
+      "function": "_direct_projection",
+      "primitive_calls": 15264,
+      "calls": 15264,
+      "self_seconds": 0.042961101,
+      "cumulative_seconds": 0.129875623
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_literal.py",
+      "line": 34,
+      "function": "accept",
+      "primitive_calls": 7803,
+      "calls": 7803,
+      "self_seconds": 0.0036915790000000004,
+      "cumulative_seconds": 0.128625236
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 198,
+      "function": "visit_literal",
+      "primitive_calls": 7803,
+      "calls": 7803,
+      "self_seconds": 0.009314153,
+      "cumulative_seconds": 0.124933657
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 327,
+      "function": "_transport_child_maps",
+      "primitive_calls": 15624,
+      "calls": 15624,
+      "self_seconds": 0.042838669,
+      "cumulative_seconds": 0.12216415200000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 346,
+      "function": "_required_operand_types",
+      "primitive_calls": 17878,
+      "calls": 17878,
+      "self_seconds": 0.030243966,
+      "cumulative_seconds": 0.11886342700000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_scalar_ternary.py",
+      "line": 144,
+      "function": "t_le",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0014142010000000001,
+      "cumulative_seconds": 0.117046958
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 63,
+      "function": "__init__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0011483230000000001,
+      "cumulative_seconds": 0.10742459600000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_scalar_ternary.py",
+      "line": 135,
+      "function": "t_ge",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0011807690000000001,
+      "cumulative_seconds": 0.107389753
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 243,
+      "function": "infer_schema",
+      "primitive_calls": 890,
+      "calls": 1693,
+      "self_seconds": 0.007481913000000001,
+      "cumulative_seconds": 0.09903067
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_scalar_ternary.py",
+      "line": 42,
+      "function": "_check_unknown",
+      "primitive_calls": 2880,
+      "calls": 2880,
+      "self_seconds": 0.010876406,
+      "cumulative_seconds": 0.093923717
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_field_reference.py",
+      "line": 31,
+      "function": "accept",
+      "primitive_calls": 16333,
+      "calls": 16333,
+      "self_seconds": 0.0066701500000000006,
+      "cumulative_seconds": 0.09271472700000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_literal.py",
+      "line": 22,
+      "function": "lit",
+      "primitive_calls": 7803,
+      "calls": 7803,
+      "self_seconds": 0.006325344,
+      "cumulative_seconds": 0.09080365800000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 223,
+      "function": "visit_field_reference",
+      "primitive_calls": 16333,
+      "calls": 16333,
+      "self_seconds": 0.009068478000000001,
+      "cumulative_seconds": 0.08604457700000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 86,
+      "function": "parse_into_list_of_expressions",
+      "primitive_calls": 5054,
+      "calls": 5054,
+      "self_seconds": 0.011906562,
+      "cumulative_seconds": 0.083372448
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 37,
+      "function": "infer_expression_name",
+      "primitive_calls": 9683,
+      "calls": 19366,
+      "self_seconds": 0.029613325000000003,
+      "cumulative_seconds": 0.083099165
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/backend_detection.py",
+      "line": 139,
+      "function": "identify_backend_identity",
+      "primitive_calls": 13453,
+      "calls": 13453,
+      "self_seconds": 0.027089381000000003,
+      "cumulative_seconds": 0.07949689700000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 908,
+      "function": "_egress_thunk",
+      "primitive_calls": 633,
+      "calls": 633,
+      "self_seconds": 0.002072766,
+      "cumulative_seconds": 0.079148655
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/wrap.py",
+      "line": 24,
+      "function": "wrap_expr",
+      "primitive_calls": 69790,
+      "calls": 69790,
+      "self_seconds": 0.033328279,
+      "cumulative_seconds": 0.077588712
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_field_reference.py",
+      "line": 22,
+      "function": "col",
+      "primitive_calls": 16333,
+      "calls": 16333,
+      "self_seconds": 0.013493572,
+      "cumulative_seconds": 0.07653385800000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 126,
+      "function": "<genexpr>",
+      "primitive_calls": 10674,
+      "calls": 12858,
+      "self_seconds": 0.004098788,
+      "cumulative_seconds": 0.070667572
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 211,
+      "function": "_parse_positional_inputs",
+      "primitive_calls": 9644,
+      "calls": 9644,
+      "self_seconds": 0.013697612000000001,
+      "cumulative_seconds": 0.069846011
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/col.py",
+      "line": 210,
+      "function": "__call__",
+      "primitive_calls": 17777,
+      "calls": 17777,
+      "self_seconds": 0.013538573000000002,
+      "cumulative_seconds": 0.06900967000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 594,
+      "function": "metadata_operand_names",
+      "primitive_calls": 17878,
+      "calls": 17878,
+      "self_seconds": 0.022513648,
+      "cumulative_seconds": 0.068298882
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 207,
+      "function": "_join_child_maps",
+      "primitive_calls": 546,
+      "calls": 546,
+      "self_seconds": 0.002339252,
+      "cumulative_seconds": 0.06723372200000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 187,
+      "function": "_relation_output_names",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.001368169,
+      "cumulative_seconds": 0.06278182
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 125,
+      "function": "input_scope",
+      "primitive_calls": 15078,
+      "calls": 15078,
+      "self_seconds": 0.012848963000000001,
+      "cumulative_seconds": 0.06277927700000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_base.py",
+      "line": 67,
+      "function": "__getattr__",
+      "primitive_calls": 26280,
+      "calls": 26280,
+      "self_seconds": 0.046148261,
+      "cumulative_seconds": 0.061095050000000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 439,
+      "function": "with_row_index",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0017662930000000002,
+      "cumulative_seconds": 0.060627463000000006
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 478,
+      "function": "_infer_project_schema",
+      "primitive_calls": 439,
+      "calls": 621,
+      "self_seconds": 0.003652132,
+      "cumulative_seconds": 0.06003466700000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 164,
+      "function": "<genexpr>",
+      "primitive_calls": 11180,
+      "calls": 11180,
+      "self_seconds": 0.003689851,
+      "cumulative_seconds": 0.058626920000000006
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 6730,
+      "function": "with_columns",
+      "primitive_calls": 2302,
+      "calls": 2302,
+      "self_seconds": 0.005705558,
+      "cumulative_seconds": 0.056425318
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/col.py",
+      "line": 40,
+      "function": "_create_col",
+      "primitive_calls": 17777,
+      "calls": 17777,
+      "self_seconds": 0.018557888,
+      "cumulative_seconds": 0.055471097000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 64,
+      "function": "<genexpr>",
+      "primitive_calls": 70606,
+      "calls": 70606,
+      "self_seconds": 0.042140377,
+      "cumulative_seconds": 0.055245284000000006
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_project.py",
+      "line": 20,
+      "function": "project_with_columns",
+      "primitive_calls": 2211,
+      "calls": 2211,
+      "self_seconds": 0.0019964920000000003,
+      "cumulative_seconds": 0.054751715000000006
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 968,
+      "function": "to_dict",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00048524300000000006,
+      "cumulative_seconds": 0.053918337000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/extensions_mountainash/reln_ext_ma_util.py",
+      "line": 40,
+      "function": "_validate_options",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.006230155,
+      "cumulative_seconds": 0.050496934
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 605,
+      "function": "_value_class_fact",
+      "primitive_calls": 8665,
+      "calls": 8665,
+      "self_seconds": 0.018688143,
+      "cumulative_seconds": 0.048806067
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py",
+      "line": 257,
+      "function": "__getattr__",
+      "primitive_calls": 46872,
+      "calls": 46872,
+      "self_seconds": 0.036671757,
+      "cumulative_seconds": 0.047250838
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 197,
+      "function": "_range_sentinel_checks",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.0023208910000000003,
+      "cumulative_seconds": 0.044319306
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 294,
+      "function": "_from_pyexpr",
+      "primitive_calls": 69790,
+      "calls": 69790,
+      "self_seconds": 0.026950598000000003,
+      "cumulative_seconds": 0.044260433
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 354,
+      "function": "__eq__",
+      "primitive_calls": 10903,
+      "calls": 10903,
+      "self_seconds": 0.015248019000000002,
+      "cumulative_seconds": 0.041978863000000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 142,
+      "function": "_schema_from_dataframe",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.004061775,
+      "cumulative_seconds": 0.041879084000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 1114,
+      "function": "columns",
+      "primitive_calls": 526,
+      "calls": 526,
+      "self_seconds": 0.001184207,
+      "cumulative_seconds": 0.041605601000000006
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/backend_detection.py",
+      "line": 33,
+      "function": "identify_backend",
+      "primitive_calls": 14628,
+      "calls": 14628,
+      "self_seconds": 0.026366123,
+      "cumulative_seconds": 0.041588229000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 133,
+      "function": "compile_coalesce",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00016376000000000002,
+      "cumulative_seconds": 0.041408253000000006
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 235,
+      "function": "_coalesce_range",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.002031006,
+      "cumulative_seconds": 0.041244493
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_system/relation_mapping/registry.py",
+      "line": 55,
+      "function": "get_signature",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0012890870000000002,
+      "cumulative_seconds": 0.040895002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 1119,
+      "function": "schema",
+      "primitive_calls": 526,
+      "calls": 526,
+      "self_seconds": 0.001434088,
+      "cumulative_seconds": 0.040279594
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/whenthen.py",
+      "line": 18,
+      "function": "when",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.007302866000000001,
+      "cumulative_seconds": 0.040111889000000005
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 228,
+      "function": "_parse_inputs_as_iterable",
+      "primitive_calls": 9644,
+      "calls": 9644,
+      "self_seconds": 0.011262617,
+      "cumulative_seconds": 0.040062381
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_comparison.py",
+      "line": 37,
+      "function": "eq",
+      "primitive_calls": 1725,
+      "calls": 1725,
+      "self_seconds": 0.0033953700000000004,
+      "cumulative_seconds": 0.039981565000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_name.py",
+      "line": 37,
+      "function": "alias",
+      "primitive_calls": 3477,
+      "calls": 3477,
+      "self_seconds": 0.008198952,
+      "cumulative_seconds": 0.039940598
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 115,
+      "function": "compile_compatible",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000291561,
+      "cumulative_seconds": 0.039859162000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 210,
+      "function": "_compatible_range",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000932524,
+      "cumulative_seconds": 0.039567601
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 40,
+      "function": "col",
+      "primitive_calls": 5893,
+      "calls": 5893,
+      "self_seconds": 0.015958476000000003,
+      "cumulative_seconds": 0.038915258
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 698,
+      "function": "residue_for",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.010761294000000001,
+      "cumulative_seconds": 0.037554635
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 473,
+      "function": "_enrich_native_call",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.0012181280000000002,
+      "cumulative_seconds": 0.036945663000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/api_builder_base.py",
+      "line": 58,
+      "function": "_to_substrait_node",
+      "primitive_calls": 4704,
+      "calls": 4704,
+      "self_seconds": 0.011360299,
+      "cumulative_seconds": 0.036077397000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 475,
+      "function": "_frontier_filter",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0025386040000000003,
+      "cumulative_seconds": 0.035843737
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_dependencies.py",
+      "line": 213,
+      "function": "_check_for_numpy",
+      "primitive_calls": 42353,
+      "calls": 42353,
+      "self_seconds": 0.030537757000000002,
+      "cumulative_seconds": 0.035697866
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 166,
+      "function": "<genexpr>",
+      "primitive_calls": 13198,
+      "calls": 15382,
+      "self_seconds": 0.004568934,
+      "cumulative_seconds": 0.035690752
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 382,
+      "function": "__init__",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000753125,
+      "cumulative_seconds": 0.034737546
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 7.484000000000001e-05,
+      "cumulative_seconds": 0.034032498
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 79,
+      "function": "dict_to_pydf",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.0031023310000000003,
+      "cumulative_seconds": 0.033954021
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/__init__.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.5680000000000002e-05,
+      "cumulative_seconds": 0.032874694
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_system/function_mapping/registry.py",
+      "line": 218,
+      "function": "get",
+      "primitive_calls": 17878,
+      "calls": 17878,
+      "self_seconds": 0.016094912,
+      "cumulative_seconds": 0.031535954000000005
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 22,
+      "function": "parse_into_expression",
+      "primitive_calls": 46102,
+      "calls": 46102,
+      "self_seconds": 0.018202587000000003,
+      "cumulative_seconds": 0.03074276
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 266,
+      "function": "parse_predicates_constraints_into_expression",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.0036801000000000004,
+      "cumulative_seconds": 0.030006967000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/boolean.py",
+      "line": 206,
+      "function": "__and__",
+      "primitive_calls": 910,
+      "calls": 910,
+      "self_seconds": 0.001018886,
+      "cumulative_seconds": 0.028700711
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_conditional.py",
+      "line": 23,
+      "function": "if_then_else",
+      "primitive_calls": 1710,
+      "calls": 1710,
+      "self_seconds": 0.003233413,
+      "cumulative_seconds": 0.028560255000000003
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 73,
+      "function": "__init__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0009262410000000001,
+      "cumulative_seconds": 0.028033793
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 284,
+      "function": "_create_anchor",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.002189449,
+      "cumulative_seconds": 0.027606311
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 34,
+      "function": "equal",
+      "primitive_calls": 5143,
+      "calls": 5143,
+      "self_seconds": 0.0023480510000000003,
+      "cumulative_seconds": 0.027349838
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 484,
+      "function": "_ready",
+      "primitive_calls": 150019,
+      "calls": 150019,
+      "self_seconds": 0.026747183,
+      "cumulative_seconds": 0.026747183
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 1206,
+      "function": "relation",
+      "primitive_calls": 1357,
+      "calls": 1357,
+      "self_seconds": 0.0046629390000000005,
+      "cumulative_seconds": 0.026363665
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_filter.py",
+      "line": 17,
+      "function": "filter",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.000566483,
+      "cumulative_seconds": 0.026354933
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 337,
+      "function": "_expand_dict_values",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.002999649,
+      "cumulative_seconds": 0.026139631
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 4751,
+      "function": "filter",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.0012579630000000002,
+      "cumulative_seconds": 0.02578845
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 298,
+      "function": "_check_reserved",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.001343088,
+      "cumulative_seconds": 0.025622179000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_cast.py",
+      "line": 31,
+      "function": "cast",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.0035561290000000003,
+      "cumulative_seconds": 0.025413808000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_sort.py",
+      "line": 16,
+      "function": "sort",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.001833488,
+      "cumulative_seconds": 0.025144937000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 5947,
+      "function": "eq",
+      "primitive_calls": 5143,
+      "calls": 5143,
+      "self_seconds": 0.0021432070000000003,
+      "cumulative_seconds": 0.025001787
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 135,
+      "function": "_is_backend_expression",
+      "primitive_calls": 7803,
+      "calls": 7803,
+      "self_seconds": 0.011098199000000001,
+      "cumulative_seconds": 0.024815846000000003
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/compiler.py",
+      "line": 153,
+      "function": "compile_coalesce_na_flag",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0005225210000000001,
+      "cumulative_seconds": 0.024632736000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 4666,
+      "function": "_filter",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.005097213000000001,
+      "cumulative_seconds": 0.024381006
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_boolean.py",
+      "line": 93,
+      "function": "and_",
+      "primitive_calls": 910,
+      "calls": 910,
+      "self_seconds": 0.002920123,
+      "cumulative_seconds": 0.024254812
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_read.py",
+      "line": 21,
+      "function": "read",
+      "primitive_calls": 1673,
+      "calls": 1673,
+      "self_seconds": 0.002559407,
+      "cumulative_seconds": 0.023632642000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/base.py",
+      "line": 50,
+      "function": "operand_types",
+      "primitive_calls": 35756,
+      "calls": 35756,
+      "self_seconds": 0.015257188000000001,
+      "cumulative_seconds": 0.023453216000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 1636,
+      "function": "sort",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.003437013,
+      "cumulative_seconds": 0.023311449
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 64,
+      "function": "lit",
+      "primitive_calls": 3244,
+      "calls": 3244,
+      "self_seconds": 0.009101592,
+      "cumulative_seconds": 0.022325997
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/type_context.py",
+      "line": 39,
+      "function": "input_scope",
+      "primitive_calls": 15078,
+      "calls": 15078,
+      "self_seconds": 0.014130538000000002,
+      "cumulative_seconds": 0.021910482000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/predicates.py",
+      "line": 51,
+      "function": "<genexpr>",
+      "primitive_calls": 20995,
+      "calls": 20995,
+      "self_seconds": 0.016704228,
+      "cumulative_seconds": 0.021602728
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 5089,
+      "function": "select",
+      "primitive_calls": 858,
+      "calls": 858,
+      "self_seconds": 0.0021998900000000004,
+      "cumulative_seconds": 0.021335969
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_name.py",
+      "line": 24,
+      "function": "alias",
+      "primitive_calls": 5785,
+      "calls": 5785,
+      "self_seconds": 0.003037731,
+      "cumulative_seconds": 0.021183646
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 155,
+      "function": "_survival_expression",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.001081285,
+      "cumulative_seconds": 0.021105079000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_system/relation_mapping/registry.py",
+      "line": 160,
+      "function": "get",
+      "primitive_calls": 9078,
+      "calls": 9078,
+      "self_seconds": 0.011324133,
+      "cumulative_seconds": 0.020971654000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 1655,
+      "function": "collect_schema",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.0005212820000000001,
+      "cumulative_seconds": 0.020126405
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/series/series.py",
+      "line": 266,
+      "function": "__init__",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.0015006440000000002,
+      "cumulative_seconds": 0.019935920000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 982,
+      "function": "schema",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.004171377,
+      "cumulative_seconds": 0.019605123000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 670,
+      "function": "_view",
+      "primitive_calls": 8987,
+      "calls": 8987,
+      "self_seconds": 0.007464504,
+      "cumulative_seconds": 0.018667951000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/compiler.py",
+      "line": 31,
+      "function": "compile_dimensions",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00019116100000000002,
+      "cumulative_seconds": 0.018394157
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/compiler.py",
+      "line": 40,
+      "function": "compile_dimension",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000392081,
+      "cumulative_seconds": 0.018202996000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 924,
+      "function": "alias",
+      "primitive_calls": 5785,
+      "calls": 5785,
+      "self_seconds": 0.005432337000000001,
+      "cumulative_seconds": 0.018145915000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_bldr_projection.py",
+      "line": 30,
+      "function": "with_columns",
+      "primitive_calls": 1697,
+      "calls": 1697,
+      "self_seconds": 0.0037857700000000004,
+      "cumulative_seconds": 0.018028909000000003
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/compiler.py",
+      "line": 136,
+      "function": "_compile_range",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.001389409,
+      "cumulative_seconds": 0.017810915
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/series.py",
+      "line": 76,
+      "function": "sequence_to_pyseries",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.006451626,
+      "cumulative_seconds": 0.017570231000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.608e-05,
+      "cumulative_seconds": 0.01719655
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 10461,
+      "function": "lazy",
+      "primitive_calls": 1764,
+      "calls": 1764,
+      "self_seconds": 0.0029140890000000003,
+      "cumulative_seconds": 0.016980213
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 2181,
+      "function": "cast",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.001621484,
+      "cumulative_seconds": 0.016718774000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 163,
+      "function": "<genexpr>",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.000767083,
+      "cumulative_seconds": 0.015419534
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 253,
+      "function": "_is_iterable",
+      "primitive_calls": 9194,
+      "calls": 9194,
+      "self_seconds": 0.004602465,
+      "cumulative_seconds": 0.014880988000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 126,
+      "function": "_canon",
+      "primitive_calls": 3109,
+      "calls": 3109,
+      "self_seconds": 0.002302976,
+      "cumulative_seconds": 0.014460015000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/whenthen.py",
+      "line": 107,
+      "function": "otherwise",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.0045399360000000005,
+      "cumulative_seconds": 0.014142616
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 414,
+      "function": "__or__",
+      "primitive_calls": 4684,
+      "calls": 4684,
+      "self_seconds": 0.004576135,
+      "cumulative_seconds": 0.013831966000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py",
+      "line": 305,
+      "function": "init_private_attributes",
+      "primitive_calls": 9269,
+      "calls": 9269,
+      "self_seconds": 0.009711925000000001,
+      "cumulative_seconds": 0.013503458000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine.py",
+      "line": 355,
+      "function": "_with_monitoring",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.004220706,
+      "cumulative_seconds": 0.01340086
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/_parse.py",
+      "line": 44,
+      "function": "parse_into_datatype_expr",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.002705012,
+      "cumulative_seconds": 0.013052842
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/base.py",
+      "line": 34,
+      "function": "backend_type",
+      "primitive_calls": 81126,
+      "calls": 81126,
+      "self_seconds": 0.013020533,
+      "cumulative_seconds": 0.013020533
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_comparison.py",
+      "line": 55,
+      "function": "ge",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.001361887,
+      "cumulative_seconds": 0.012803330000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_boolean.py",
+      "line": 32,
+      "function": "and_",
+      "primitive_calls": 2303,
+      "calls": 2303,
+      "self_seconds": 0.0036015360000000002,
+      "cumulative_seconds": 0.012659205000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 308,
+      "function": "sort",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.001585124,
+      "cumulative_seconds": 0.012639532
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/value_classes.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.612e-05,
+      "cumulative_seconds": 0.012452851000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/registry.py",
+      "line": 68,
+      "function": "from_native",
+      "primitive_calls": 3109,
+      "calls": 3109,
+      "self_seconds": 0.0025944450000000003,
+      "cumulative_seconds": 0.012157039000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/visit_registry.py",
+      "line": 51,
+      "function": "get",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.003622049,
+      "cumulative_seconds": 0.011958123000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/boolean.py",
+      "line": 210,
+      "function": "__or__",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.00042424000000000004,
+      "cumulative_seconds": 0.011855051
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_system/relation_mapping/handlers.py",
+      "line": 25,
+      "function": "<lambda>",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.000419641,
+      "cumulative_seconds": 0.011703319
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 471,
+      "function": "_columns_to_keep",
+      "primitive_calls": 75,
+      "calls": 75,
+      "self_seconds": 0.00010252,
+      "cumulative_seconds": 0.011631765
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/whenthen.py",
+      "line": 36,
+      "function": "then",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.006225308000000001,
+      "cumulative_seconds": 0.011603447000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/predicates.py",
+      "line": 34,
+      "function": "__post_init__",
+      "primitive_calls": 43568,
+      "calls": 43568,
+      "self_seconds": 0.011552245000000001,
+      "cumulative_seconds": 0.011552245000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_aggregate.py",
+      "line": 17,
+      "function": "aggregate",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000570923,
+      "cumulative_seconds": 0.011410809000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_join.py",
+      "line": 30,
+      "function": "join",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.000783162,
+      "cumulative_seconds": 0.011283678
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_project.py",
+      "line": 25,
+      "function": "project_drop",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.0009122000000000001,
+      "cumulative_seconds": 0.011050397
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 411,
+      "function": "count_records",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.004674698000000001,
+      "cumulative_seconds": 0.010970765
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_project.py",
+      "line": 17,
+      "function": "project_select",
+      "primitive_calls": 407,
+      "calls": 407,
+      "self_seconds": 0.00046332100000000005,
+      "cumulative_seconds": 0.010959404
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_cast.py",
+      "line": 31,
+      "function": "cast",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.003323093,
+      "cumulative_seconds": 0.010848197
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 10619,
+      "function": "with_columns",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0006682820000000001,
+      "cumulative_seconds": 0.010600080000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 341,
+      "function": "join",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.001712966,
+      "cumulative_seconds": 0.010584877000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/schema.py",
+      "line": 117,
+      "function": "__init__",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.006934595000000001,
+      "cumulative_seconds": 0.010517891000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/api_builder_base.py",
+      "line": 105,
+      "function": "_build",
+      "primitive_calls": 8723,
+      "calls": 8723,
+      "self_seconds": 0.0051270560000000005,
+      "cumulative_seconds": 0.010410446
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/deprecation.py",
+      "line": 127,
+      "function": "wrapper",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.001255126,
+      "cumulative_seconds": 0.010326475
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/extensions_mountainash/expsys_pl_ext_ma_scalar_ternary.py",
+      "line": 57,
+      "function": "<lambda>",
+      "primitive_calls": 2880,
+      "calls": 2880,
+      "self_seconds": 0.001578249,
+      "cumulative_seconds": 0.010167523000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 6965,
+      "function": "drop",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.001776765,
+      "cumulative_seconds": 0.010138197
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation_base.py",
+      "line": 75,
+      "function": "_apply_optimisations",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.0038385290000000002,
+      "cumulative_seconds": 0.00986067
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_boolean.py",
+      "line": 126,
+      "function": "or_",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.0011914830000000001,
+      "cumulative_seconds": 0.009813642000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 270,
+      "function": "<genexpr>",
+      "primitive_calls": 20675,
+      "calls": 20675,
+      "self_seconds": 0.007599829000000001,
+      "cumulative_seconds": 0.009783796
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 559,
+      "function": "_conditional_result_metadata",
+      "primitive_calls": 810,
+      "calls": 810,
+      "self_seconds": 0.004283179000000001,
+      "cumulative_seconds": 0.009757561000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py",
+      "line": 123,
+      "function": "wrapped_model_post_init",
+      "primitive_calls": 2619,
+      "calls": 2619,
+      "self_seconds": 0.0025155660000000003,
+      "cumulative_seconds": 0.009390879000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 82,
+      "function": "freeze_structured_field_plans",
+      "primitive_calls": 11558,
+      "calls": 11558,
+      "self_seconds": 0.009156314,
+      "cumulative_seconds": 0.009156314
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 92,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.004029892,
+      "cumulative_seconds": 0.00902055
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 6195,
+      "function": "join",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.001188602,
+      "cumulative_seconds": 0.008962749
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/target_polars.py",
+      "line": 47,
+      "function": "from_native",
+      "primitive_calls": 3109,
+      "calls": 3109,
+      "self_seconds": 0.002021724,
+      "cumulative_seconds": 0.008650549
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 346,
+      "function": "__and__",
+      "primitive_calls": 2303,
+      "calls": 2303,
+      "self_seconds": 0.0029532900000000003,
+      "cumulative_seconds": 0.008452067
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_arithmetic.py",
+      "line": 60,
+      "function": "add",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00165777,
+      "cumulative_seconds": 0.008409115
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/registries.py",
+      "line": 90,
+      "function": "get_optional",
+      "primitive_calls": 7812,
+      "calls": 7812,
+      "self_seconds": 0.005071503000000001,
+      "cumulative_seconds": 0.008336074
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/base.py",
+      "line": 20,
+      "function": "backend_type",
+      "primitive_calls": 47051,
+      "calls": 47051,
+      "self_seconds": 0.008221636000000001,
+      "cumulative_seconds": 0.008221636000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_scalar_function.py",
+      "line": 62,
+      "function": "model_post_init",
+      "primitive_calls": 8814,
+      "calls": 8814,
+      "self_seconds": 0.007913548000000001,
+      "cumulative_seconds": 0.007913548000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 529,
+      "function": "_active_diagnostic_trace",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.004124013,
+      "cumulative_seconds": 0.007628466
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 166,
+      "function": "_selection_config",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.001336806,
+      "cumulative_seconds": 0.007612721
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 211,
+      "function": "__getattr__",
+      "primitive_calls": 3117,
+      "calls": 3117,
+      "self_seconds": 0.005428533,
+      "cumulative_seconds": 0.007498981
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 715,
+      "function": "residue_candidates",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.0030740940000000003,
+      "cumulative_seconds": 0.007184951
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/classes.py",
+      "line": 290,
+      "function": "to_dtype_expr",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.003050173,
+      "cumulative_seconds": 0.007080940000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 387,
+      "function": "_from_pyldf",
+      "primitive_calls": 7946,
+      "calls": 7946,
+      "self_seconds": 0.0042262110000000006,
+      "cumulative_seconds": 0.007038216000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 1308,
+      "function": "__getitem__",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000536123,
+      "cumulative_seconds": 0.00685191
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/monitoring.py",
+      "line": 13,
+      "function": "monitoring_enabled_globally",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.001351247,
+      "cumulative_seconds": 0.006767507000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/target_polars.py",
+      "line": 39,
+      "function": "_base_name",
+      "primitive_calls": 3109,
+      "calls": 3109,
+      "self_seconds": 0.0038994140000000004,
+      "cumulative_seconds": 0.0066288250000000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 245,
+      "function": "filter",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.001296286,
+      "cumulative_seconds": 0.006596387
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 165,
+      "function": "__copy__",
+      "primitive_calls": 2441,
+      "calls": 2441,
+      "self_seconds": 0.0029487270000000004,
+      "cumulative_seconds": 0.006465261000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 538,
+      "function": "ensure_loaded",
+      "primitive_calls": 2350,
+      "calls": 2350,
+      "self_seconds": 0.00208129,
+      "cumulative_seconds": 0.006429385
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_set.py",
+      "line": 15,
+      "function": "union_all",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.000590924,
+      "cumulative_seconds": 0.00642587
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 184,
+      "function": "parse_list_into_selector",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.001814248,
+      "cumulative_seconds": 0.006331308000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/getitem.py",
+      "line": 128,
+      "function": "get_df_item_by_key",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.001051608,
+      "cumulative_seconds": 0.006315787000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/reln_base.py",
+      "line": 53,
+      "function": "operation_key",
+      "primitive_calls": 13853,
+      "calls": 13853,
+      "self_seconds": 0.006297421,
+      "cumulative_seconds": 0.006297421
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 154,
+      "function": "<genexpr>",
+      "primitive_calls": 31212,
+      "calls": 31212,
+      "self_seconds": 0.006117305,
+      "cumulative_seconds": 0.006117305
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 89,
+      "function": "_is_generator",
+      "primitive_calls": 1088,
+      "calls": 1088,
+      "self_seconds": 0.0018436860000000002,
+      "cumulative_seconds": 0.006091825
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine_config.py",
+      "line": 80,
+      "function": "_select_engine",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001954889,
+      "cumulative_seconds": 0.006035385000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/eager.py",
+      "line": 64,
+      "function": "concat",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.0018899250000000002,
+      "cumulative_seconds": 0.005834946000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 380,
+      "function": "__le__",
+      "primitive_calls": 1171,
+      "calls": 1171,
+      "self_seconds": 0.002290128,
+      "cumulative_seconds": 0.005795345
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 523,
+      "function": "_bind_options",
+      "primitive_calls": 7539,
+      "calls": 7539,
+      "self_seconds": 0.005076746,
+      "cumulative_seconds": 0.005742189
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/lazy_loader/__init__.py",
+      "line": 73,
+      "function": "__getattr__",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.0016934460000000001,
+      "cumulative_seconds": 0.005667503
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 884,
+      "function": "_egress_strategy",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0002244,
+      "cumulative_seconds": 0.005641582
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 367,
+      "function": "__ge__",
+      "primitive_calls": 1171,
+      "calls": 1171,
+      "self_seconds": 0.0021532960000000003,
+      "cumulative_seconds": 0.005606472
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 96,
+      "function": "_combine_result",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.001009122,
+      "cumulative_seconds": 0.005503702
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/boolean.py",
+      "line": 169,
+      "function": "create",
+      "primitive_calls": 8723,
+      "calls": 8723,
+      "self_seconds": 0.004142502,
+      "cumulative_seconds": 0.005283390000000001
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/context.py",
+      "line": 189,
+      "function": "_context_literal",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000426201,
+      "cumulative_seconds": 0.005211258000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/base_egress_strategy.py",
+      "line": 192,
+      "function": "to_dictionary_of_lists",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000149201,
+      "cumulative_seconds": 0.005098738
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/wrap.py",
+      "line": 12,
+      "function": "wrap_df",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.0029896500000000004,
+      "cumulative_seconds": 0.005020297
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 9350,
+      "function": "get_column",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000671646,
+      "cumulative_seconds": 0.005011618000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_arithmetic.py",
+      "line": 119,
+      "function": "mod",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000517362,
+      "cumulative_seconds": 0.004970377000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_comparison.py",
+      "line": 64,
+      "function": "le",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000555922,
+      "cumulative_seconds": 0.004969294
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/egress_pydata_from_polars.py",
+      "line": 176,
+      "function": "_to_dictionary_of_lists",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00019492,
+      "cumulative_seconds": 0.004949537
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 2236,
+      "function": "_collect_eager",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00027644000000000003,
+      "cumulative_seconds": 0.0048987020000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 253,
+      "function": "_merged_inputs",
+      "primitive_calls": 1092,
+      "calls": 1092,
+      "self_seconds": 0.0022716900000000003,
+      "cumulative_seconds": 0.0048667400000000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_boolean.py",
+      "line": 62,
+      "function": "_coerce_if_needed",
+      "primitive_calls": 2548,
+      "calls": 2548,
+      "self_seconds": 0.001723766,
+      "cumulative_seconds": 0.004856219
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 64,
+      "function": "_normalize_sort_fields",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0032748950000000003,
+      "cumulative_seconds": 0.004831940000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 121,
+      "function": "otherwise",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.000587603,
+      "cumulative_seconds": 0.004810184
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 1819,
+      "function": "to_dict",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.0009965220000000001,
+      "cumulative_seconds": 0.004754617
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/wrap.py",
+      "line": 16,
+      "function": "wrap_ldf",
+      "primitive_calls": 1989,
+      "calls": 1989,
+      "self_seconds": 0.0023131690000000003,
+      "cumulative_seconds": 0.004639933000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_protocols/relsys_base.py",
+      "line": 78,
+      "function": "get_relation_system",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001953288,
+      "cumulative_seconds": 0.004583581000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.288e-05,
+      "cumulative_seconds": 0.004463418
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/types.py",
+      "line": 173,
+      "function": "is_polars_dataframe",
+      "primitive_calls": 3481,
+      "calls": 3481,
+      "self_seconds": 0.0031423360000000003,
+      "cumulative_seconds": 0.004399861000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/optimisation_registry.py",
+      "line": 22,
+      "function": "get_registered_node_types",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.0017322090000000002,
+      "cumulative_seconds": 0.004363935
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 66,
+      "function": "selection_info_from_metadata",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.002980537,
+      "cumulative_seconds": 0.004343302
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/extensions_mountainash/relsys_pl_ext_ma_util.py",
+      "line": 64,
+      "function": "with_row_index",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.000652164,
+      "cumulative_seconds": 0.004240663
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 265,
+      "function": "<genexpr>",
+      "primitive_calls": 20675,
+      "calls": 20675,
+      "self_seconds": 0.0042235070000000005,
+      "cumulative_seconds": 0.0042235070000000005
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_bldr_projection.py",
+      "line": 39,
+      "function": "drop",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000970962,
+      "cumulative_seconds": 0.004139093
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 216,
+      "function": "greatest",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.000279283,
+      "cumulative_seconds": 0.004036774
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 151,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.0022776140000000003,
+      "cumulative_seconds": 0.003997582
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/types.py",
+      "line": 177,
+      "function": "is_polars_lazyframe",
+      "primitive_calls": 2848,
+      "calls": 2848,
+      "self_seconds": 0.0026995730000000003,
+      "cumulative_seconds": 0.003968817
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/registry.py",
+      "line": 53,
+      "function": "to_native_cast",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.001458405,
+      "cumulative_seconds": 0.003926094000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_comparison.py",
+      "line": 46,
+      "function": "ne",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000416481,
+      "cumulative_seconds": 0.003900539
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 201,
+      "function": "least",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.00029624,
+      "cumulative_seconds": 0.0038285740000000004
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/aggregation/horizontal.py",
+      "line": 110,
+      "function": "max_horizontal",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.000454082,
+      "cumulative_seconds": 0.0037574910000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_ternary.py",
+      "line": 176,
+      "function": "t_le",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000525243,
+      "cumulative_seconds": 0.0037479730000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/transit.py",
+      "line": 976,
+      "function": "_is_pandas_value",
+      "primitive_calls": 1717,
+      "calls": 1717,
+      "self_seconds": 0.002532452,
+      "cumulative_seconds": 0.0037358240000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 220,
+      "function": "_make",
+      "primitive_calls": 4929,
+      "calls": 4929,
+      "self_seconds": 0.00303301,
+      "cumulative_seconds": 0.0037310530000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 133,
+      "function": "_to_substrait_node",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.001090768,
+      "cumulative_seconds": 0.003633256
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 7483,
+      "function": "with_row_index",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.0010602860000000001,
+      "cumulative_seconds": 0.003588499
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/aggregation/horizontal.py",
+      "line": 145,
+      "function": "min_horizontal",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.000390442,
+      "cumulative_seconds": 0.0035323340000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/selectors.py",
+      "line": 444,
+      "function": "_by_name",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.0009656860000000001,
+      "cumulative_seconds": 0.003521054
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.9440000000000003e-05,
+      "cumulative_seconds": 0.0034589340000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/dag/dag_relation.py",
+      "line": 81,
+      "function": "_resolve_shared_dag",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.000708204,
+      "cumulative_seconds": 0.0034457760000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 879,
+      "function": "_coerce_same_family_dialect",
+      "primitive_calls": 498,
+      "calls": 498,
+      "self_seconds": 0.000946925,
+      "cumulative_seconds": 0.0034393350000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 133,
+      "function": "_drop_markers",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.002046646,
+      "cumulative_seconds": 0.0033697690000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_dependencies.py",
+      "line": 237,
+      "function": "_check_for_torch",
+      "primitive_calls": 22203,
+      "calls": 22203,
+      "self_seconds": 0.0033688990000000003,
+      "cumulative_seconds": 0.0033688990000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/type_context.py",
+      "line": 53,
+      "function": "cached_native",
+      "primitive_calls": 3330,
+      "calls": 3330,
+      "self_seconds": 0.0021220090000000002,
+      "cumulative_seconds": 0.003350174
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 306,
+      "function": "when",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.0011789230000000001,
+      "cumulative_seconds": 0.0033467370000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 428,
+      "function": "_expand_dict_data",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000496641,
+      "cumulative_seconds": 0.003313135
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 141,
+      "function": "_blocking_structured_plans",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.002794574,
+      "cumulative_seconds": 0.0032724950000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 121,
+      "function": "_unwrap_native",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.002481726,
+      "cumulative_seconds": 0.003220412
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 114,
+      "function": "_compiler_identity",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001930726,
+      "cumulative_seconds": 0.0031968910000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 877,
+      "function": "columns",
+      "primitive_calls": 1341,
+      "calls": 1341,
+      "self_seconds": 0.0009036850000000001,
+      "cumulative_seconds": 0.0031968530000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.716e-05,
+      "cumulative_seconds": 0.003184173
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_aggregate_generic.py",
+      "line": 50,
+      "function": "count_records",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000762602,
+      "cumulative_seconds": 0.0031840970000000003
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/context.py",
+      "line": 199,
+      "function": "extract_context_values",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.002014014,
+      "cumulative_seconds": 0.003113418
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 377,
+      "function": "t_col",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.001130245,
+      "cumulative_seconds": 0.0029926930000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 89,
+      "function": "gte",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000388761,
+      "cumulative_seconds": 0.0029388170000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 1228,
+      "function": "concat",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000451162,
+      "cumulative_seconds": 0.0028488940000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_api_builder_base.py",
+      "line": 27,
+      "function": "_build",
+      "primitive_calls": 2405,
+      "calls": 2405,
+      "self_seconds": 0.0010760840000000002,
+      "cumulative_seconds": 0.002831128
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_nodes/substrait/exn_scalar_function.py",
+      "line": 73,
+      "function": "is_ternary_non_terminal",
+      "primitive_calls": 2548,
+      "calls": 2548,
+      "self_seconds": 0.001448286,
+      "cumulative_seconds": 0.0028179700000000004
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 126,
+      "function": "is_bool_sequence",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.000988601,
+      "cumulative_seconds": 0.0028050130000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 149,
+      "function": "_guard_native_terminal",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.001260162,
+      "cumulative_seconds": 0.002773128
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_system/expsys_base.py",
+      "line": 130,
+      "function": "get_expression_system",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001037807,
+      "cumulative_seconds": 0.002747415
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 929,
+      "function": "dtypes",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.00046444000000000005,
+      "cumulative_seconds": 0.0027462050000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/dag/dag_relation.py",
+      "line": 85,
+      "function": "<genexpr>",
+      "primitive_calls": 1076,
+      "calls": 1076,
+      "self_seconds": 0.0005062020000000001,
+      "cumulative_seconds": 0.002737572
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/registry.py",
+      "line": 35,
+      "function": "_target",
+      "primitive_calls": 5007,
+      "calls": 5007,
+      "self_seconds": 0.0016652470000000001,
+      "cumulative_seconds": 0.0026854920000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 1190,
+      "function": "_is_python_data",
+      "primitive_calls": 1357,
+      "calls": 1357,
+      "self_seconds": 0.001460326,
+      "cumulative_seconds": 0.002682008
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 178,
+      "function": "greatest",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000417641,
+      "cumulative_seconds": 0.002680851
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 277,
+      "function": "explicit_polars_egress",
+      "primitive_calls": 633,
+      "calls": 633,
+      "self_seconds": 0.0019041280000000002,
+      "cumulative_seconds": 0.002643293
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/registries.py",
+      "line": 100,
+      "function": "list_keys",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.001975885,
+      "cumulative_seconds": 0.002631726
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/series.py",
+      "line": 345,
+      "function": "_construct_series_with_fallbacks",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.00034480000000000003,
+      "cumulative_seconds": 0.002570288
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 6025,
+      "function": "ge",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.00024392100000000002,
+      "cumulative_seconds": 0.002550056
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_base.py",
+      "line": 43,
+      "function": "__init__",
+      "primitive_calls": 19039,
+      "calls": 19039,
+      "self_seconds": 0.0025484130000000002,
+      "cumulative_seconds": 0.0025484130000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/contract.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.5521000000000002e-05,
+      "cumulative_seconds": 0.002546651
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_bldr_projection.py",
+      "line": 21,
+      "function": "select",
+      "primitive_calls": 257,
+      "calls": 257,
+      "self_seconds": 0.000536082,
+      "cumulative_seconds": 0.0025432460000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "line": 208,
+      "function": "least",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00037248100000000003,
+      "cumulative_seconds": 0.002542129
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 73,
+      "function": "get_first_non_none",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.001620963,
+      "cumulative_seconds": 0.002533088
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 91,
+      "function": "_empty",
+      "primitive_calls": 7776,
+      "calls": 7776,
+      "self_seconds": 0.0024945730000000004,
+      "cumulative_seconds": 0.0024945730000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 568,
+      "function": "coerce_narwhals_dialect",
+      "primitive_calls": 498,
+      "calls": 498,
+      "self_seconds": 0.001354086,
+      "cumulative_seconds": 0.00249241
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/wrap.py",
+      "line": 20,
+      "function": "wrap_s",
+      "primitive_calls": 1270,
+      "calls": 1270,
+      "self_seconds": 0.001180965,
+      "cumulative_seconds": 0.0024271690000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/len.py",
+      "line": 21,
+      "function": "len",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000717363,
+      "cumulative_seconds": 0.002421495
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_arithmetic.py",
+      "line": 99,
+      "function": "mul",
+      "primitive_calls": 75,
+      "calls": 75,
+      "self_seconds": 0.00027228,
+      "cumulative_seconds": 0.002416772
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_comparison.py",
+      "line": 96,
+      "function": "lt",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00029916000000000003,
+      "cumulative_seconds": 0.002375526
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 82,
+      "function": "lte",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000354763,
+      "cumulative_seconds": 0.0023649310000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/api_builder_base.py",
+      "line": 25,
+      "function": "__init__",
+      "primitive_calls": 8723,
+      "calls": 8723,
+      "self_seconds": 0.0023190510000000004,
+      "cumulative_seconds": 0.0023190510000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/registries.py",
+      "line": 80,
+      "function": "get",
+      "primitive_calls": 2350,
+      "calls": 2350,
+      "self_seconds": 0.001838814,
+      "cumulative_seconds": 0.0022920550000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_ternary.py",
+      "line": 163,
+      "function": "t_ge",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00042592400000000005,
+      "cumulative_seconds": 0.002280649
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/parse/expr.py",
+      "line": 301,
+      "function": "_combine_predicates",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.001670564,
+      "cumulative_seconds": 0.0022563640000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/dag/dag_relation.py",
+      "line": 76,
+      "function": "_dag_of",
+      "primitive_calls": 712,
+      "calls": 712,
+      "self_seconds": 0.000290562,
+      "cumulative_seconds": 0.0022313700000000003
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/_parse.py",
+      "line": 52,
+      "function": "parse_into_dtype",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.0009713250000000001,
+      "cumulative_seconds": 0.0021788880000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/registries.py",
+      "line": 48,
+      "function": "_ensure_initialized",
+      "primitive_calls": 11337,
+      "calls": 11337,
+      "self_seconds": 0.002149326,
+      "cumulative_seconds": 0.002149326
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/series/series.py",
+      "line": 1457,
+      "function": "__getitem__",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.00046248000000000003,
+      "cumulative_seconds": 0.002107925
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 66,
+      "function": "_from_pyoptflags",
+      "primitive_calls": 2441,
+      "calls": 2441,
+      "self_seconds": 0.001486646,
+      "cumulative_seconds": 0.002092529
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.3440000000000005e-05,
+      "cumulative_seconds": 0.002084209
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/egress_pydata_from_polars.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.232e-05,
+      "cumulative_seconds": 0.002060929
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_arithmetic.py",
+      "line": 37,
+      "function": "add",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00043032300000000003,
+      "cumulative_seconds": 0.002053852
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 564,
+      "function": "_from_pydf",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.001261245,
+      "cumulative_seconds": 0.002030647
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 6097,
+      "function": "le",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.00021384000000000003,
+      "cumulative_seconds": 0.002010168
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/schema.py",
+      "line": 61,
+      "function": "_is_arrow_schema_exportable",
+      "primitive_calls": 3999,
+      "calls": 3999,
+      "self_seconds": 0.001221726,
+      "cumulative_seconds": 0.001993209
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_boolean.py",
+      "line": 53,
+      "function": "or_",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.000517361,
+      "cumulative_seconds": 0.0019494050000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 191,
+      "function": "warn_null_comparison",
+      "primitive_calls": 13518,
+      "calls": 13518,
+      "self_seconds": 0.001913285,
+      "cumulative_seconds": 0.001913285
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 12262,
+      "function": "iter_columns",
+      "primitive_calls": 910,
+      "calls": 910,
+      "self_seconds": 0.0005673620000000001,
+      "cumulative_seconds": 0.0018995700000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/substrait/reln_project.py",
+      "line": 34,
+      "function": "operation_key",
+      "primitive_calls": 9207,
+      "calls": 9207,
+      "self_seconds": 0.001799767,
+      "cumulative_seconds": 0.001799767
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/api_builder_base.py",
+      "line": 34,
+      "function": "_node",
+      "primitive_calls": 8905,
+      "calls": 8905,
+      "self_seconds": 0.001760924,
+      "cumulative_seconds": 0.001760924
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 47,
+      "function": "then",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.001300203,
+      "cumulative_seconds": 0.0017364460000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 49,
+      "function": "_coerce_data_type",
+      "primitive_calls": 92,
+      "calls": 92,
+      "self_seconds": 0.0006843610000000001,
+      "cumulative_seconds": 0.001691928
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 259,
+      "function": "_handle_columns_arg",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.0008602490000000001,
+      "cumulative_seconds": 0.0016830900000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/schema.py",
+      "line": 182,
+      "function": "names",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.001312241,
+      "cumulative_seconds": 0.001676764
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 37,
+      "function": "normalize_policy",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.0008900070000000001,
+      "cumulative_seconds": 0.0016557310000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/getitem.py",
+      "line": 50,
+      "function": "get_series_item_by_key",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000614361,
+      "cumulative_seconds": 0.0016454450000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 338,
+      "function": "__add__",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.001003245,
+      "cumulative_seconds": 0.001623529
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/canonical.py",
+      "line": 171,
+      "function": "parse_cast_target",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.0006360410000000001,
+      "cumulative_seconds": 0.001613726
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 188,
+      "function": "_validate_set_rules_once",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000436002,
+      "cumulative_seconds": 0.001595646
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_system/relation_mapping/registry.py",
+      "line": 175,
+      "function": "_init_registry",
+      "primitive_calls": 9078,
+      "calls": 9078,
+      "self_seconds": 0.001465125,
+      "cumulative_seconds": 0.001465125
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/types.py",
+      "line": 190,
+      "function": "is_narwhals_dataframe",
+      "primitive_calls": 1040,
+      "calls": 1040,
+      "self_seconds": 0.000992087,
+      "cumulative_seconds": 0.0014485700000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 148,
+      "function": "is_sequence",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.000481122,
+      "cumulative_seconds": 0.0013810060000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "line": 341,
+      "function": "<genexpr>",
+      "primitive_calls": 4984,
+      "calls": 4984,
+      "self_seconds": 0.00135873,
+      "cumulative_seconds": 0.00135873
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 41,
+      "function": "not_equal",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000169041,
+      "cumulative_seconds": 0.001357446
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 103,
+      "function": "<genexpr>",
+      "primitive_calls": 728,
+      "calls": 728,
+      "self_seconds": 0.0006318410000000001,
+      "cumulative_seconds": 0.0013556430000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine_config.py",
+      "line": 69,
+      "function": "_engine_from_name",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.000716327,
+      "cumulative_seconds": 0.001341608
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/diagnostics.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.3840000000000001e-05,
+      "cumulative_seconds": 0.001310165
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/schema.py",
+      "line": 194,
+      "function": "dtypes",
+      "primitive_calls": 890,
+      "calls": 890,
+      "self_seconds": 0.0009813620000000002,
+      "cumulative_seconds": 0.001261123
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 61,
+      "function": "is_pydantic_model",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.000466762,
+      "cumulative_seconds": 0.001250444
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/series/series.py",
+      "line": 469,
+      "function": "_from_pyseries",
+      "primitive_calls": 1270,
+      "calls": 1270,
+      "self_seconds": 0.000771321,
+      "cumulative_seconds": 0.001246204
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 550,
+      "function": "extend_bool",
+      "primitive_calls": 1440,
+      "calls": 1440,
+      "self_seconds": 0.000852243,
+      "cumulative_seconds": 0.0012194460000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/convert.py",
+      "line": 58,
+      "function": "is_polars_dtype",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.000873003,
+      "cumulative_seconds": 0.001207563
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/selectors.py",
+      "line": 334,
+      "function": "_from_pyselector",
+      "primitive_calls": 451,
+      "calls": 451,
+      "self_seconds": 0.000741241,
+      "cumulative_seconds": 0.0011977630000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 6169,
+      "function": "ne",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.00019764200000000002,
+      "cumulative_seconds": 0.001188405
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation_base.py",
+      "line": 28,
+      "function": "__init__",
+      "primitive_calls": 6650,
+      "calls": 6650,
+      "self_seconds": 0.001155246,
+      "cumulative_seconds": 0.001155246
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 4713,
+      "function": "<genexpr>",
+      "primitive_calls": 1084,
+      "calls": 1084,
+      "self_seconds": 0.000464882,
+      "cumulative_seconds": 0.001149524
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_arithmetic.py",
+      "line": 79,
+      "function": "multiply",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.000264082,
+      "cumulative_seconds": 0.001142723
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_arithmetic.py",
+      "line": 127,
+      "function": "modulus",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.00027408,
+      "cumulative_seconds": 0.001065921
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 259,
+      "function": "<genexpr>",
+      "primitive_calls": 996,
+      "calls": 996,
+      "self_seconds": 0.001055364,
+      "cumulative_seconds": 0.001055364
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 359,
+      "function": "<genexpr>",
+      "primitive_calls": 728,
+      "calls": 728,
+      "self_seconds": 0.000490603,
+      "cumulative_seconds": 0.001043008
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/series/series.py",
+      "line": 4720,
+      "function": "to_list",
+      "primitive_calls": 819,
+      "calls": 819,
+      "self_seconds": 0.00032336100000000004,
+      "cumulative_seconds": 0.001038042
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 246,
+      "function": "arrlen",
+      "primitive_calls": 1092,
+      "calls": 1092,
+      "self_seconds": 0.000654605,
+      "cumulative_seconds": 0.001004686
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 156,
+      "function": "_eager",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00039288100000000004,
+      "cumulative_seconds": 0.000999801
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 406,
+      "function": "__ne__",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.00045856000000000005,
+      "cumulative_seconds": 0.000990763
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/canonical.py",
+      "line": 132,
+      "function": "parse_dtype",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.0006662020000000001,
+      "cumulative_seconds": 0.000977685
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 1608,
+      "function": "__len__",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.000278281,
+      "cumulative_seconds": 0.000973443
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 39,
+      "function": "_protocol_sig_params",
+      "primitive_calls": 16,
+      "calls": 16,
+      "self_seconds": 6.508100000000001e-05,
+      "cumulative_seconds": 0.0009618020000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/substrait/reln_aggregate.py",
+      "line": 31,
+      "function": "operation_key",
+      "primitive_calls": 2528,
+      "calls": 2528,
+      "self_seconds": 0.000939523,
+      "cumulative_seconds": 0.000939523
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 66,
+      "function": "is_sqlalchemy_row",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.00047164,
+      "cumulative_seconds": 0.000905043
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/substrait/reln_join.py",
+      "line": 49,
+      "function": "operation_key",
+      "primitive_calls": 2184,
+      "calls": 2184,
+      "self_seconds": 0.0008974810000000001,
+      "cumulative_seconds": 0.0008974810000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/classes.py",
+      "line": 156,
+      "function": "__repr__",
+      "primitive_calls": 3109,
+      "calls": 3109,
+      "self_seconds": 0.000895561,
+      "cumulative_seconds": 0.000895561
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/registry.py",
+      "line": 42,
+      "function": "to_native_schema",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.0006942420000000001,
+      "cumulative_seconds": 0.000893683
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/polars/substrait/expsys_pl_scalar_comparison.py",
+      "line": 68,
+      "function": "lt",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00011172000000000001,
+      "cumulative_seconds": 0.000879001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 398,
+      "function": "__mul__",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.0004963610000000001,
+      "cumulative_seconds": 0.0008786410000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/source_shape.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.1321e-05,
+      "cumulative_seconds": 0.000872004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 396,
+      "function": "unique",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00018928100000000002,
+      "cumulative_seconds": 0.0008494430000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/constructor.py",
+      "line": 160,
+      "function": "py_type_to_constructor",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.000609004,
+      "cumulative_seconds": 0.000797886
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 390,
+      "function": "__mod__",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000480441,
+      "cumulative_seconds": 0.000791841
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_dependencies.py",
+      "line": 231,
+      "function": "_check_for_pydantic",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.000699561,
+      "cumulative_seconds": 0.0007836820000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatypes/classes.py",
+      "line": 53,
+      "function": "__get__",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.000780562,
+      "cumulative_seconds": 0.000780562
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/datatype_expr/datatype_expr.py",
+      "line": 87,
+      "function": "_from_pydatatype_expr",
+      "primitive_calls": 949,
+      "calls": 949,
+      "self_seconds": 0.0007804810000000001,
+      "cumulative_seconds": 0.0007804810000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 6133,
+      "function": "lt",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 9.904e-05,
+      "cumulative_seconds": 0.0007672810000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/series/series.py",
+      "line": 716,
+      "function": "name",
+      "primitive_calls": 819,
+      "calls": 819,
+      "self_seconds": 0.00038680100000000004,
+      "cumulative_seconds": 0.0007532830000000001
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 75,
+      "function": "_validate_strategy_fields",
+      "primitive_calls": 184,
+      "calls": 184,
+      "self_seconds": 0.000636444,
+      "cumulative_seconds": 0.000746964
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 158,
+      "function": "is_non_empty_sequence_of",
+      "primitive_calls": 450,
+      "calls": 450,
+      "self_seconds": 0.000518721,
+      "cumulative_seconds": 0.000725721
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/polars/substrait/relsys_pl_aggregate.py",
+      "line": 26,
+      "function": "distinct",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00016096100000000002,
+      "cumulative_seconds": 0.0007016020000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 838,
+      "function": "height",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.000318201,
+      "cumulative_seconds": 0.000695162
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/whenthen.py",
+      "line": 33,
+      "function": "__init__",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.000693803,
+      "cumulative_seconds": 0.000693803
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/expr.py",
+      "line": 385,
+      "function": "__lt__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000287681,
+      "cumulative_seconds": 0.0006682410000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 564,
+      "function": "<genexpr>",
+      "primitive_calls": 3330,
+      "calls": 3330,
+      "self_seconds": 0.0006499660000000001,
+      "cumulative_seconds": 0.0006499660000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/expr/whenthen.py",
+      "line": 58,
+      "function": "__init__",
+      "primitive_calls": 4590,
+      "calls": 4590,
+      "self_seconds": 0.000627762,
+      "cumulative_seconds": 0.000627762
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 97,
+      "function": "when",
+      "primitive_calls": 364,
+      "calls": 364,
+      "self_seconds": 0.000418364,
+      "cumulative_seconds": 0.000626404
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 201,
+      "function": "_to_node",
+      "primitive_calls": 1274,
+      "calls": 1274,
+      "self_seconds": 0.000407843,
+      "cumulative_seconds": 0.0006253630000000001
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 83,
+      "function": "<genexpr>",
+      "primitive_calls": 1274,
+      "calls": 1274,
+      "self_seconds": 0.000541004,
+      "cumulative_seconds": 0.000541004
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 8184,
+      "function": "unique",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000191,
+      "cumulative_seconds": 0.000540641
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 169,
+      "function": "_unpack_schema",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.0005005610000000001,
+      "cumulative_seconds": 0.000535601
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_ternary.py",
+      "line": 65,
+      "function": "_coerce_if_needed",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 9.572000000000001e-05,
+      "cumulative_seconds": 0.000488962
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/substrait/reln_set.py",
+      "line": 29,
+      "function": "operation_key",
+      "primitive_calls": 819,
+      "calls": 819,
+      "self_seconds": 0.000484961,
+      "cumulative_seconds": 0.000484961
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 580,
+      "function": "_normalize_conditional_branch",
+      "primitive_calls": 2970,
+      "calls": 2970,
+      "self_seconds": 0.000473242,
+      "cumulative_seconds": 0.000473242
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine.py",
+      "line": 350,
+      "function": "name",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.000472123,
+      "cumulative_seconds": 0.000472123
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_api_builder_base.py",
+      "line": 20,
+      "function": "__init__",
+      "primitive_calls": 2405,
+      "calls": 2405,
+      "self_seconds": 0.000457842,
+      "cumulative_seconds": 0.000457842
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 52,
+      "function": "validate_output_fields",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00031176200000000004,
+      "cumulative_seconds": 0.00045740300000000005
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/constants.py",
+      "line": 124,
+      "function": "unknown_sentinel_for",
+      "primitive_calls": 455,
+      "calls": 455,
+      "self_seconds": 0.000262402,
+      "cumulative_seconds": 0.000439322
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/types.py",
+      "line": 194,
+      "function": "is_narwhals_lazyframe",
+      "primitive_calls": 498,
+      "calls": 498,
+      "self_seconds": 0.00030824000000000004,
+      "cumulative_seconds": 0.00042844000000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/api_builder_base.py",
+      "line": 87,
+      "function": "_coerce_if_needed",
+      "primitive_calls": 3248,
+      "calls": 3248,
+      "self_seconds": 0.000410281,
+      "cumulative_seconds": 0.000410281
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 101,
+      "function": "ordering_keys",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00040908100000000005,
+      "cumulative_seconds": 0.00040908100000000005
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 34,
+      "function": "__init__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00025912,
+      "cumulative_seconds": 0.00040192
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 348,
+      "function": "<genexpr>",
+      "primitive_calls": 728,
+      "calls": 728,
+      "self_seconds": 0.00028856000000000004,
+      "cumulative_seconds": 0.00039604
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_nodes/extensions_mountainash/reln_ext_ma_util.py",
+      "line": 36,
+      "function": "operation_key",
+      "primitive_calls": 2160,
+      "calls": 2160,
+      "self_seconds": 0.000382681,
+      "cumulative_seconds": 0.000382681
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 165,
+      "function": "check_assertions",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00037808000000000004,
+      "cumulative_seconds": 0.00037808000000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/api_builders/rel_api_builder_base.py",
+      "line": 23,
+      "function": "_node",
+      "primitive_calls": 2405,
+      "calls": 2405,
+      "self_seconds": 0.00037784,
+      "cumulative_seconds": 0.00037784
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_scalar_arithmetic.py",
+      "line": 24,
+      "function": "_validated_options",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000296163,
+      "cumulative_seconds": 0.000375644
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_scalar_ternary.py",
+      "line": 96,
+      "function": "_extract_unknown_options",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000299881,
+      "cumulative_seconds": 0.000373321
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/constants.py",
+      "line": 78,
+      "function": "is_numeric",
+      "primitive_calls": 730,
+      "calls": 730,
+      "self_seconds": 0.00036104100000000004,
+      "cumulative_seconds": 0.00036104100000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/descriptor.py",
+      "line": 51,
+      "function": "__get__",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000276363,
+      "cumulative_seconds": 0.00034124400000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 130,
+      "function": "_active_dimensions",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00033920200000000004,
+      "cumulative_seconds": 0.00033920200000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 183,
+      "function": "get_dimension",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.000331522,
+      "cumulative_seconds": 0.000331522
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 300,
+      "function": "<genexpr>",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.00032736200000000004,
+      "cumulative_seconds": 0.00032736200000000004
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/diagnostics.py",
+      "line": 47,
+      "function": "records",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.00031720100000000003,
+      "cumulative_seconds": 0.00031720100000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 50,
+      "function": "_normalize_columns",
+      "primitive_calls": 819,
+      "calls": 819,
+      "self_seconds": 0.000267122,
+      "cumulative_seconds": 0.000302002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine.py",
+      "line": 385,
+      "function": "_post_opt_callback",
+      "primitive_calls": 1266,
+      "calls": 1266,
+      "self_seconds": 0.000288361,
+      "cumulative_seconds": 0.000288361
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 152,
+      "function": "selection_is_truncated",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000288241,
+      "cumulative_seconds": 0.000288241
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 237,
+      "function": "_set_dims",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.000284083,
+      "cumulative_seconds": 0.000284083
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/type_context.py",
+      "line": 29,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.000281241,
+      "cumulative_seconds": 0.000281241
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/backends/relation_systems/base.py",
+      "line": 18,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.00027996300000000004,
+      "cumulative_seconds": 0.00027996300000000004
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 132,
+      "function": "check_policy_config",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000276882,
+      "cumulative_seconds": 0.000276882
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 245,
+      "function": "_normalize_set_columns",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 9.828e-05,
+      "cumulative_seconds": 0.000270001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/diagnostics.py",
+      "line": 44,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.000257441,
+      "cumulative_seconds": 0.000257441
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/backends/expression_systems/base.py",
+      "line": 46,
+      "function": "__init__",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.000254001,
+      "cumulative_seconds": 0.000254001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.3160000000000001e-05,
+      "cumulative_seconds": 0.000229921
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/various.py",
+      "line": 726,
+      "function": "require_same_type",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.00019320100000000002,
+      "cumulative_seconds": 0.00022528100000000003
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 208,
+      "function": "_co_fields",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000183281,
+      "cumulative_seconds": 0.00022340100000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 147,
+      "function": "_validate_context_contracts",
+      "primitive_calls": 92,
+      "calls": 92,
+      "self_seconds": 0.00022120100000000003,
+      "cumulative_seconds": 0.00022120100000000003
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/capabilities/registry.py",
+      "line": 720,
+      "function": "<genexpr>",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.00021604100000000001,
+      "cumulative_seconds": 0.00021604100000000001
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 175,
+      "function": "_validate_unique_names",
+      "primitive_calls": 92,
+      "calls": 92,
+      "self_seconds": 0.000163801,
+      "cumulative_seconds": 0.00021028100000000001
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 267,
+      "function": "_assert_set_columns_non_null",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 9.32e-05,
+      "cumulative_seconds": 0.000205562
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 302,
+      "function": "<genexpr>",
+      "primitive_calls": 1175,
+      "calls": 1175,
+      "self_seconds": 0.00019892,
+      "cumulative_seconds": 0.00019892
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 143,
+      "function": "check_priority",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.00019248,
+      "cumulative_seconds": 0.00019248
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 276,
+      "function": "<genexpr>",
+      "primitive_calls": 728,
+      "calls": 728,
+      "self_seconds": 0.00019108000000000002,
+      "cumulative_seconds": 0.00019108000000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/filter/engine.py",
+      "line": 147,
+      "function": "_validate_limit",
+      "primitive_calls": 720,
+      "calls": 720,
+      "self_seconds": 0.00017972000000000002,
+      "cumulative_seconds": 0.00017972000000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/context.py",
+      "line": 44,
+      "function": "_validate_boolean_coercion",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.000166001,
+      "cumulative_seconds": 0.000178841
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/primes.py",
+      "line": 68,
+      "function": "get_prime",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 0.00014576000000000001,
+      "cumulative_seconds": 0.00017528000000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 192,
+      "function": "apply_cardinality",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000173761,
+      "cumulative_seconds": 0.000173761
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.164e-05,
+      "cumulative_seconds": 0.00017332100000000002
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/dag/dag_relation.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 0.00013196,
+      "cumulative_seconds": 0.00016904000000000002
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/frame.py",
+      "line": 4718,
+      "function": "<genexpr>",
+      "primitive_calls": 542,
+      "calls": 542,
+      "self_seconds": 0.00015412000000000002,
+      "cumulative_seconds": 0.00015412000000000002
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/constants.py",
+      "line": 113,
+      "function": "sentinels_for",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 8.000200000000001e-05,
+      "cumulative_seconds": 0.000153603
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/relation.py",
+      "line": 85,
+      "function": "_to_relation_node",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.00010776000000000001,
+      "cumulative_seconds": 0.00014228
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 29,
+      "function": "__init__",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.00013752100000000001,
+      "cumulative_seconds": 0.00013752100000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 600,
+      "function": "_normalize_if_then_result",
+      "primitive_calls": 810,
+      "calls": 810,
+      "self_seconds": 0.00013228,
+      "cumulative_seconds": 0.00013228
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 65,
+      "function": "resolved_context_field",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 0.000132,
+      "cumulative_seconds": 0.000132
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 171,
+      "function": "no_optimizations",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 7.196000000000001e-05,
+      "cumulative_seconds": 0.0001264
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/engine.py",
+      "line": 219,
+      "function": "_na_flag_fields",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 0.00010760000000000001,
+      "cumulative_seconds": 0.00012244
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/functions/eager.py",
+      "line": 33,
+      "function": "_normalize_horizontal_concat",
+      "primitive_calls": 225,
+      "calls": 225,
+      "self_seconds": 0.00011856,
+      "cumulative_seconds": 0.00011856
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/base_egress_strategy.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 8.24e-06,
+      "cumulative_seconds": 0.00010972000000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/expression_api/api_builders/substrait/api_bldr_conditional.py",
+      "line": 82,
+      "function": "__init__",
+      "primitive_calls": 637,
+      "calls": 637,
+      "self_seconds": 0.0001088,
+      "cumulative_seconds": 0.0001088
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/deprecation.py",
+      "line": 140,
+      "function": "_rename_keyword_argument",
+      "primitive_calls": 273,
+      "calls": 273,
+      "self_seconds": 0.00010860000000000001,
+      "cumulative_seconds": 0.00010860000000000001
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 36,
+      "function": "MaterializationPurpose",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 8.000000000000001e-06,
+      "cumulative_seconds": 0.00010552100000000001
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/result.py",
+      "line": 39,
+      "function": "__init__",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 8.496e-05,
+      "cumulative_seconds": 8.496e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 45,
+      "function": "validate_priority_field",
+      "primitive_calls": 360,
+      "calls": 360,
+      "self_seconds": 8.004e-05,
+      "cumulative_seconds": 8.004e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 207,
+      "function": "simplify_expression",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 7.86e-05,
+      "cumulative_seconds": 7.86e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/opt_flags.py",
+      "line": 106,
+      "function": "update",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 7.352e-05,
+      "cumulative_seconds": 7.352e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 28,
+      "function": "ExecutionForm",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 7.4e-06,
+      "cumulative_seconds": 7.176e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/dataframe/frame.py",
+      "line": 1278,
+      "function": "__iter__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 6.720000000000001e-05,
+      "cumulative_seconds": 6.720000000000001e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/dtypes/target_polars.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 5.9721000000000006e-05,
+      "cumulative_seconds": 6.2161e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_dependencies.py",
+      "line": 202,
+      "function": "_might_be",
+      "primitive_calls": 7,
+      "calls": 7,
+      "self_seconds": 1.396e-05,
+      "cumulative_seconds": 5.4441e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/base_egress_strategy.py",
+      "line": 28,
+      "function": "BaseEgressDataFrame",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.92e-05,
+      "cumulative_seconds": 5.2680000000000004e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/source_shape.py",
+      "line": 21,
+      "function": "<genexpr>",
+      "primitive_calls": 11,
+      "calls": 11,
+      "self_seconds": 2.048e-05,
+      "cumulative_seconds": 5.072e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/lattice.py",
+      "line": 21,
+      "function": "__init__",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 4.388e-05,
+      "cumulative_seconds": 4.388e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/dimension.py",
+      "line": 169,
+      "function": "_validate_hit_policy",
+      "primitive_calls": 92,
+      "calls": 92,
+      "self_seconds": 4.356e-05,
+      "cumulative_seconds": 4.356e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/limitations.py",
+      "line": 20,
+      "function": "_Boundary",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.560000000000001e-06,
+      "cumulative_seconds": 4.3320000000000005e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/set_wildcard.py",
+      "line": 86,
+      "function": "validate_set_columns",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 4.24e-05,
+      "cumulative_seconds": 4.24e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/typing_extensions.py",
+      "line": 3366,
+      "function": "_collect_parameters",
+      "primitive_calls": 2,
+      "calls": 2,
+      "self_seconds": 1.3800000000000002e-05,
+      "cumulative_seconds": 4.2000000000000004e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/schema_inference.py",
+      "line": 30,
+      "function": "SchemaTypeStatus",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.32e-06,
+      "cumulative_seconds": 4.02e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 13,
+      "function": "StructuredRoot",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.360000000000001e-06,
+      "cumulative_seconds": 3.812e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 20,
+      "function": "StructuredCarrier",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.52e-06,
+      "cumulative_seconds": 3.7080000000000004e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "line": 48,
+      "function": "<genexpr>",
+      "primitive_calls": 54,
+      "calls": 54,
+      "self_seconds": 3e-05,
+      "cumulative_seconds": 3.548e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/dataframe.py",
+      "line": 190,
+      "function": "_parse_schema_overrides",
+      "primitive_calls": 182,
+      "calls": 182,
+      "self_seconds": 3.504e-05,
+      "cumulative_seconds": 3.504e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 58,
+      "function": "StructuredActionConsumer",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.1600000000000002e-06,
+      "cumulative_seconds": 3.308e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/frictionless.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.8800000000000002e-05,
+      "cumulative_seconds": 3.248e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/__init__.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 9.12e-06,
+      "cumulative_seconds": 3.192e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 41,
+      "function": "_DeclaredTypeSentinel",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.08e-06,
+      "cumulative_seconds": 3.0600000000000005e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_dependencies.py",
+      "line": 208,
+      "function": "<genexpr>",
+      "primitive_calls": 25,
+      "calls": 25,
+      "self_seconds": 2.192e-05,
+      "cumulative_seconds": 2.8681000000000002e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 51,
+      "function": "is_namedtuple",
+      "primitive_calls": 2,
+      "calls": 2,
+      "self_seconds": 2.3e-05,
+      "cumulative_seconds": 2.788e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/lazyframe/engine_config.py",
+      "line": 64,
+      "function": "_eager_engine",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 2.6161000000000002e-05,
+      "cumulative_seconds": 2.6161000000000002e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/core/hit_policy.py",
+      "line": 56,
+      "function": "<genexpr>",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 2.5520000000000003e-05,
+      "cumulative_seconds": 2.5520000000000003e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/lazy_loader/__init__.py",
+      "line": 24,
+      "function": "attach",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.3480000000000001e-05,
+      "cumulative_seconds": 2.2800000000000002e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/pydata/egress/egress_pydata_from_polars.py",
+      "line": 56,
+      "function": "EgressFromPolars",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.1640000000000003e-05,
+      "cumulative_seconds": 2.1640000000000003e-05
+    },
+    {
+      "file": "/home/ubuntu/git/mountainash-io/mountainash-rules/src/mountainash_rules/engines/accumulator/lattice.py",
+      "line": 33,
+      "function": "combinations",
+      "primitive_calls": 91,
+      "calls": 91,
+      "self_seconds": 1.648e-05,
+      "cumulative_seconds": 1.648e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/_virtualenv.py",
+      "line": 51,
+      "function": "find_spec",
+      "primitive_calls": 25,
+      "calls": 25,
+      "self_seconds": 1.4720000000000001e-05,
+      "cumulative_seconds": 1.4720000000000001e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/typing_extensions.py",
+      "line": 3303,
+      "function": "_is_unpacked_typevartuple",
+      "primitive_calls": 6,
+      "calls": 6,
+      "self_seconds": 4.440000000000001e-06,
+      "cumulative_seconds": 1.3120000000000001e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 51,
+      "function": "EmittedField",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.88e-06,
+      "cumulative_seconds": 1.3000000000000001e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/relation_api/optimisation_registry.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.1720000000000001e-05,
+      "cumulative_seconds": 1.232e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/_fingerprint.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.112e-05,
+      "cumulative_seconds": 1.112e-05
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/typing_extensions.py",
+      "line": 3281,
+      "function": "_has_generic_or_protocol_as_origin",
+      "primitive_calls": 2,
+      "calls": 2,
+      "self_seconds": 8.6e-06,
+      "cumulative_seconds": 1.0680000000000001e-05
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 88,
+      "function": "ConformResult",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 5.240000000000001e-06,
+      "cumulative_seconds": 9.2e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 60,
+      "function": "ConformDrift",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 5.04e-06,
+      "cumulative_seconds": 8.200000000000001e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 20,
+      "function": "MissingFieldsError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.56e-06,
+      "cumulative_seconds": 7.96e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 125,
+      "function": "ConformTransformError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.16e-06,
+      "cumulative_seconds": 6.16e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/source_shape.py",
+      "line": 36,
+      "function": "__post_init__",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.52e-06,
+      "cumulative_seconds": 5.1600000000000006e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/dag/dag_relation.py",
+      "line": 22,
+      "function": "DAGRelation",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 4.360000000000001e-06,
+      "cumulative_seconds": 4.360000000000001e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 46,
+      "function": "ExactFieldsMismatchError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 3.8e-06,
+      "cumulative_seconds": 3.8e-06
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/polars/_utils/construction/utils.py",
+      "line": 54,
+      "function": "<genexpr>",
+      "primitive_calls": 4,
+      "calls": 4,
+      "self_seconds": 2.04e-06,
+      "cumulative_seconds": 3.52e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 33,
+      "function": "ExtraFieldsError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.12e-06,
+      "cumulative_seconds": 3.2000000000000003e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 76,
+      "function": "ConformOutputContract",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.64e-06,
+      "cumulative_seconds": 2.64e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/diagnostics.py",
+      "line": 43,
+      "function": "OperationDiagnosticTrace",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.48e-06,
+      "cumulative_seconds": 2.48e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 31,
+      "function": "StructuredFieldPlan",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.48e-06,
+      "cumulative_seconds": 2.48e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 97,
+      "function": "ConformCollection",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.28e-06,
+      "cumulative_seconds": 2.28e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 111,
+      "function": "NoMatchingFieldsError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.4400000000000002e-06,
+      "cumulative_seconds": 2.28e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/contract.py",
+      "line": 41,
+      "function": "ConformContract",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.0000000000000003e-06,
+      "cumulative_seconds": 2.0000000000000003e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 19,
+      "function": "TypeDrift",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.8800000000000002e-06,
+      "cumulative_seconds": 1.8800000000000002e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 91,
+      "function": "MaterializationScope",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.76e-06,
+      "cumulative_seconds": 1.76e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 48,
+      "function": "KeyDrift",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.72e-06,
+      "cumulative_seconds": 1.72e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/diagnostics.py",
+      "line": 30,
+      "function": "OperationDiagnostic",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.4400000000000002e-06,
+      "cumulative_seconds": 1.4400000000000002e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/source_shape.py",
+      "line": 28,
+      "function": "SourceShape",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.4000000000000001e-06,
+      "cumulative_seconds": 1.4000000000000001e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 69,
+      "function": "FieldBuildResult",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.12e-06,
+      "cumulative_seconds": 1.12e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 82,
+      "function": "StructuredPlanResolver",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.08e-06,
+      "cumulative_seconds": 1.08e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 73,
+      "function": "StructuredCellResolution",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.0000000000000002e-06,
+      "cumulative_seconds": 1.0000000000000002e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 79,
+      "function": "DiagnosticFrameView",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 1.0000000000000002e-06,
+      "cumulative_seconds": 1.0000000000000002e-06
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/expressions.py",
+      "line": 62,
+      "function": "MaterializationResidueCheck",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 9.600000000000001e-07,
+      "cumulative_seconds": 9.600000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/drift.py",
+      "line": 33,
+      "function": "ColumnDrift",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 9.600000000000001e-07,
+      "cumulative_seconds": 9.600000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/materialization.py",
+      "line": 63,
+      "function": "NativeExecutionValue",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 9.600000000000001e-07,
+      "cumulative_seconds": 9.600000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/relations/core/structured_lineage.py",
+      "line": 24,
+      "function": "TransportLineagePolicy",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 8.000000000000001e-07,
+      "cumulative_seconds": 8.000000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 65,
+      "function": "UnresolvedSourceTypeError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 8.000000000000001e-07,
+      "cumulative_seconds": 8.000000000000001e-07
+    },
+    {
+      "file": "/home/ubuntu/.local/share/hatch/env/virtual/mountainash/Hv1blgC9/test.py3.12/lib/python3.12/site-packages/tzdata/__init__.py",
+      "line": 1,
+      "function": "<module>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.800000000000001e-07,
+      "cumulative_seconds": 6.800000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 16,
+      "function": "ConformError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.800000000000001e-07,
+      "cumulative_seconds": 6.800000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 168,
+      "function": "SchemaDriftError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.4e-07,
+      "cumulative_seconds": 6.4e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 96,
+      "function": "UnsupportedStructuredTransportUse",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.4e-07,
+      "cumulative_seconds": 6.4e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/core/registries.py",
+      "line": 32,
+      "function": "__init__",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 6.000000000000001e-07,
+      "cumulative_seconds": 6.000000000000001e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/structured_transport.py",
+      "line": 65,
+      "function": "InvalidStructuredValue",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 5.6e-07,
+      "cumulative_seconds": 5.6e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/conform/errors.py",
+      "line": 77,
+      "function": "IncompatibleSourceTypeError",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 5.6e-07,
+      "cumulative_seconds": 5.6e-07
+    },
+    {
+      "file": "/tmp/mountainash-item232-baseline-80dc283/src/mountainash/typespec/source_shape.py",
+      "line": 43,
+      "function": "<genexpr>",
+      "primitive_calls": 1,
+      "calls": 1,
+      "self_seconds": 2.8e-07,
+      "cumulative_seconds": 2.8e-07
+    }
+  ]
+}

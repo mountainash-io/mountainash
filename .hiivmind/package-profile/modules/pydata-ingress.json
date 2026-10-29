@@ -1,0 +1,31 @@
+{
+  "id": "pydata.ingress",
+  "path": "src/mountainash/pydata/ingress/",
+  "summary": "Python data ingress: 11 handlers converting Python types (dicts, lists, dataclasses, Pydantic, named tuples, etc.) to Polars DataFrames. Factory pattern with three-tier hybrid conversion for custom types.",
+  "role": "io",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": ["PydataIngress", "PydataIngressFactory", "BasePydataIngressHandler"],
+  "key_functions": [],
+  "dependencies": ["core", "typespec"],
+  "dependents": ["toplevel"],
+  "extension_points": [],
+  "lifecycle_notes": [],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [],
+  "source_hash": "93258f69592c625af66015d8936dae44e88e497f",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

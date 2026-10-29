@@ -10,12 +10,12 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Optional, Protocol, TYPE_CHECKING
+from typing import Any, Optional, Protocol, TYPE_CHECKING
+
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
-
-
 class MountainAshScalarStringAPIBuilderProtocol(Protocol):
     """Builder protocol for Mountainash string extensions.
 
@@ -56,12 +56,81 @@ class MountainAshScalarStringAPIBuilderProtocol(Protocol):
     def len_chars(self) -> BaseExpressionAPI:
         """Alias for char_length() — Polars compatibility."""
         ...
+    def parse_list(
+        self,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Split and parse lexical list text."""
+        ...
 
     # Convenience methods (AST-level composition)
+    def zfill(self, length: int) -> BaseExpressionAPI:
+        """Left-pad with zeros."""
+        ...
+
     def strip_prefix(self, prefix: str) -> BaseExpressionAPI:
         """Remove prefix from string if present."""
         ...
 
     def strip_suffix(self, suffix: str) -> BaseExpressionAPI:
         """Remove suffix from string if present."""
+        ...
+
+    def to_date(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to date using format string."""
+        ...
+
+    def to_datetime(
+        self,
+        format: str,
+        timezone: Optional[str] = None,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to datetime using format string."""
+        ...
+
+    def to_time(
+        self,
+        format: str,
+        *,
+        field_name: Optional[str] = None,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse string to time using format string."""
+        ...
+
+    def to_integer(self, base: int = 10) -> BaseExpressionAPI:
+        """Parse string to integer with given base."""
+        ...
+
+    def json_decode(self, dtype: Any = None) -> BaseExpressionAPI:
+        """Parse JSON string into structured data."""
+        ...
+
+    def json_path_match(self, json_path: str) -> BaseExpressionAPI:
+        """Extract value from JSON string via JSONPath."""
+        ...
+
+    def encode(self, encoding: str) -> BaseExpressionAPI:
+        """Encode string to hex or base64."""
+        ...
+
+    def decode(self, encoding: str, *, strict: bool = True) -> BaseExpressionAPI:
+        """Decode hex or base64 string to binary."""
+        ...
+
+    def extract_groups(self, pattern: str) -> BaseExpressionAPI:
+        """Extract named capture groups into struct column."""
         ...

@@ -45,6 +45,13 @@ class SubstraitScalarLogarithmicAPIBuilderProtocol(Protocol):
         """
         ...
 
+    def log1p(self) -> BaseExpressionAPI:
+        """Natural logarithm of (1 + x). More accurate than log(1+x) for small x.
+
+        Substrait: log1p
+        """
+        ...
+
     def log(
         self,
         base: Union[BaseExpressionAPI, ExpressionNode, Any, float],

@@ -16,8 +16,12 @@ Example:
     # Egress: DataFrame → Python
     from mountainash.pydata.egress.egress_factory import EgressFactory
 """
+
 from __future__ import annotations
+
+from .ingress.pydata_ingress import PydataIngress
 
 __all__: list[str] = [
     # Public API will be added as modules are stabilized
+    "PydataIngress"
 ]

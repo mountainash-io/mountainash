@@ -76,16 +76,25 @@ class MountainAshScalarTernaryAPIBuilderProtocol(Protocol):
 
     def t_is_in(
         self,
-        values: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
     ) -> BaseExpressionAPI:
-        """Ternary membership test - returns -1/0/1."""
+        """Ternary membership test - returns -1/0/1.
+
+        Variadic: accepts ``t_is_in([1,2,3])`` or ``t_is_in(1,2,3)``.
+
+        A bare expression as the sole argument raises at build time
+        (use ``.list.t_contains()`` for list-column membership).
+        """
         ...
 
     def t_is_not_in(
         self,
-        values: Union[BaseExpressionAPI, ExpressionNode, Any],
+        *values: Union[BaseExpressionAPI, ExpressionNode, Any],
     ) -> BaseExpressionAPI:
-        """Ternary non-membership test - returns -1/0/1."""
+        """Ternary non-membership test - returns -1/0/1.
+
+        Variadic mirror of ``t_is_in``.
+        """
         ...
 
     # ========================================
@@ -142,27 +151,27 @@ class MountainAshScalarTernaryAPIBuilderProtocol(Protocol):
     # Conversions (Ternary -> Boolean)
     # ========================================
 
-    def is_true(self) -> BaseExpressionAPI:
+    def t_is_true(self) -> BaseExpressionAPI:
         """TRUE(1) -> True, else -> False."""
         ...
 
-    def is_false(self) -> BaseExpressionAPI:
+    def t_is_false(self) -> BaseExpressionAPI:
         """FALSE(-1) -> True, else -> False."""
         ...
 
-    def is_unknown(self) -> BaseExpressionAPI:
+    def t_is_unknown(self) -> BaseExpressionAPI:
         """UNKNOWN(0) -> True, else -> False."""
         ...
 
-    def is_known(self) -> BaseExpressionAPI:
+    def t_is_known(self) -> BaseExpressionAPI:
         """TRUE or FALSE -> True, UNKNOWN -> False."""
         ...
 
-    def maybe_true(self) -> BaseExpressionAPI:
+    def t_maybe_true(self) -> BaseExpressionAPI:
         """TRUE or UNKNOWN -> True, FALSE -> False."""
         ...
 
-    def maybe_false(self) -> BaseExpressionAPI:
+    def t_maybe_false(self) -> BaseExpressionAPI:
         """FALSE or UNKNOWN -> True, TRUE -> False."""
         ...
 

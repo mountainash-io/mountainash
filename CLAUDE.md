@@ -2,24 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-### Code Intelligence
+## Type-checker work (explicit request only)
 
-Prefer LSP over Grep/Glob/Read for code navigation:
-- `goToDefinition` / `goToImplementation` to jump to source
-- `findReferences` to see all usages across the codebase
-- `workspaceSymbol` to find where something is defined
-- `documentSymbol` to list all symbols in a file
-- `hover` for type info without reading the file
-- `incomingCalls` / `outgoingCalls` for call hierarchy
+Do not run mypy or other static type checkers, compare diagnostic baselines,
+or fix type-checker-only findings during ordinary development, debugging,
+review or completion checks unless the user explicitly requests that work.
+Do not add casts, annotations, ignores or refactors solely to appease a checker.
+If CI reports a type-checker failure, report it without starting remediation.
+Verify requested behavior with targeted tests and runtime checks; fix actual
+runtime/import failures in scope. This policy supersedes type-checking gates
+in older plans and checklists.
 
-Before renaming or changing a function signature, use
-`findReferences` to find all call sites first.
+## Superpowers Specs & Plans Location
 
-Use Grep/Glob only for text/pattern searches (comments,
-strings, config values) where LSP doesn't help.
+Save all superpowers specs and plans to the **mountainash-central** repo, not this repo:
 
-After writing or editing code, check LSP diagnostics before
-moving on. Fix any type errors or missing imports immediately.
+- **Specs:** `mountainash-central/04.planning/mountainash/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+- **Plans:** `mountainash-central/04.planning/mountainash/superpowers/plans/YYYY-MM-DD-<topic>.md`
+
+Never save specs or plans under `docs/superpowers/` in this repo. The central repo is the single source of truth for all planning documents.
+
+## Central Documentation Workflow (MANDATORY)
+
+- Work on central documentation only in the primary local `../mountainash-central` checkout, on its `main` branch.
+- Edit and commit documentation directly to `main`. Do not create or use documentation branches, additional worktrees, or docs PRs.
+- A code implementation branch/worktree does not change the documentation location: specs, plans, principles, backlog records and other central docs still go to the primary `mountainash-central` checkout.
+- Stage and commit only the documentation changes owned by the current task. Preserve unrelated local commits and uncommitted work; do not stash, reset or overwrite another thread's work to synchronize the checkout.
+- This directive overrides generic branching, worktree and PR workflows for central documentation. Do not move docs into another checkout to avoid a synchronization issue.
+
 
 
 ## Design Principles (MANDATORY)
@@ -34,105 +44,123 @@ moving on. Fix any type errors or missing imports immediately.
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash-expressions/`
+`../mountainash-central/01.principles/mountainash/`
 
-See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash-expressions/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
+
+Each category has `core/` (cross-cutting) and module-specific subdirectories. See each category's INDEX.md for details and the root README.md for a by-module view.
 
 ### a. Architecture
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| substrait-first-design.md | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
-| minimal-ast.md | ENFORCED | Only 7 node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
-| three-layer-separation.md | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
-| unified-visitor.md | ADOPTED | Single visitor dispatches all node types via function registry lookup |
-| relational-ast.md | ENFORCED | 10 relational node types mapping to Substrait logical relations; ExtensionRelNode for non-Substrait ops |
-| relation-visitor-composition.md | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
-| wiring-matrix.md | ADOPTED | Every operation must be wired through all six architecture layers |
-| unified-package-roadmap.md | ADOPTED | Prioritized roadmap: wiring → shared infra → operations → alignment → release |
-| relation-dag-orchestrator.md | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes); not a parallel visitor stack |
-| two-edge-graph-model.md | ENFORCED | RelationDAG keeps `dependency_edges` (drive collect order) and `constraint_edges` (FK metadata) sharply separate; no `dag.edges` shortcut |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| substrait-first-design.md | core | ENFORCED | All operations align with Substrait specification; custom ops in separate extension namespace |
+| three-layer-separation.md | core | ENFORCED | Protocol → API Builder → Backend; each layer has a single responsibility |
+| capability-as-call-property.md | core | PROPOSED | Capability is a property of a bound call, not one parameter; lookup vs "what forbids this call" are two APIs |
+| minimal-ast.md | expressions | ENFORCED | 9 expression node types; ScalarFunctionNode handles 90% of operations via function key ENUMs |
+| unified-visitor.md | expressions | ADOPTED | Single visitor dispatches all expression node types via function registry lookup |
+| wiring-matrix.md | expressions | ADOPTED | Every expression operation must be wired through all six architecture layers |
+| gate-then-lower.md | expressions | PROPOSED | Gate the canonical node, then lower into primitives — never expand at build time |
+| relational-ast.md | relations | ENFORCED | 10 core Substrait-aligned relation nodes plus Mountainash extension leaf nodes |
+| relation-visitor-composition.md | relations | ENFORCED | Relation visitor composes with expression visitor for embedded expression compilation |
+| relation-dag-orchestrator.md | dag | ADOPTED | RelationDAG is a thin orchestrator over the existing visitor (+1 ref_resolver param, +2 leaf nodes) |
+| two-edge-graph-model.md | dag | ENFORCED | RelationDAG keeps `dependency_edges` and `constraint_edges` sharply separate |
 
 ### b. Type System
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| function-key-enums.md | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
-| protocol-as-contract.md | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
-| expression-type-generics.md | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types; Ibis uses domain-specific types |
-| node-type-design.md | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
-| typespec-metadata-standard.md | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification; FieldSpec carries standard + custom types; ForeignKey/ForeignKeyReference for cross-table relationships; enum_weights for weighted enums |
-| lossless-frictionless-storage.md | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts (not TypeSpec) so byte-equivalent round-trip is preserved; conversion to TypeSpec is lazy at consumer site |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| protocol-as-contract.md | core | ENFORCED | Protocol classes are the source of truth for what a backend must implement |
+| explicit-enforcement-role.md | core | ADOPTED | A field that documents must not also decide; CapabilityFact.enforcement is an explicit closed enum defaulting to the strict GATE role |
+| function-key-enums.md | expressions | ENFORCED | Every operation has an ENUM key (FKEY_* prefix); type-safe dispatch and registry lookup |
+| expression-type-generics.md | expressions | ENFORCED | Protocols are generic over ExpressionT; backends bind concrete types |
+| node-type-design.md | expressions | ADOPTED | Pydantic-based nodes carry metadata but no logic beyond accept() |
+| three-valued-semantics.md | expressions | ENFORCED | TRUE=1, UNKNOWN=0, FALSE=-1; sentinel integer values, not NULL propagation |
+| booleanization.md | expressions | ENFORCED | Ternary expressions auto-booleanize at compile time; six built-in booleanizers |
+| sentinel-values.md | expressions | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
+| bidirectional-coercion.md | expressions | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
+| typespec-metadata-standard.md | typespec | ADOPTED | TypeSpec is the serializable Frictionless-aligned type specification |
+| lossless-frictionless-storage.md | typespec | ADOPTED | `DataResource.table_schema` stores raw Frictionless schema dicts; conversion to TypeSpec is lazy |
+| frictionless-structural-fidelity.md | typespec | ENFORCED | TypeSpec mirrors Frictionless Table Schema structurally; flat fields, no custom submodels |
 
 ### c. API Design
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| build-then-compile.md | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
-| build-then-collect.md | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
-| build-then-conform.md | ENFORCED | ma.conform({...}).apply(df) compiles TypeSpec to relation operations; replaces old schema backend strategies |
-| fluent-builder-pattern.md | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
-| operator-overloading.md | ENFORCED | Python operators map to named methods; reversed operators supported |
-| short-aliases.md | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
-| scalar-terminal-composition.md | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions; no per-backend dispatch |
-| free-function-entrypoints.md | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| fluent-builder-pattern.md | core | ENFORCED | Method chaining via __getattr__ dispatch; explicit namespaces via descriptors |
+| polars-api-substrait-ast.md | core | ADOPTED | Public API mirrors Polars conventions; internal AST stays Substrait-aligned; API builder is the translation boundary |
+| build-then-compile.md | expressions | ENFORCED | Expressions build a backend-agnostic AST; .compile(df) detects backend and produces native expressions |
+| operator-overloading.md | expressions | ENFORCED | Python operators map to named methods; reversed operators supported |
+| short-aliases.md | expressions | ENFORCED | All aliases live in extension builders; Substrait builders contain only canonical names |
+| free-function-entrypoints.md | expressions | ADOPTED | `entrypoints.py` conventions: when to use free functions vs fluent methods |
+| build-then-collect.md | relations | ENFORCED | Relations build a backend-agnostic plan tree; .collect()/.to_polars() triggers visitor compilation |
+| scalar-terminal-composition.md | relations | ADOPTED | Scalar terminals on `Relation` are thin compositions over aggregate expression functions |
+| build-then-conform.md | conform | ENFORCED | ma.relation(df).conform(spec).to_polars() — conform is a Relation method producing ProjectRelNode; cross-backend automatic |
+| conform-contract.md | conform | ADOPTED | One contract model, four policy dimensions (extra_columns/missing_columns/data_type/keys); drift report (ConformDrift) is the evaluator's dual via collect_with_drift(); single reconciler resolve_conform_output |
 
-### d. Ternary Logic
+### d. Cross-Backend
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| three-valued-semantics.md | ENFORCED | TRUE=1, UNKNOWN=0, FALSE=-1; sentinel integer values, not NULL propagation |
-| booleanization.md | ENFORCED | Ternary expressions auto-booleanize at compile time; six built-in booleanizers |
-| sentinel-values.md | ADOPTED | t_col(name, unknown={...}) treats custom values as UNKNOWN |
-| bidirectional-coercion.md | ADOPTED | Boolean↔ternary coercion happens automatically at the API builder level |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| backend-detection.md | core | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
+| consistency-guarantees.md | core | ENFORCED | Same expression/relation must produce same logical result across all backends |
+| known-divergences.md | core | ADOPTED | Backend-specific quirks tracked via `KNOWN_EXPR_LIMITATIONS` registries and xfail markers |
+| upstream-fix-monitoring.md | core | ADOPTED | Link upstream issues, monitor changelogs, reconciliation audit for xfails |
+| arguments-vs-options.md | expressions | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options |
+| cross-type-joins.md | relations | ADOPTED | Joins accept any data type; automatic coercion at visit time |
 
-### e. Cross-Backend
+### e. Extension Model
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| backend-detection.md | ENFORCED | Automatic backend detection from DataFrame type; registered via decorator |
-| consistency-guarantees.md | ENFORCED | Same expression must produce same logical result across all backends |
-| known-divergences.md | ADOPTED | SQLite integer division, modulo sign semantics, Ibis type inference gaps, expression argument limitations tracked via `KNOWN_EXPR_LIMITATIONS` registries |
-| cross-type-joins.md | ADOPTED | Joins accept any data type; automatic coercion at visit time; execute_on for explicit control |
-| arguments-vs-options.md | ENFORCED | Arguments are visited expressions; options are raw literals; universally-literal params MUST be options; `_call_with_expr_support` + `KNOWN_EXPR_LIMITATIONS` registry enriches errors when backends reject expressions |
+| Document | Scope | Status | Summary |
+|----------|-------|--------|---------|
+| substrait-vs-mountainash.md | core | ENFORCED | Physical directory separation at every layer; FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums |
+| adding-operations.md | core | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
+| backend-composition.md | core | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
 
-### f. Extension Model
-
-| Document | Status | Summary |
-|----------|--------|---------|
-| substrait-vs-mountainash.md | ENFORCED | Physical directory separation at every layer; FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_* enums |
-| adding-operations.md | ADOPTED | Six-step process: enum → protocol → API builder → all backends → function mapping → tests |
-| backend-composition.md | ENFORCED | Each backend composes all protocol implementations via multiple inheritance |
-
-### g. Development Practices
+### f. Development Practices
 
 | Document | Status | Summary |
 |----------|--------|---------|
 | naming-conventions.md | ENFORCED | File prefixes (exn_, prtcl_, api_bldr_, expsys_), backend prefixes (pl_, ib_, nw_) |
 | testing-philosophy.md | ENFORCED | Cross-backend parametrized tests; xfail for known quirks; never skip or disable |
+| cross-backend-test-coverage.md | ENFORCED | Every new expression test must be cross-backend parametrized; Polars-only tests require explicit justification |
 | file-organisation.md | ADOPTED | 5-module package structure (expressions, relations, typespec, conform, pydata); expressions use three-layer mirror |
-| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends, TYPE_CHECKING for annotations; ruff FA+TCH enforcement |
+| import-conventions.md | ENFORCED | Four import categories; lazy_loader for __init__.py, lazy_imports for runtime optional backends |
+| typed-error-hierarchy.md | ADOPTED | MountainashError root; hybrid hierarchy (domain base where ≥2 errors); builtin-compat via MI; exceptions.py façade; boy-scout migration ratchet |
+| closed-by-default-verification.md | ADOPTED | Verification systems must fail on undiscovered items, not silently skip |
 
 ### h. Backlog
 
-| Document | Summary |
-|----------|---------|
-| polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
-| frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
+See [BACKLOG_INDEX.md](../mountainash-central/04.planning/mountainash/a.backlog/BACKLOG_INDEX.md) for prioritized items — full update history in that directory's `indexes/history.md`. Items organized into `active/`, `deferred/`, and `archive/` subdirectories.
 
 ### i. Competitor Analysis
 
 | Document | Status | Summary |
 |----------|--------|---------|
-| competitive-positioning.md | ADOPTED | Market landscape, Socratic strengths/weaknesses, feature gaps, positioning as "abstract data products" alongside Ibis/Narwhals/Pandera |
+| competitive-positioning.md | ADOPTED | Market landscape, strengths/weaknesses, positioning as "abstract data products" |
+| declarative-vs-imperative-landscape.md | REFERENCE | Two-axis (transformation/orchestration) declarative map of the Python field; referenced matrix + per-tool deep dive vs Ibis/Substrait/Polars/dbt/SQLMesh/Dagster/Frictionless/Pandera/dlt; semantic-layer cluster (MetricFlow/Cube/BSL/Malloy) with translate-out (OSI) + integrate-up (BSL/Ibis) opportunities; mountainash subsumes Ibis+Narwhals reach behind Polars syntax; novelty = DataPackage-as-result + two-edge DAG + conform-node |
+| semantic-layer-interchange-architecture.md | REFERENCE | OSI hub-and-spoke interop design: canonical SemanticModel + N adapters (not N²); hard seam = SQL-text metric ↔ AST measure (export free via Ibis/SQLGlot, import best-effort/lossy); reuses lossless-raw-storage + universal_types boundary-map + closed-by-default fidelity report; Tier-1 OSI, Tier-2 MetricFlow/BSL, long tail via OSI/Sidemantic; precedes brainstorm→spec gate |
+| substrait-interoperability-ingestion.md | REFERENCE | Expands substrait-first-design's to_substrait/from_substrait future-consideration: making mountainash a Substrait consumer/producer, not just aligned; unlocks SQL ingestion (no parser), engine interop (DuckDB/Velox/DataFusion/Arrow), portable serializable plans; codec = function_anchor↔FKEY map + Rel↔node (mapping not reimpl); ExtendedExpression is the metric-import surface; producer near-free via ibis-substrait; scope-discipline risk = stay logical, not an execution engine |
+| osi-specification-critique-swot.md | REFERENCE | Full OSI spec dissection (v0.1.1/v0.2.0.dev0): anatomy (datasets/relationships/fields/metrics/custom_extensions/ai_context), the dialect enum lumping 3 incompatible paradigms (SQL transpilable vs MDX OLAP vs MAQL LDM-context), "vendor-neutral envelope / vendor-specific payload" critique, SWOT, gap inventory; headline opportunity = Substrait ExtendedExpression as a neutral OSI dialect (mountainash leads, not just consumes); thoroughly referenced (MS Learn MDX, GoodData MAQL) |
+
+### j. Research
+
+| Document | Status | Summary |
+|----------|--------|---------|
+| introspection-driven-verification-patterns.md | REFERENCE | Prior art: 9 patterns for protocol/reflection-based test completeness |
+| r-ast-expression-architecture-comparison.md | REFERENCE | R's dplyr/data.table AST vs Python expression systems |
+| unified-package-roadmap.md | REFERENCE | Historical roadmap from the unified package migration |
 
 
 ## Package Structure
 
 ```
 src/mountainash/
-├── __init__.py                  # Top-level re-exports (col, lit, when, relation, conform, typespec, etc.)
-├── core/                        # Shared infrastructure (constants, types, enums, factories)
+├── __init__.py                  # Top-level re-exports (col, lit, when, relation, typespec, etc.)
+├── core/                        # Shared infrastructure (constants, types, enums, factories, io)
+│   └── dtypes/                 # Canonical type system: MountainashDtype canon, TypeTarget,
+│                               #   DtypeRegistry (schema/cast uses), parse_dtype/parse_cast_target,
+│                               #   NativeDtype, cast-safety table, 6 lazy per-target modules
 ├── expressions/                 # Expression AST (mature, ~25k lines, ~2850 tests)
 │   ├── core/                   # Nodes, protocols, API builders, function keys
 │   └── backends/               # Polars, Ibis, Narwhals ExpressionSystem implementations
@@ -144,167 +172,73 @@ src/mountainash/
 │   │   ├── relation_protocols/ # 9 protocol files + RelationSystem base (prtcl_relsys_*)
 │   │   ├── relation_api/       # Relation fluent API, GroupedRelation
 │   │   └── unified_visitor/    # UnifiedRelationVisitor (with optional ref_resolver kwarg)
-│   ├── dag/                    # NEW: RelationDAG orchestrator
+│   ├── dag/                    # RelationDAG orchestrator (pure orchestration, no file I/O)
 │   │   ├── dag.py              # RelationDAG, dependency_edges, constraint_edges, collect()
 │   │   ├── resource_ref.py     # ResourceRef wrapper (tabular + non-tabular)
-│   │   ├── errors.py           # RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat
-│   │   └── readers/            # csv / json / parquet / inline format dispatch + storage facade routing
+│   │   └── errors.py           # RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat
 │   └── backends/
 │       └── relation_systems/   # Polars (relsys_pl_*), Narwhals (relsys_nw_*), Ibis (relsys_ib_*)
 ├── typespec/                    # Type metadata — serializable Frictionless-aligned specs
 │   ├── spec.py                 # TypeSpec, FieldSpec, FieldConstraints
-│   ├── universal_types.py      # UniversalType enum, backend type mappings
-│   ├── type_bridge.py          # UniversalType <-> MountainashDtype interim bridge
+│   ├── universal_types.py      # UniversalType enum + bidirectional boundary map to MountainashDtype
+│   │                           #   (to_canonical/from_canonical/parse_universal) — Frictionless boundary only
 │   ├── frictionless.py         # Frictionless Table Schema import/export
-│   ├── datapackage.py          # NEW: TableDialect, DataResource, DataPackage (multi-resource container)
-│   ├── extraction.py           # Extract TypeSpec from DataFrames, dataclasses, Pydantic
+│   ├── datapackage.py          # TableDialect, DataResource, DataPackage (multi-resource container)
+│   ├── extraction.py           # Extract TypeSpec from DataFrames/dataclasses/Pydantic via core.dtypes registry
 │   ├── validation.py           # Validate DataFrames against a TypeSpec
-│   ├── converters.py           # UniversalType -> backend-specific types
+│   ├── converters.py           # TypeSpec -> backend schemas via core.dtypes registry
 │   └── custom_types.py         # CustomTypeRegistry, semantic type converters
-├── conform/                     # Data conformance — compiles TypeSpec to relation operations
-│   ├── builder.py              # ConformBuilder — user-facing DSL (ma.conform)
-│   └── compiler.py             # compile_conform() — ~130 lines replacing ~1,400 lines of backend strategies
+├── conform/                     # Shared helper for TypeSpec conformance
+│   └── expressions.py          # _build_conform_exprs — used by Relation.conform() and DAG visitor
 └── pydata/                      # Python data ingress/egress with three-tier hybrid conversion
     ├── ingress/                # Python data -> Polars DataFrame (11 handlers)
     └── egress/                 # DataFrame -> Python collections (tuples, dicts, dataclasses, Pydantic)
 ```
 
-For detailed file organisation see principle: `g.development-practices/file-organisation.md`
+For detailed file organisation see principle: `f.development-practices/file-organisation.md`
 
 
 ## Dependencies
 
-**IMPORTANT:** Using **local Ibis fork** with Polars calendar interval fix:
-
-```toml
-ibis-framework = { path = "/home/nathanielramm/git/ibis", extras = ["pandas", "sqlite", "duckdb"] }
-```
-
 All other dependencies are in `pyproject.toml`.
 
-**Workspace dependency for DataPackage I/O:** `mountainash-utils-files` (sibling package) provides the `storage_facade` used by `relations/dag/readers/` to load remote `DataResource` paths (`http://`, `https://`, `s3://`, `r2://`, `minio://`). Local paths bypass the facade and use Polars directly. The import is lazy inside each reader so a local-only test run never touches `mountainash_utils_files`.
+**Workspace dependency for DataPackage I/O:** `mountainash-transport` (sibling package, optional `storage` extra) provides `StorageFacade` used by `core/io.py` to load remote `DataResource` paths. `core.io.is_remote()` delegates to the facade's scheme registry for auto-detection; `core.io.facade_read_bytes()` calls `StorageFacade.from_path()`. Local paths bypass the facade and use Polars directly. The import is lazy so a local-only test run never touches `mountainash_transport`.
 
 
 ## Development Commands
 
+**Run TARGETED tests only — never the full suite.** The mountainash suite is
+enormous (~3000+ tests across three backends); running it per task or per review
+wastes minutes and huge token/compute budgets. During development — and in every
+subagent dispatch — scope tests to the file(s) the change touches with
+`hatch run test:test-target-quick <path>` (or `test-target` when you need
+coverage). The full `hatch run test:test` is reserved for CI and, at most, a
+single pre-merge gate on the whole branch — it is never a per-task or per-review
+command. If a change's blast radius is genuinely wider than one file, name the
+specific affected test files/dirs, not the whole suite.
+
 ```bash
 # Testing
-hatch run test:test                  # Full suite with coverage
-hatch run test:test-quick            # Fast iteration (no coverage)
-hatch run test:test-target <path>    # Specific file or test
-hatch run test:test-target-quick <path>  # Specific, no coverage
+hatch run test:test-target <path>    # Specific file or test  ← default during development
+hatch run test:test-target-quick <path>  # Specific, no coverage  ← default during development
 
-# Linting & type checking
+# Linting
 hatch run ruff:check                 # Check for issues
 hatch run ruff:fix                   # Auto-fix issues
-hatch run mypy:check                 # Type safety validation
 
 # Building
-hatch build
+# hatch build
+
+# # Upstream issue reconciliation
+# python scripts/audit_upstream_issues.py --skip-github                          # Local cross-reference only
+# python scripts/audit_upstream_issues.py --report-file scripts/outputs/reconciliation-report.md  # Full audit with GitHub checks
+# python scripts/validate_upstream_registry.py                                   # Validate YAML schema
+
+# # Drift guard xfail report
+# python scripts/report_drift_guards.py                                                     # Terminal summary
+# python scripts/report_drift_guards.py --report-file scripts/outputs/drift-guards-report.md  # Save to file
 ```
 
-
-## Import Paths
-
-```python
-# Public API (both work identically)
-import mountainash as ma                    # Canonical
-import mountainash_expressions as ma        # Deprecated, works via shim
-from mountainash import col, lit, coalesce, greatest, least, when, native, t_col
-
-# Relations API
-from mountainash import relation, concat    # or ma.relation(df), ma.concat([r1, r2])
-
-# Data Package + Relation DAG (Frictionless integration)
-from mountainash import (
-    DataPackage, DataResource, TableDialect,    # Frictionless metadata types
-    RelationDAG, ResourceRef,                    # DAG orchestrator + resource wrapper
-)
-
-# Constants (shared core)
-from mountainash.core.constants import (
-    CONST_BACKEND, CONST_BACKEND_SYSTEM,    # Backend detection + routing enums
-    ProjectOperation, JoinType, SetType,     # Relational AST enums
-    SortField, ExecutionTarget,              # Relational supporting types
-)
-
-# Function key enums (expressions)
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    KEY_SCALAR_COMPARISON, KEY_SCALAR_BOOLEAN, MOUNTAINASH_TERNARY,
-)
-
-# Expression nodes
-from mountainash.expressions.core.expression_nodes.substrait import (
-    ScalarFunctionNode, FieldReferenceNode, LiteralNode,
-)
-
-# Relation nodes
-from mountainash.relations.core.relation_nodes import (
-    ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode,
-    FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode, ExtensionRelNode,
-)
-```
-
-## Relations Architecture
-
-The `mountainash.relations` module provides a Substrait-aligned relational AST. It mirrors the expressions architecture:
-
-**Build phase** (backend-agnostic):
-```python
-r = ma.relation(df).filter(ma.col("age").gt(30)).sort("name").head(10)
-# Builds: FetchRelNode → SortRelNode → FilterRelNode → ReadRelNode
-```
-
-**Compile phase** (terminal operations trigger visitor):
-```python
-result = r.to_polars()  # Detects backend, walks tree, calls Polars methods
-```
-
-**Key concepts:**
-- 10 node types mapping to Substrait logical relations
-- UnifiedRelationVisitor composes with UnifiedExpressionVisitor for embedded expressions
-- 3 backends: Polars (LazyFrame-based), Narwhals (pandas/PyArrow), Ibis (SQL)
-- Cross-type joins: `relation(polars_df).join(pandas_df, on="id")` — automatic coercion
-- `GroupedRelation` returned by `.group_by()`, only exposes `.agg()`
-
-**Spec:** `docs/superpowers/specs/2026-03-28-relational-ast-design.md`
-
-### Relation DAG (Frictionless Data Package integration)
-
-Named relations can be grouped into a `RelationDAG` that lets one relation reference another via `dag.ref(name)`. The DAG holds two distinct edge sets: `dependency_edges` (drive `collect()` execution order) and `constraint_edges` (foreign-key metadata, never executed). `dag.collect(name)` topologically walks dependencies, materialises each upstream once into a per-call cache, then compiles the target via the existing `UnifiedRelationVisitor` with a `ref_resolver` closing over that cache.
-
-A `DataPackage` (Frictionless multi-resource container) bridges in both directions:
-
-```python
-import mountainash as ma
-
-# Read a Frictionless descriptor → DAG → collect a resource
-pkg = ma.DataPackage.from_descriptor("datapackage.json")
-dag = pkg.to_relation_dag()
-df  = dag.collect("orders")
-
-# Override a single resource for testing
-dag = pkg.to_relation_dag(overrides={"orders": local_df})
-
-# Build extra named relations on top
-dag.add(
-    "active_orders",
-    dag.ref("orders").filter(ma.col("status").eq("active"))
-)
-
-# Reverse direction — export the DAG back to a descriptor
-pkg2 = dag.to_package()
-pkg2.write("./out/datapackage.json")
-```
-
-**Architectural notes:**
-- The DAG is **not** a parallel visitor stack — it adds exactly `+1` visitor parameter (`ref_resolver`) and `+2` leaf node types (`RefRelNode`, `ResourceReadRelNode`). See `a.architecture/relation-dag-orchestrator.md`.
-- `DataResource.table_schema` stores the **raw Frictionless schema dict** (not `TypeSpec`) so byte-equivalent round-trip is preserved against real `datapackage.json` files. Conversion to `TypeSpec` happens lazily inside the visitor when conform actually runs. See `b.type-system/lossless-frictionless-storage.md`.
-- Foreign keys become `constraint_edges`, never `dependency_edges`. A `DataPackage` read from disk yields a DAG with N nodes and zero dependency edges — every resource is independently loadable. See `a.architecture/two-edge-graph-model.md`.
-- **Caveat:** conform application is currently Polars-only on the materialisation path. Narwhals and Ibis backends pass through unchanged with a TODO marker; this is the only known gap in the relation-DAG wiring matrix.
-
-**Spec:** `docs/superpowers/specs/2026-04-07-frictionless-datapackage-design.md`
-**Plan:** `docs/superpowers/plans/2026-04-07-frictionless-datapackage.md`
 
 
 ## Documentation Corpora

@@ -60,3 +60,15 @@ corpora:
       path: null
       ttl: 7d
     registered_at: "2026-04-07T00:00:00Z"
+
+  - id: dlt
+    source:
+      type: github
+      repo: hiivmind/hiivmind-corpus-data
+      ref: main
+      path: hiivmind-corpus-dlt
+    cache:
+      strategy: fetch
+      path: null
+      ttl: 7d
+    registered_at: "2026-04-19T00:00:00Z"

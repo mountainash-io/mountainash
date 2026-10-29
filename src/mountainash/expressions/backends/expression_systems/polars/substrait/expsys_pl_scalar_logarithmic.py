@@ -11,9 +11,6 @@ import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarLogarithmicExpressionSystemProtocol
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC,
-)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
@@ -114,11 +111,7 @@ class SubstraitPolarsScalarLogarithmicExpressionSystem(PolarsBaseExpressionSyste
         Returns:
             Log base `base` of x.
         """
-        return self._call_with_expr_support(
-            lambda: x.log() / base.log(),
-            function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB,
-            base=base,
-        )
+        return x.log() / base.log()
 
     def log1p(
         self,

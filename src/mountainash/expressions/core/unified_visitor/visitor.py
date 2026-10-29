@@ -11,8 +11,12 @@ The visitor:
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from contextlib import contextmanager
+from dataclasses import replace
+from enum import Enum
+from functools import lru_cache
 import inspect
+from typing import Any, TYPE_CHECKING, Iterator
 
 from ..expression_nodes import (
     ExpressionNode,
@@ -26,10 +30,131 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
+from mountainash.core.capabilities.predicates import WINDOW_ROOT, is_window_operation
+from mountainash.core.capabilities.schema import PolicyConsumer
+from .type_context import TypeContext
+from mountainash.core.lowering_reuse import (
+    DEFERRED_ONLY,
+    fold_lowering,
+    selected_lowering,
+)
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
+
+
+@lru_cache(maxsize=None)
+def _protocol_sig_params(protocol_method: Any) -> tuple:
+    """Protocol parameters (minus ``self``) for a protocol method.
+
+    ``protocol_method`` is the stable per-operation object stored on the
+    registry's function def, so it is a sound cache key: the same operation
+    resolves the same method object on every dispatch. Caching here avoids
+    re-running ``inspect.signature`` on every ``_gate_and_resolve_args`` call.
+    """
+    return tuple(p for p in inspect.signature(protocol_method).parameters.values() if p.name != "self")
+
+
+def _param_name_for(sig_params: tuple, index: int) -> str | None:
+    """Map an emitted argument's position to its protocol parameter name.
+
+    Every index at or after the VAR_POSITIONAL parameter (if any) maps to
+    that parameter's name — not just an exact index match — so a variadic
+    parameter followed by trailing named parameters (``is_in``'s
+    ``(needle, /, *haystack, unknown_values=None, member_unknown_values=None)``,
+    ``concat``'s ``(*input, null_handling=None)``) correctly maps every
+    variadic member, however many there are, instead of silently drifting
+    into the trailing parameter names once the index exceeds
+    ``len(sig_params)``.
+    """
+    var_positional_idx = next(
+        (i for i, p in enumerate(sig_params) if p.kind is inspect.Parameter.VAR_POSITIONAL),
+        None,
+    )
+    if var_positional_idx is not None and index >= var_positional_idx:
+        return sig_params[var_positional_idx].name
+    if index < len(sig_params):
+        return sig_params[index].name
+    return None
+
+class _CallOperandResolver:
+    """Resolve one call's operands without recompiling native expressions."""
+
+    def __init__(self, visitor, function_key, arguments, compiled_arguments) -> None:
+        self._visitor = visitor
+        self._function_key = function_key
+        self._arguments = arguments
+        self._compiled_arguments = compiled_arguments
+        self._native: dict[int, Any] = {}
+
+    def __len__(self) -> int:
+        return len(self._arguments)
+
+    def _track_native_value(self, value):
+        if self._visitor._is_backend_expression(value):
+            fold_lowering(self._visitor, DEFERRED_ONLY)
+
+    def body_compiler(self, index: int):
+        """Visit a scoped operand afresh after the backend binds its element."""
+        argument = self._arguments[index]
+        def compile_body():
+            if isinstance(argument, ExpressionNode):
+                return self._visitor.visit(argument)
+            self._track_native_value(argument)
+            return argument
+
+        return compile_body
+
+    def native(self, index: int) -> Any:
+        """Return the native operand, compiling at most once."""
+        if index not in self._native:
+            argument = self._arguments[index]
+            if self._compiled_arguments is not None and index in self._compiled_arguments:
+                value = self._compiled_arguments[index]
+            else:
+                value = (
+                    self._visitor.visit(argument)
+                    if isinstance(argument, ExpressionNode)
+                    else argument
+                )
+                if not isinstance(argument, ExpressionNode):
+                    self._track_native_value(value)
+            self._native[index] = value
+        return self._native[index]
+
+    def raw_literal_or_native(self, index: int) -> Any:
+        """Use an ordinary literal raw; preserve every other operand as native."""
+        argument = self._arguments[index]
+        if (
+            isinstance(argument, LiteralNode)
+            and not argument.is_native
+            and not self._visitor._is_backend_expression(argument.value)
+        ):
+            return argument.value
+        return self.native(index)
+
+    def raw_literal(self, index: int, message: str) -> Any:
+        """Require a raw literal for a backend intrinsic scalar parameter."""
+        argument = self._arguments[index]
+        if not isinstance(argument, ExpressionNode):
+            self._track_native_value(argument)
+            return argument
+        if (
+            isinstance(argument, LiteralNode)
+            and not argument.is_native
+            and not self._visitor._is_backend_expression(argument.value)
+        ):
+            return argument.value
+        if isinstance(argument, LiteralNode):
+            self.native(index)
+        from mountainash.core.types import BackendCapabilityError
+
+        raise BackendCapabilityError(
+            message,
+            backend=self._visitor.backend.BACKEND_NAME,
+            function_key=self._function_key,
+        )
+
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
@@ -49,76 +174,48 @@ class UnifiedExpressionVisitor:
         >>> backend_expr = visitor.visit(node)
     """
 
-    def __init__(self, expression_system: Any) -> None:
+    def __init__(
+        self,
+        expression_system: Any,
+        *,
+        execution_context: Any,
+        diagnostic_trace: Any = None,
+        conform_node_id: str | None = None,
+        input_data: Any = None,
+    ) -> None:
         """Initialize the visitor with a backend expression system.
 
-        Args:
-            expression_system: Backend ExpressionSystem instance
-                              (e.g., PolarsExpressionSystem, IbisExpressionSystem)
+        ``diagnostic_trace`` is supplied only by relation conform
+        compilation. Keeping it optional preserves standalone expression
+        compilation exactly as before.
         """
         self.backend = expression_system
+        self.execution_context = execution_context
+        self.diagnostic_trace = diagnostic_trace
+        self.conform_node_id = conform_node_id
+        self.raising_diagnostic = None
+        self._input_data = input_data
+        self.type_context = TypeContext(expression_system, self.visit)
+        self._over_window_spec = None
+        self.reusable_lowering = True
+        self.repeatable_result = True
+        # Discovery is the execution context factory's job (T06): every
+        # caller now constructs an already-prepared execution_context
+        # before this visitor, and _prepare_capability_context() already
+        # loads declarations exactly when some consumer demands them --
+        # this constructor must not repeat that discovery independently
+        # (T08 item 13), or a `trusted()`/no-demand caller would still
+        # force a cold registry to load its optional declaration source.
 
-    def _resolve_argument(
-        self,
-        arg: Any,
-        param: Optional[inspect.Parameter] = None,
-    ) -> Any:
-        """Resolve an argument using protocol type hints.
+    @contextmanager
+    def input_scope(self, native_input: Any) -> Iterator[None]:
+        """Bind one native relation/frame as metadata-only compilation context."""
+        with self.type_context.input_scope(native_input):
+            yield
 
-        This method determines how to process an argument based on:
-        1. Whether it's a SubstraitNode (needs recursive visiting)
-        2. Whether it's already a backend expression (pass through)
-        3. The protocol signature type hint (determines wrapping behavior)
-        4. The raw value type (primitives may need lit() wrapping)
-
-        Args:
-            arg: The argument to resolve (SubstraitNode or raw value)
-            param: Optional protocol parameter for type introspection
-
-        Returns:
-            Resolved argument ready for backend method call.
-
-        Type Hint Behavior:
-            - SupportedExpressions: Visit the node or wrap in lit()
-            - str, int, float, bool: Pass through as-is (primitive kwarg)
-            - Any/no hint: Visit if node, pass through otherwise
-        """
-        # If it's a SubstraitNode, always visit recursively
-        if isinstance(arg, SubstraitNode):
-            return self.visit(arg)
-
-        # Check if arg is already a backend expression (native passthrough)
-        # This handles cases where a native expression was wrapped in LiteralNode
-        # without dtype="native", or when expressions are passed directly
-        if self._is_backend_expression(arg):
-            return arg
-
-        # If no parameter info, treat primitives as needing lit() wrapping
-        # This maintains backward compatibility
-        if param is None:
-            # Raw value that isn't a node - likely needs wrapping
-            # But we can't wrap here without context; return as-is
-            return arg
-
-        # Check the type annotation for guidance
-        annotation = param.annotation
-        if annotation == inspect.Parameter.empty:
-            # No type hint - return as-is
-            return arg
-
-        # Get the string representation of the annotation
-        # Handle both string annotations and actual types
-        annotation_str = str(annotation) if not isinstance(annotation, str) else annotation
-
-        # If annotation indicates expression type, the caller should have
-        # passed a node. If they passed a raw value, wrap in lit()
-        if "SupportedExpressions" in annotation_str or "Expr" in annotation_str:
-            # This should be an expression - wrap raw values
-            return self.backend.lit(arg)
-
-        # Primitive types (str, int, float, bool) - pass through as-is
-        # These are typically keyword arguments or configuration values
-        return arg
+    def resolve_operand_type(self, node: ExpressionNode) -> Any:
+        """Resolve a node descriptor from the current scope for compiler use."""
+        return self.type_context.resolve(node)
 
     def _is_backend_expression(self, value: Any) -> bool:
         """Check if a value is already a backend expression.
@@ -134,12 +231,12 @@ class UnifiedExpressionVisitor:
         """
         # Check common expression type names
         type_name = type(value).__name__
-        if type_name == 'Expr':
+        if type_name == "Expr":
             return True
 
         # Check module paths for known backends
         module = type(value).__module__
-        if module and any(backend in module for backend in ('polars', 'narwhals', 'ibis')):
+        if module and any(backend in module for backend in ("polars", "narwhals", "ibis")):
             return True
 
         return False
@@ -155,97 +252,20 @@ class UnifiedExpressionVisitor:
         """
         module = type(value).__module__
 
-        if 'polars' in module:
-            return 'polars'
-        elif 'ibis' in module:
-            return 'ibis'
-        elif 'narwhals' in module:
-            return 'narwhals'
+        if "polars" in module:
+            return "polars"
+        elif "ibis" in module:
+            return "ibis"
+        elif "narwhals" in module:
+            return "narwhals"
         else:
             return type(value).__name__
-
-    def _resolve_options(
-        self,
-        options: Optional[Dict[str, Any]],
-        signature: Optional[inspect.Signature],
-    ) -> Dict[str, Any]:
-        """Resolve options (keyword arguments) using protocol type hints.
-
-        Args:
-            options: Options dict from ScalarFunctionNode
-            signature: Protocol method signature for type introspection
-
-        Returns:
-            Dict of resolved keyword arguments.
-
-        Example:
-            >>> opts = {"precision": 0.01, "ignore_case": True}
-            >>> resolved = visitor._resolve_options(opts, sig)
-        """
-        if not options:
-            return {}
-
-        if signature is None:
-            # No signature available - pass through as-is
-            return dict(options)
-
-        resolved = {}
-        for key, value in options.items():
-            # Look up parameter in signature
-            param = signature.parameters.get(key)
-            resolved[key] = self._resolve_argument(value, param)
-
-        return resolved
-
-    def _resolve_args_with_signature(
-        self,
-        func_name: str,
-        args: list,
-        options: Optional[Dict[str, Any]],
-    ) -> tuple[list, Dict[str, Any]]:
-        """Resolve positional and keyword arguments using protocol signature.
-
-        This is the main entry point for protocol-informed argument resolution.
-
-        Args:
-            func_name: Function name for signature lookup
-            args: List of SubstraitNode arguments
-            options: Optional options dict
-
-        Returns:
-            Tuple of (resolved_args, resolved_options)
-        """
-        # Get protocol signature (cached)
-        signature = self._get_signature(func_name)
-
-        if signature is None:
-            # No protocol signature - fall back to simple resolution
-            resolved_args = [self.visit(arg) for arg in args]
-            resolved_opts = dict(options) if options else {}
-            return resolved_args, resolved_opts
-
-        # Get positional parameters (excluding 'self')
-        params = list(signature.parameters.values())
-        pos_params = [p for p in params if p.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        ) and p.name != 'self']
-
-        # Resolve positional arguments with type hints
-        resolved_args = []
-        for i, arg in enumerate(args):
-            param = pos_params[i] if i < len(pos_params) else None
-            resolved_args.append(self._resolve_argument(arg, param))
-
-        # Resolve keyword arguments
-        resolved_opts = self._resolve_options(options, signature)
-
-        return resolved_args, resolved_opts
 
     def visit(self, node: SubstraitNode) -> SupportedExpressions:
         """Visit a node and return the compiled backend expression.
 
         This is the main entry point. Uses double-dispatch via node.accept().
+        Permitted native lowerings are reused within an unchanged input context.
 
         Args:
             node: Any SubstraitNode to compile
@@ -256,7 +276,31 @@ class UnifiedExpressionVisitor:
         Raises:
             ValueError: If node type is unknown
         """
-        return node.accept(self)
+        scopes = self.type_context._scopes
+        if not scopes:
+            if self._input_data is not None:
+                with self.input_scope(self._input_data):
+                    return self.visit(node)
+            return node.accept(self)
+        if self.diagnostic_trace is not None or not self.reusable_lowering:
+            return node.accept(self)
+
+        scope = scopes[-1]
+        if scope.lowered is None:
+            scope.lowered = {}
+        window = self._over_window_spec
+        # Every backend-scoped lowering binding must be represented here.
+        elements = getattr(self.backend, "_list_element_scope", ())
+        # Resolved evidence is append-only. Capture its generation before
+        # lowering: newly acquired metadata must invalidate an earlier result.
+        key = (id(node), id(window), id(elements), len(scope.resolved))
+        cached = scope.lowered.get(key)
+        if cached is not None:
+            return cached[3]
+        result = node.accept(self)
+        if self.reusable_lowering:
+            scope.lowered[key] = (node, window, elements, result)
+        return result
 
     def visit_literal(self, node: LiteralNode) -> SupportedExpressions:
         """Compile a literal value to backend expression.
@@ -271,18 +315,20 @@ class UnifiedExpressionVisitor:
             TypeError: If native expression doesn't match target backend
         """
         # Handle native expression passthrough (explicit dtype or auto-detected)
-        if node.dtype == "native" or self._is_backend_expression(node.value):
+        if node.is_native or self._is_backend_expression(node.value):
             # Validate the native expression matches the target backend
             if not self.backend.is_native_expression(node.value):
                 source_backend = self._detect_expression_backend(node.value)
                 target_backend = self.backend.backend_type.value
                 raise TypeError(
-                    f"Backend mismatch: {source_backend} expression cannot be used "
-                    f"with {target_backend} backend"
+                    f"Backend mismatch: {source_backend} expression cannot be used " f"with {target_backend} backend"
                 )
+            fold_lowering(self, DEFERRED_ONLY)
             return node.value
 
-        return self.backend.lit(node.value)
+        method = self.backend.lit
+        fold_lowering(self, selected_lowering(method))
+        return method(node.value, dtype=node.dtype)
 
     def visit_field_reference(self, node: FieldReferenceNode) -> SupportedExpressions:
         """Compile a column reference to backend expression.
@@ -303,7 +349,239 @@ class UnifiedExpressionVisitor:
             # operators will handle the unknown_values
             pass
 
-        return self.backend.col(node.field)
+        method = self.backend.col
+        fold_lowering(self, selected_lowering(method))
+        return method(node.field)
+
+    def _gate_enabled(self, function_key) -> bool:
+        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+            return False
+        from mountainash.core.capabilities import CapabilityRegistry
+
+        return CapabilityRegistry.has_policy_candidates(
+            function_key, self.backend.backend_type, getattr(self.backend, "dialect", None),
+            consumer=PolicyConsumer.GATE,
+        )
+
+    def _gate_and_resolve_args(
+        self,
+        function_key,
+        arguments,
+        protocol_method,
+        *,
+        method_name: str,
+        gate_enabled: bool,
+        compiled_arguments=None,
+    ):
+        """Apply optional gates, then resolve through an operation companion.
+
+        Capability facts may still refuse an unsupported dynamic call.  They
+        never decide how an accepted literal is lowered: that is the category
+        companion's ordinary backend responsibility.
+        """
+        if gate_enabled:
+            from mountainash.core.capabilities import (
+                CapabilityLevel,
+                CapabilityRegistry,
+                Enforcement,
+            )
+            from mountainash.core.types import BackendCapabilityError
+
+            backend_family = self.backend.backend_type
+            dialect = getattr(self.backend, "dialect", None)
+            sig_params = _protocol_sig_params(protocol_method)
+
+            for i, arg in enumerate(arguments):
+                param_name = _param_name_for(sig_params, i)
+                fact = (
+                    CapabilityRegistry.capability_for(
+                        function_key, param_name, backend_family, dialect,
+                        execution_context=self.execution_context,
+                    )
+                    if param_name is not None
+                    else None
+                )
+                if fact is None or fact.enforcement is not Enforcement.GATE or fact.predicate is not None:
+                    continue
+                if fact.level is CapabilityLevel.UNSUPPORTED or (
+                    fact.level is CapabilityLevel.LITERAL_ONLY
+                    and isinstance(arg, ExpressionNode)
+                    and not isinstance(arg, LiteralNode)
+                ):
+                    raise BackendCapabilityError(
+                        fact.message,
+                        backend=self.backend.BACKEND_NAME,
+                        function_key=function_key,
+                        limitation=fact,
+                    )
+
+        helper = self.backend.prepare_call_arguments
+        fold_lowering(self, selected_lowering(helper))
+        companion = getattr(self.backend, f"_prepare_call_{method_name}", None)
+        if companion is not None:
+            fold_lowering(self, selected_lowering(companion))
+        prepared = helper(
+            method_name, _CallOperandResolver, self,
+            function_key, arguments, compiled_arguments,
+        )
+        if prepared is not None:
+            return prepared
+        resolved = []
+        for index, argument in enumerate(arguments):
+            if compiled_arguments is not None and index in compiled_arguments:
+                value = compiled_arguments[index]
+            elif isinstance(argument, ExpressionNode):
+                value = self.visit(argument)
+            else:
+                value = argument
+                if self._is_backend_expression(value):
+                    fold_lowering(self, DEFERRED_ONLY)
+            resolved.append(value)
+        return resolved
+
+    def _bound_call(
+        self, function_key, protocol_method, arguments, options, *, gate_enabled: bool, window_spec=None,
+    ):
+        if not gate_enabled:
+            return None
+        from mountainash.core.capabilities.predicates import bind_expression_call
+
+        bound = bind_expression_call(
+            operation_key=function_key,
+            backend=self.backend.backend_type,
+            dialect=getattr(self.backend, "dialect", None),
+            protocol_method=protocol_method,
+            arguments=arguments,
+            options=options,
+        )
+        if is_window_operation(function_key):
+            effective_window = window_spec or self._over_window_spec
+            keys = effective_window.order_by if effective_window is not None else ()
+            bound = replace(bound, bindings={**bound.bindings, WINDOW_ROOT: {
+                "order_keys": len(keys),
+                "multi_key": len(keys) > 1,
+                "any_descending": any(sf.descending for sf in keys),
+            }})
+        from mountainash.core.capabilities import CapabilityRegistry
+
+        names = CapabilityRegistry.argument_form_names(bound, execution_context=self.execution_context)
+        forms = {
+            name: self.backend.native_argument_form(argument.value)
+            for name in names
+            if isinstance(argument := bound.bindings.get(name), LiteralNode) and argument.is_native
+        }
+        return replace(bound, native_argument_forms=forms) if forms else bound
+
+    def _gate_predicate_violations(self, bound, *, phase: str, operand_types=None) -> None:
+        """Collect blockers only when this operation has an active gate path."""
+        if bound is None:
+            return
+        if operand_types is not None:
+            bound = replace(bound, operand_types=operand_types)
+        from mountainash.core.capabilities import CapabilityRegistry
+        from mountainash.core.types import BackendCapabilityError
+
+        violations = CapabilityRegistry.violations_for(
+            bound, phase=phase, execution_context=self.execution_context,
+        )
+        if violations:
+            ordered = sorted(violations, key=lambda f: (f.param, f.message))
+            combined = "; ".join(f.message for f in ordered)
+            raise BackendCapabilityError(
+                combined,
+                backend=self.backend.BACKEND_NAME,
+                function_key=bound.operation_key,
+                limitation=ordered[0],
+                candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
+            )
+
+    def _gate_operation(self, function_key, *, gate_enabled: bool) -> None:
+        if not gate_enabled:
+            return
+        from mountainash.core.capabilities import (
+            CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
+        )
+        from mountainash.core.types import BackendCapabilityError
+
+        fact = CapabilityRegistry.capability_for(
+            function_key, WILDCARD_PARAM, self.backend.backend_type,
+            getattr(self.backend, "dialect", None),
+            execution_context=self.execution_context,
+        )
+        if (
+            fact is not None
+            and fact.predicate is None
+            and fact.enforcement is Enforcement.GATE
+            and fact.level is CapabilityLevel.UNSUPPORTED
+        ):
+            raise BackendCapabilityError(
+                fact.message, backend=self.backend.BACKEND_NAME,
+                function_key=function_key, limitation=fact,
+            )
+
+    def _gate_options(self, function_key, options, *, gate_enabled: bool) -> None:
+        if not gate_enabled or not options:
+            return
+        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement
+        from mountainash.core.types import BackendCapabilityError
+
+        dialect = getattr(self.backend, "dialect", None)
+        for name, value in options.items():
+            fact = CapabilityRegistry.capability_for(
+                function_key, name, self.backend.backend_type, dialect,
+                option_value=str(value.value if isinstance(value, Enum) else value),
+                execution_context=self.execution_context,
+            )
+            if (
+                fact is not None
+                and fact.predicate is None
+                and fact.enforcement is Enforcement.GATE
+                and (
+                    fact.level is CapabilityLevel.UNSUPPORTED
+                    or (fact.level is CapabilityLevel.LITERAL_ONLY and isinstance(value, ExpressionNode))
+                )
+            ):
+                raise BackendCapabilityError(
+                    fact.message, backend=self.backend.BACKEND_NAME,
+                    function_key=function_key, limitation=fact,
+                )
+
+    def _required_operand_types(
+        self, func_def, protocol_method, arguments, options=None, *, gate_enabled: bool,
+    ) -> dict[str, Any]:
+        """Resolve function-declared and capability metadata operands."""
+        required = func_def.type_arguments
+        if gate_enabled:
+            from mountainash.core.capabilities import CapabilityRegistry
+
+            capability_names = CapabilityRegistry.metadata_operand_names(
+                func_def.function_key,
+                self.backend.backend_type,
+                getattr(self.backend, "dialect", None),
+                execution_context=self.execution_context,
+            )
+            if capability_names:
+                required = capability_names if not required else capability_names.union(required)
+        if not required:
+            return {}
+
+        resolved: dict[str, Any] = {}
+        for index, argument in enumerate(arguments):
+            name = _param_name_for(_protocol_sig_params(protocol_method), index)
+            if name is not None and name in required and isinstance(argument, ExpressionNode):
+                resolved[name] = self.type_context.resolve(argument)
+        if options:
+            for name in required:
+                argument = options.get(name)
+                if name not in resolved and isinstance(argument, ExpressionNode):
+                    resolved[name] = self.type_context.resolve(argument)
+        missing = set(required).difference(resolved)
+        if missing:
+            raise self.type_context._unresolved(
+                func_def.function_key,
+                f"required operands are not bound: {', '.join(sorted(missing))}",
+            )
+        return resolved
 
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
@@ -323,39 +601,38 @@ class UnifiedExpressionVisitor:
         # Get the protocol method from the function definition
         protocol_method = func_def.protocol_method
         if protocol_method is None:
-            raise ValueError(
-                f"Function {node.function_key} has no protocol_method defined"
-            )
+            raise ValueError(f"Function {node.function_key} has no protocol_method defined")
 
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        # Special handling for functions that need raw values from LiteralNodes
-        # instead of visiting them as expressions (which would convert them to
-        # backend literals like pl.lit("A") instead of raw values like "A")
-        from ..expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_SET
-        _raw_value_functions = {
-            FKEY_MOUNTAINASH_SCALAR_TERNARY.LIST,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
-        }
-        if node.function_key in _raw_value_functions:
-            args = []
-            for i, arg in enumerate(node.arguments):
-                # For is_in/is_not_in: first arg (needle) should be visited,
-                # rest (haystack) should be raw values
-                if node.function_key in (FKEY_MOUNTAINASH_SCALAR_SET.IS_IN, FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN) and i == 0:
-                    args.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
-                elif isinstance(arg, LiteralNode):
-                    args.append(arg.value)
-                elif isinstance(arg, ExpressionNode):
-                    args.append(self.visit(arg))
-                else:
-                    args.append(arg)
-        else:
-            # Resolve arguments by visiting child nodes
-            args = [self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-                    for arg in node.arguments]
+        gate_enabled = self._gate_enabled(node.function_key)
+        bound = self._bound_call(
+            node.function_key, protocol_method, node.arguments, node.options, gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="raw")
+
+        self._gate_operation(node.function_key, gate_enabled=gate_enabled)
+
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, node.arguments, gate_enabled=gate_enabled,
+        )
+        args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method, method_name=method_name, gate_enabled=gate_enabled,
+        )
+        from ..expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        )
+
+        if node.function_key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
+            helper = self.backend.prepare_coalesce_arguments
+            fold_lowering(self, selected_lowering(helper))
+            args = helper(
+                args,
+                [self.type_context.is_null_scalar(argument) for argument in node.arguments],
+                self.type_context.cached_native(node),
+            )
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
 
         # Get the backend method
         if not hasattr(self.backend, method_name):
@@ -364,13 +641,26 @@ class UnifiedExpressionVisitor:
                 f"for function {node.function_key}"
             )
         method = getattr(self.backend, method_name)
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
 
-        # Call the method with resolved arguments and options
         options = node.options or {}
-        if options:
-            return method(*args, **options)
-        else:
-            return method(*args)
+        self._gate_options(node.function_key, options, gate_enabled=gate_enabled)
+        diagnostic = None
+        if self.diagnostic_trace is not None:
+            diagnostic = self.diagnostic_trace.record(
+                node,
+                backend_family=self.backend.backend_type,
+                dialect=getattr(self.backend, "dialect", None),
+                conform_node_id=self.conform_node_id,
+            )
+        try:
+            with self.backend.operand_types(operand_types):
+                if options:
+                    return method(*args, **options)
+                return method(*args)
+        except Exception:
+            self.raising_diagnostic = diagnostic
+            raise
 
     def visit_if_then(self, node: IfThenNode) -> SupportedExpressions:
         """Compile a conditional expression to backend expression.
@@ -385,37 +675,144 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend conditional expression
         """
-        # Build the conditional chain
-        # Start with first condition
         if not node.conditions:
-            # No conditions, just return else clause
             return self.visit(node.else_clause)
 
-        # Compile first condition
-        first_cond, first_result = node.conditions[0]
-        cond_expr = self.visit(first_cond)
-        result_expr = self.visit(first_result)
+        from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CONDITIONAL
 
-        # Use backend's if_then_else for the final else
-        else_expr = self.visit(node.else_clause)
+        function_key = FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE
+        func_def = FunctionRegistry.get(function_key)
+        protocol_method = func_def.protocol_method
+        gate_enabled = self._gate_enabled(function_key)
+        needs_binding = gate_enabled or bool(func_def.type_arguments)
+        result_type, requires_null_carrier = self._conditional_result_metadata(node)
+        logical_else = node.else_clause
+        last_index = len(node.conditions) - 1
+        compiled_arguments: dict[int, SupportedExpressions] | None = None
+        for index in range(last_index, -1, -1):
+            condition, branch = node.conditions[index]
+            arguments = (condition, branch, logical_else)
+            operand_types = {}
+            if gate_enabled:
+                bound = self._bound_call(
+                    function_key, protocol_method, arguments, None, gate_enabled=gate_enabled,
+                )
+                self._gate_predicate_violations(bound, phase="raw")
+                self._gate_operation(function_key, gate_enabled=gate_enabled)
+            if needs_binding:
+                operand_types = self._required_operand_types(
+                    func_def, protocol_method, arguments, gate_enabled=gate_enabled,
+                )
+            args = self._gate_and_resolve_args(
+                function_key,
+                arguments,
+                protocol_method,
+                method_name="if_then_else",
+                gate_enabled=gate_enabled,
+                compiled_arguments=compiled_arguments,
+            )
+            if gate_enabled:
+                self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
+            args[1] = self._normalize_conditional_branch(
+                branch, args[1], result_type, requires_null_carrier
+            )
+            if index == last_index:
+                args[2] = self._normalize_conditional_branch(
+                    node.else_clause, args[2], result_type, requires_null_carrier
+                )
+            method = self.backend.if_then_else
+            fold_lowering(self, selected_lowering(method, func_def.lowering))
+            with self.backend.operand_types(operand_types):
+                current = self.backend.if_then_else(*args)
+            if index:
+                compiled_arguments = {2: current}
+                logical_else = (
+                    IfThenNode(conditions=[(condition, branch)], else_clause=logical_else)
+                    if needs_binding else current
+                )
+        return self._normalize_if_then_result(current, result_type, requires_null_carrier)
 
-        if len(node.conditions) == 1:
-            # Simple case: one condition
-            return self.backend.if_then_else(cond_expr, result_expr, else_expr)
+    def _conditional_result_metadata(self, node: IfThenNode) -> tuple[Any, bool]:
+        """Use declared metadata only for an uncached null-carrier conditional."""
+        branches = [result for _, result in node.conditions] + [node.else_clause]
+        result_type = self.type_context.cached_native(node)
+        if result_type is None:
+            if not self.type_context.active or not any(
+                self.type_context.is_null_scalar(branch) for branch in branches
+            ):
+                return None, False
+            result_type = self.type_context.resolve_declared_native(node)
+            if result_type is None:
+                return None, False
+        branch_types = [self.type_context.cached_native(branch) for branch in branches]
+        has_literal_null = any(
+            branch_type is not None
+            and branch_type.descriptor.logical_kind == "null"
+            for branch_type in branch_types
+        )
+        storages = {
+            branch_type.descriptor.storage_kind
+            for branch_type in branch_types
+            if branch_type is not None
+        }
+        has_nullable_storage = bool(
+            {"pandas_nullable", "pandas_arrow"}.intersection(storages)
+        )
+        concrete = [
+            branch_type
+            for branch_type in branch_types
+            if branch_type is not None
+            and branch_type.descriptor.logical_kind != "null"
+        ]
+        different_dtypes = bool(concrete) and any(
+            branch_type.native_dtype != concrete[0].native_dtype
+            for branch_type in concrete[1:]
+        )
+        requires_null_carrier = (
+            has_literal_null
+            or different_dtypes
+            or (has_nullable_storage and len(storages) > 1)
+        )
+        return result_type, requires_null_carrier
 
-        # Multiple conditions: chain them together
-        # Start from the end and work backwards
-        # if c1 then r1 elif c2 then r2 else e
-        # becomes: if c1 then r1 else (if c2 then r2 else e)
+    def _normalize_conditional_branch(
+        self,
+        node: ExpressionNode,
+        expression: SupportedExpressions,
+        result_type: Any,
+        requires_null_carrier: bool,
+    ) -> SupportedExpressions:
+        """Prepare a concrete branch only when its result type is already known."""
+        if result_type is None:
+            return expression
+        branch_type = self.type_context.cached_native(node)
+        if branch_type is None:
+            return expression
+        helper = self.backend.normalize_conditional_branch
+        fold_lowering(self, selected_lowering(helper))
+        return helper(
+            expression,
+            branch_type,
+            result_type,
+            requires_null_carrier=requires_null_carrier,
+        )
 
-        # Build from innermost (last condition + else)
-        current = else_expr
-        for condition, result in reversed(node.conditions):
-            cond_expr = self.visit(condition)
-            result_expr = self.visit(result)
-            current = self.backend.if_then_else(cond_expr, result_expr, current)
-
-        return current
+    def _normalize_if_then_result(
+        self,
+        expression: SupportedExpressions,
+        result_type: Any,
+        requires_null_carrier: bool,
+    ) -> SupportedExpressions:
+        """Apply the declared backend storage contract without resolving anew."""
+        if result_type is None or not requires_null_carrier:
+            return expression
+        helper = self.backend.normalize_conditional_result
+        fold_lowering(self, selected_lowering(helper))
+        return helper(
+            expression,
+            result_type,
+            requires_null_carrier=requires_null_carrier,
+        )
 
     def visit_cast(self, node: CastNode) -> SupportedExpressions:
         """Compile a type cast to backend expression.
@@ -426,35 +823,76 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend cast expression
         """
-        input_expr = self.visit(node.input)
-        return self.backend.cast(input_expr, node.target_type)
+        from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+
+        function_key = FKEY_SUBSTRAIT_CAST.CAST
+        func_def = FunctionRegistry.get(function_key)
+        protocol_method = func_def.protocol_method
+        arguments = (node.input,)
+        options = {"dtype": node.target_type, "failure_behavior": node.failure_behavior}
+        gate_enabled = self._gate_enabled(function_key)
+        bound = self._bound_call(
+            function_key, protocol_method, arguments, options, gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="raw")
+        self._gate_operation(function_key, gate_enabled=gate_enabled)
+        from mountainash.core.dtypes import (
+            MountainashDtype, dtype_is_complete, registry, resolve_dtype_parameters,
+        )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+
+        target = node.target_type
+        if getattr(self.backend, "dialect", None) == "narwhals-pandas" and (
+            target is MountainashDtype.TIMESTAMP
+            or target is MountainashDtype.DURATION
+            or (
+                isinstance(target, PARAMETERIZED_DTYPES)
+                and target.native is None and not dtype_is_complete(target)
+            )
+        ):
+            # Eager pandas declarations are available without lazy schema probing.
+            source = self.type_context.resolve_declared_native(node.input)
+            if source is not None and source.native_dtype is not None:
+                options["dtype"] = resolve_dtype_parameters(
+                    target, registry.from_native(source.native_dtype),
+                )
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, arguments, gate_enabled=gate_enabled,
+        )
+        args = self._gate_and_resolve_args(
+            function_key, arguments, protocol_method, method_name="cast", gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
+        self._gate_options(function_key, options, gate_enabled=gate_enabled)
+        method = getattr(self.backend, "cast")
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
+        with self.backend.operand_types(operand_types):
+            return method(*args, **options)
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
-        """Compile a membership test (IN operator) to backend expression.
+        """Compile a membership test (IN operator) to backend expression."""
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_SET,
+        )
+        from mountainash.expressions.core.expression_system.function_mapping.registry import (
+            ExpressionFunctionRegistry,
+        )
 
-        Args:
-            node: SingularOrListNode with value and options list
-
-        Returns:
-            Backend is_in expression
-        """
-        value_expr = self.visit(node.value)
-
-        # Options can be nodes or literal values
-        # For is_in, we typically pass the literal values directly
-        options = []
-        for opt in node.options:
-            if isinstance(opt, LiteralNode):
-                # Extract literal value for the list
-                options.append(opt.value)
-            elif isinstance(opt, SubstraitNode):
-                # Compile and add (for expression-based membership)
-                options.append(self.visit(opt))
-            else:
-                # Already a value
-                options.append(opt)
-
-        return self.backend.is_in(value_expr, *options)
+        protocol_method = ExpressionFunctionRegistry.get_protocol_method(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
+        gate_enabled = self._gate_enabled(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
+        # needle maps to param 0; every options member maps to *haystack
+        # (VAR_POSITIONAL) via _param_name_for's trailing-varargs rule.
+        value_expr, *options = self._gate_and_resolve_args(
+            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            (node.value, *node.options),
+            protocol_method,
+            method_name="is_in",
+            gate_enabled=gate_enabled,
+        )
+        func_def = ExpressionFunctionRegistry.get(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
+        method = getattr(self.backend, "is_in")
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
+        return method(value_expr, *options)
 
     def visit_window_function(self, node: WindowFunctionNode) -> SupportedExpressions:
         """Compile a window function node to backend expression.
@@ -469,9 +907,10 @@ class UnifiedExpressionVisitor:
             Backend expression with window context applied.
 
         Raises:
-            ValueError: If window_spec is None (i.e., .over() was not called).
+            ValueError: If neither this node nor an enclosing .over() supplies a window.
         """
-        if node.window_spec is None:
+        window_spec = node.window_spec or self._over_window_spec
+        if window_spec is None:
             raise ValueError(
                 f"Window function '{node.function_key.value}' requires .over() — "
                 f"e.g., col('x').{node.function_key.name.lower()}().over('group')"
@@ -481,27 +920,46 @@ class UnifiedExpressionVisitor:
         func_def = FunctionRegistry.get(node.function_key)
         protocol_method = func_def.protocol_method
         if protocol_method is None:
-            raise ValueError(
-                f"Window function {node.function_key} has no protocol_method defined"
-            )
+            raise ValueError(f"Window function {node.function_key} has no protocol_method defined")
         method_name = protocol_method.__name__
 
-        # Resolve arguments
-        compiled_args = [
-            self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-            for arg in node.arguments
-        ]
+        options = dict(node.options) if node.options else {}
+        takes_order_by = any(p.name == "order_by" for p in _protocol_sig_params(protocol_method))
 
-        # Call backend method
+        gate_enabled = self._gate_enabled(node.function_key)
+        bound = self._bound_call(
+            node.function_key, protocol_method, node.arguments, options, window_spec=window_spec,
+            gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="raw")
+        self._gate_operation(node.function_key, gate_enabled=gate_enabled)
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, node.arguments, options, gate_enabled=gate_enabled,
+        )
+        compiled_args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method, method_name=method_name, gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
+        self._gate_options(node.function_key, options, gate_enabled=gate_enabled)
+
+        # Ranking functions receive every sort key with its direction (backlog 364).
+        # Keys are native expressions, so they bypass option gating.
+        call_kwargs = dict(options)
+        if takes_order_by:
+            call_kwargs["order_by"] = tuple(
+                (self.visit(FieldReferenceNode(field=sf.column)), sf.descending)
+                for sf in window_spec.order_by
+            )
+
         method = getattr(self.backend, method_name)
-        options = node.options or {}
-        if options:
-            result = method(*compiled_args, **options)
-        else:
-            result = method(*compiled_args)
-
-        # Apply window context
-        return self._apply_window_spec(result, node.window_spec)
+        with self.backend.operand_types(operand_types):
+            result = method(*compiled_args, **call_kwargs) if call_kwargs else method(*compiled_args)
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
+        # An enclosing OverNode applies its window to the composed expression.
+        # Applying it here too would create a nested native window.
+        if node.window_spec is None:
+            return result
+        return self._apply_window_spec(result, window_spec)
 
     def visit_over(self, node: OverNode) -> SupportedExpressions:
         """Compile an OverNode — wraps any expression with window context.
@@ -514,7 +972,12 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend expression with window context applied.
         """
-        inner_result = self.visit(node.expression)
+        previous_spec = self._over_window_spec
+        self._over_window_spec = node.window_spec
+        try:
+            inner_result = self.visit(node.expression)
+        finally:
+            self._over_window_spec = previous_spec
         return self._apply_window_spec(inner_result, node.window_spec)
 
     def _apply_window_spec(self, expr: Any, window_spec: Any) -> SupportedExpressions:
@@ -539,6 +1002,8 @@ class UnifiedExpressionVisitor:
                 partition_by.append(self.visit(FieldReferenceNode(field=p)))
             else:
                 partition_by.append(p)
+                if self._is_backend_expression(p):
+                    fold_lowering(self, DEFERRED_ONLY)
 
         # Resolve order_by expressions
         order_by = []
@@ -546,7 +1011,9 @@ class UnifiedExpressionVisitor:
             col_expr = self.visit(FieldReferenceNode(field=sf.column))
             order_by.append((col_expr, sf.descending))
 
-        return self.backend.apply_window(
+        method = self.backend.apply_window
+        fold_lowering(self, selected_lowering(method))
+        return method(
             expr,
             partition_by=partition_by,
             order_by=order_by,

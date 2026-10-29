@@ -5,110 +5,187 @@ Implements type casting operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import narwhals as nw
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import _polars_native_transform
 
 from ..base import NarwhalsBaseExpressionSystem
-
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
+from mountainash.core.dtypes import (
+    CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget, dtype_is_complete,
+    registry, resolve_dtype_parameters,
+)
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 
-# Mapping from string type names to Narwhals dtypes
-_NARWHALS_DTYPE_MAP = {
-    # Substrait standard names
-    "i8": nw.Int8,
-    "i16": nw.Int16,
-    "i32": nw.Int32,
-    "i64": nw.Int64,
-    "fp32": nw.Float32,
-    "fp64": nw.Float64,
-    "f32": nw.Float32,
-    "f64": nw.Float64,
-    "string": nw.String,
-    "bool": nw.Boolean,
-    "boolean": nw.Boolean,
-    "date": nw.Date,
-    # Common string representations from str(nw.Type)
-    "Int8": nw.Int8,
-    "Int16": nw.Int16,
-    "Int32": nw.Int32,
-    "Int64": nw.Int64,
-    "Float32": nw.Float32,
-    "Float64": nw.Float64,
-    "String": nw.String,
-    "Utf8": nw.String,
-    "Boolean": nw.Boolean,
-    "Date": nw.Date,
-    "Datetime": nw.Datetime,
-    # Python type names
-    "int": nw.Int64,
-    "float": nw.Float64,
-    "str": nw.String,
-    # Common aliases
-    "int64": nw.Int64,
-    "int32": nw.Int32,
-    "float64": nw.Float64,
-    "float32": nw.Float32,
-    # Missing canonical names
-    "timestamp": nw.Datetime,
-    "time": nw.Time,
-    "Time": nw.Time,
-    # Unsigned integers
-    "u8": nw.UInt8,
-    "u16": nw.UInt16,
-    "u32": nw.UInt32,
-    "u64": nw.UInt64,
-    "UInt8": nw.UInt8,
-    "UInt16": nw.UInt16,
-    "UInt32": nw.UInt32,
-    "UInt64": nw.UInt64,
-    "uint8": nw.UInt8,
-    "uint16": nw.UInt16,
-    "uint32": nw.UInt32,
-    "uint64": nw.UInt64,
-    # Binary
-    "binary": nw.Binary,
-    "Binary": nw.Binary,
-}
-
-
 class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitCastExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of CastExpressionProtocol."""
 
-    def cast(self, x: NarwhalsExpr, /, dtype: Any) -> NarwhalsExpr:
-        """Cast an expression to a target data type.
+    _TARGET = TypeTarget.NARWHALS
 
-        Args:
-            x: The expression to cast.
-            dtype: The target data type (string name or Narwhals dtype).
+    def cast(
+        self,
+        x: NarwhalsExpr,
+        /,
+        dtype: CastTarget,
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> NarwhalsExpr:
+        """Cast an expression to a canonical or native-passthrough dtype.
 
-        Returns:
-            A Narwhals expression cast to the specified type.
+        Narwhals' `Expr.cast(dtype)` has no strict/failure-behavior
+        parameter (probed against narwhals 2.23.0: the signature is
+        `cast(self, dtype)` only) — it always compiles to the equivalent
+        of a strict/raising cast on every native backend it wraps (Polars
+        raises `InvalidOperationError`, pandas raises `ValueError`).
+        `failure_behavior="null"` therefore has no expressible translation
+        on this backend and raises `BackendCapabilityError` up front
+        rather than attempting a call that would fail with a confusing
+        native error. See known-divergences.md.
         """
-        # Try canonical resolution first
-        try:
-            from mountainash.core.dtypes import resolve_dtype
-            dtype = resolve_dtype(dtype)
-        except ValueError:
-            pass  # Fall through to backend-specific handling
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return x
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
 
-        # If already a Narwhals dtype, use directly
-        if hasattr(nw, "DType") and isinstance(dtype, nw.DType):
-            return x.cast(dtype)
+            raise BackendCapabilityError(
+                "Narwhals Expr.cast has no strict/failure-behavior parameter and always "
+                "raises on invalid conversion; null-on-failure casts are not expressible "
+                "on the Narwhals backend. Use Polars or Ibis for failure_behavior='null'.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_CAST.CAST,
+            )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+        needs_source = (
+            dtype is MountainashDtype.TIMESTAMP
+            or dtype is MountainashDtype.DURATION
+            or (
+                isinstance(dtype, PARAMETERIZED_DTYPES)
+                and dtype.native is None and not dtype_is_complete(dtype)
+            )
+        )
+        if needs_source and self.dialect in {"narwhals-polars", "narwhals-lazy"}:
+            from narwhals._polars.utils import native_to_narwhals_dtype, narwhals_to_native_dtype
+            from narwhals._utils import Version
+            from mountainash.expressions.backends.expression_systems.polars.temporal_cast import cast_temporal_compatible
 
-        # Check if it's a Narwhals dtype class (like nw.Int64)
-        if isinstance(dtype, type) and hasattr(dtype, "__module__") and "narwhals" in str(dtype.__module__):
-            return x.cast(dtype)
+            def cast_partial(bound, native):
+                source = registry.from_native(
+                    native_to_narwhals_dtype(native, Version.MAIN), TypeTarget.NARWHALS,
+                )
+                resolved = resolve_dtype_parameters(dtype, source)
+                return cast_temporal_compatible(
+                    bound,
+                    narwhals_to_native_dtype(
+                        registry.to_native_cast(resolved, TypeTarget.NARWHALS), Version.MAIN,
+                    ),
+                    strict=True,
+                )
 
-        # Convert string to Narwhals dtype
-        if isinstance(dtype, str):
-            narwhals_dtype = _NARWHALS_DTYPE_MAP.get(dtype)
-            if narwhals_dtype is not None:
-                return x.cast(narwhals_dtype)
+            return _polars_native_transform(
+                x, lambda expr: expr.pipe_with_dtype(cast_partial)
+            )
+        if needs_source and self.dialect in {"narwhals-pandas", "narwhals-pyarrow"}:
+            from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
+                _ElementwiseBatchExpr,
+            )
 
-        # Fallback: try to use as-is
-        return x.cast(dtype)
+            def cast_bound(series):
+                # Bind from the existing operand, without sampling or reevaluation.
+                source = registry.from_native(series.dtype, self._TARGET)
+                target = resolve_dtype_parameters(dtype, source)
+                return series.cast(registry.to_native_cast(target, self._TARGET))
+
+            def bind_eager(source):
+                return source._from_callable(
+                    lambda frame: [cast_bound(series) for series in source(frame)],
+                    evaluate_output_names=source._evaluate_output_names,
+                    alias_output_names=source._alias_output_names,
+                    context=source,
+                )
+
+            return _ElementwiseBatchExpr(
+                x, None, None, native_polars=False, compliant_transform=bind_eager,
+            )
+        if needs_source and self.dialect in {"narwhals-duckdb", "narwhals-dask"}:
+            from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
+                _ElementwiseBatchExpr,
+            )
+
+            return _ElementwiseBatchExpr(
+                x, None, None, native_polars=False,
+                compliant_transform=lambda source: self._bind_lazy_cast(source, dtype),
+            )
+        return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+
+    def _bind_lazy_cast(self, expression, dtype):
+        """Resolve lazy operands from bound metadata, never sampled rows."""
+        if self.dialect == "narwhals-dask":
+            from narwhals._dask.utils import narwhals_to_native_dtype
+
+            def cast_series(series):
+                source = registry.from_native(series.dtype, TypeTarget.PANDAS)
+                resolved = resolve_dtype_parameters(dtype, source)
+                if resolved == dtype:
+                    # No source refinement: retain Dask's original defaults and
+                    # numeric-to-temporal interpretation.
+                    target = narwhals_to_native_dtype(
+                        registry.to_native_cast(dtype, self._TARGET), expression._version,
+                    )
+                else:
+                    target = registry.to_native_cast(resolved, TypeTarget.PANDAS)
+                return series.astype(target)
+
+            return expression._with_callable(cast_series)
+
+        from narwhals._duckdb.utils import (
+            DeferredTimeZone, native_to_narwhals_dtype, narwhals_to_native_dtype,
+        )
+
+        def cast_expressions(frame, operands):
+            # DuckDB binds a projected relation's types without executing its rows.
+            native_types = frame.native.select(*operands).types
+            timezone = DeferredTimeZone(frame.native)
+            result = []
+            for operand, native in zip(operands, native_types, strict=True):
+                source = registry.from_native(
+                    native_to_narwhals_dtype(native, expression._version, timezone),
+                    self._TARGET,
+                )
+                target = registry.to_native_cast(
+                    resolve_dtype_parameters(dtype, source), self._TARGET,
+                )
+                result.append(operand.cast(
+                    narwhals_to_native_dtype(target, expression._version, timezone),
+                ))
+            return result
+
+        return expression.__class__(
+            lambda frame: cast_expressions(frame, expression(frame)),
+            lambda frame, inputs: cast_expressions(frame, expression.window_function(frame, inputs)),
+            evaluate_output_names=expression._evaluate_output_names,
+            alias_output_names=expression._alias_output_names,
+            version=expression._version,
+        )
+
+    def _cast_target(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
+        if self.dialect in {"narwhals-polars", "narwhals-lazy"}:
+            from narwhals._polars.utils import narwhals_to_native_dtype
+            from narwhals._utils import Version
+            from mountainash.expressions.backends.expression_systems.polars.temporal_cast import (
+                cast_temporal_compatible,
+                contains_temporal,
+            )
+
+            native_dtype = narwhals_to_native_dtype(target, Version.MAIN)
+            if contains_temporal(native_dtype):
+                return _polars_native_transform(
+                    x,
+                    lambda native: cast_temporal_compatible(
+                        native, native_dtype, strict=True
+                    ),
+                )
+        return x.cast(target)

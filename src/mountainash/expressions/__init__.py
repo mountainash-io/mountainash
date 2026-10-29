@@ -21,9 +21,16 @@ from .core.expression_api.entrypoints import (
     # Entry point functions (from expression_api)
     col,
     lit,
+    duration,
     coalesce,
     greatest,
     least,
+    min_horizontal,
+    max_horizontal,
+    all_horizontal,
+    any_horizontal,
+    len,
+    sum_horizontal,
     # Aggregate entry points
     count_records,
     corr,
@@ -37,15 +44,27 @@ from .core.expression_api.entrypoints import (
     always_true,
     always_false,
     always_unknown,
+    # Datetime entry points
+    today,
+    now,
+    element,
 )
 
 # ========================================
 # Core constants
 # ========================================
 from .core.constants import (
-    CONST_VISITOR_BACKENDS,
     CONST_LOGIC_TYPES,
     CONST_EXPRESSION_NODE_TYPES,
+)
+
+# ========================================
+# AST introspection (public, item 226a)
+# ========================================
+from .introspect import (
+    collect_field_references,
+    iter_child_nodes,
+    walk,
 )
 
 """Mountain Ash Expressions
@@ -59,7 +78,7 @@ Architecture:
 - ExpressionNode AST that compiles to backend-native expressions
 
 Quick Start:
-    >>> import mountainash_expressions as ma
+    >>> import mountainash as ma
     >>>
     >>> # Build expression (backend-agnostic AST)
     >>> expr = ma.col("age").gt(30).and_(ma.col("score").ge(85))
@@ -98,12 +117,19 @@ __all__ = [
     # Factory functions (PRIMARY API)
     "col",
     "lit",
+    "duration",
     "native",
 
     # Conditional functions
     "coalesce",
     "greatest",
     "least",
+    "min_horizontal",
+    "max_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "len",
+    "sum_horizontal",
     "when",
 
     # Aggregate functions
@@ -118,8 +144,17 @@ __all__ = [
     "always_false",
     "always_unknown",
 
+    # Datetime entry points
+    "today",
+    "now",
+
     # Constants
-    "CONST_VISITOR_BACKENDS",
     "CONST_LOGIC_TYPES",
     "CONST_EXPRESSION_NODE_TYPES",
+
+    # AST introspection
+    "iter_child_nodes",
+    "walk",
+    "collect_field_references",
+    "element",
 ]

@@ -8,7 +8,7 @@ Adjust type hints and signatures as needed for your implementation.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Optional, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -20,7 +20,7 @@ class SubstraitScalarDatetimeExpressionSystemProtocol(Protocol[ExpressionT]):
     Function type: scalar
     """
 
-    def extract(self, x: ExpressionT, /, component: ExpressionT, timezone: str) -> ExpressionT:
+    def extract(self, x: ExpressionT, /, component: str, indexing: Optional[str] = None, timezone: Optional[str] = None) -> ExpressionT:
         """Extract portion of a date/time value. * YEAR Return the year. * ISO_YEAR Return the ISO 8601 week-numbering year. First week of an ISO year has the majority (4 or more) of
   its days in January.
 * US_YEAR Return the US epidemiological year. First week of US epidemiological year has the majority (4 or more)
@@ -50,7 +50,7 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def extract_boolean(self, x: ExpressionT, /, component: ExpressionT) -> ExpressionT:
+    def extract_boolean(self, x: ExpressionT, /, component: str, timezone: Optional[str] = None) -> ExpressionT:
         """Extract boolean values of a date/time value. * IS_LEAP_YEAR Return true if year of the given value is a leap year and false otherwise. * IS_DST Return true if DST (Daylight Savings Time) is observed at the given value
   in the given timezone.
 
@@ -148,29 +148,35 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def strptime_time(self, x: ExpressionT, /, format: str) -> ExpressionT:
-        """Parse string into time using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
-
-        Substrait: strptime_time
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_time(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into time using provided format."""
         ...
 
-    def strptime_date(self, x: ExpressionT, /, format: str) -> ExpressionT:
-        """Parse string into date using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference.
-
-        Substrait: strptime_date
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_date(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into date using provided format."""
         ...
 
-    def strptime_timestamp(self, x: ExpressionT, /, format: str, timezone: str) -> ExpressionT:
-        """Parse string into timestamp using provided format, see https://man7.org/linux/man-pages/man3/strptime.3.html for reference. If timezone is present in timestamp and provided as parameter an error is thrown.
-Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is supplied as parameter and present in the parsed string the parsed timezone is used. If parameter supplied timezone is invalid an error is thrown.
-
-        Substrait: strptime_timestamp
-        URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
-        """
+    def strptime_timestamp(
+        self,
+        x: ExpressionT,
+        /,
+        format: str,
+        timezone: Optional[str] = None,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse string into timestamp using provided format."""
         ...
 
     def strftime(self, x: ExpressionT, /, format: str) -> ExpressionT:
@@ -182,7 +188,61 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_temporal(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, multiple: ExpressionT, origin: ExpressionT) -> ExpressionT:
+    def parse_default(
+        self,
+        x: ExpressionT,
+        /,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless default datetime value."""
+        ...
+    def parse_datetime_default(
+        self,
+        x: ExpressionT,
+        /,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless default datetime value."""
+        ...
+
+    def parse_xsd_duration(
+        self,
+        x: ExpressionT,
+        /,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Validate an XSD duration lexical value."""
+        ...
+
+    def parse_xsd_partial_date(
+        self,
+        x: ExpressionT,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Validate an XSD partial-date lexical value."""
+        ...
+
+    def parse_temporal_any(
+        self,
+        x: ExpressionT,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> ExpressionT:
+        """Parse a Frictionless temporal-any value."""
+        ...
+
+    def round_temporal(
+        self,
+        x: ExpressionT,
+        /,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the origin in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -191,7 +251,15 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         """
         ...
 
-    def round_calendar(self, x: ExpressionT, /, rounding: ExpressionT, unit: ExpressionT, origin: ExpressionT, multiple: ExpressionT) -> ExpressionT:
+    def round_calendar(
+        self,
+        x: ExpressionT,
+        /,
+        rounding: str,
+        unit: str,
+        multiple: int = 1,
+        origin: Any = None,
+    ) -> ExpressionT:
         """Round a given timestamp/date/time to a multiple of a time unit. If the given timestamp is not already an exact multiple from the last origin unit in the given timezone, the resulting point is chosen as one of the two nearest multiples. Which of these is chosen is governed by rounding: FLOOR means to use the earlier one, CEIL means to use the later one, ROUND_TIE_DOWN means to choose the nearest and tie to the earlier one if equidistant, ROUND_TIE_UP means to choose the nearest and tie to the later one if equidistant.
 Timezone strings must be as defined by IANA timezone database (https://www.iana.org/time-zones). Examples: "Pacific/Marquesas", "Etc/GMT+1". If timezone is invalid an error is thrown.
 
@@ -199,3 +267,4 @@ Timezone strings must be as defined by IANA timezone database (https://www.iana.
         URI: https://raw.githubusercontent.com/substrait-io/substrait/main/extensions/functions_datetime.yaml
         """
         ...
+
