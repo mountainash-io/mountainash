@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboardApproval", "helpers:pinGitHubActionDigests"],
   "timezone": "Australia/Melbourne",
-  "baseBranches": ["main"],
+  "baseBranchPatterns": ["develop"],
   "packageRules": [
     {
       "matchManagers": ["pep621"],
@@ -21,7 +21,7 @@
       "commitMessagePrefix": "chore(github dependencies):"
     },
     {
-      "excludePackagePatterns": ["^@types/"]
+      "matchPackageNames": ["!/^@types//"]
     }
   ],
   "schedule": ["on the first day of the month"],
