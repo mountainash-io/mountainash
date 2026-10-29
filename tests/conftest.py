@@ -496,9 +496,14 @@ def backend_factory():
 @pytest.fixture
 def declared_decimal_frame(backend_name):
     """Build native declared Decimal inputs without exercising MA's cast."""
+    from fixtures.backend_registry import MATRIX_BACKENDS
+
     connections = []
 
     def create(data, dtypes):
+        if backend_name == "ibis-sqlite":
+            raise ValueError("SQLite has no native fixed-precision Decimal input")
+        spec = MATRIX_BACKENDS[backend_name]
         frame = pl.DataFrame(
             data,
             schema_overrides={
@@ -506,20 +511,10 @@ def declared_decimal_frame(backend_name):
                 for name, (precision, scale) in dtypes.items()
             },
         )
-        if backend_name == "polars":
-            return frame
-        if backend_name == "polars-lazy":
-            return frame.lazy()
-        if backend_name in {"narwhals-polars", "narwhals-lazy"}:
-            return nw.from_native(frame.lazy() if backend_name == "narwhals-lazy" else frame)
-        if backend_name in {"pandas", "narwhals-pandas"}:
-            arrow_frame = frame.to_arrow().to_pandas(types_mapper=pd.ArrowDtype)
-            return nw.from_native(arrow_frame) if backend_name == "narwhals-pandas" else arrow_frame
-        if backend_name == "ibis-duckdb":
-            connection = ibis.duckdb.connect()
-            connections.append(connection)
-            return connection.create_table("declared_decimal", frame, overwrite=True)
-        raise ValueError("SQLite has no native fixed-precision Decimal input")
+        native = spec.build_typed(frame.to_arrow(), "declared_decimal")
+        if spec.family == "ibis":
+            connections.append(native.get_backend())
+        return native
 
     yield create
     for connection in connections:
