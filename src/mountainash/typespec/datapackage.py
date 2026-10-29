@@ -7,11 +7,14 @@ import json
 from typing import Any, Optional, TYPE_CHECKING, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+from mountainash_transport import POLICY_UNSET
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
     DescriptorResolver,
     DefaultDescriptorResolver,
+    _bind_storage,
+    _effective_policy,
 )
 from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
@@ -44,7 +47,7 @@ from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from mountainash_transport.location import LocationPolicy
+    from mountainash_transport.location import PolicyOverride
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
 
@@ -606,6 +609,17 @@ class DataResource(BaseModel):
         result._descriptor_context = self._descriptor_context
         return result
 
+    def with_storage(
+        self, storage_profile=None, *, auth_profile=None, policy: PolicyOverride = POLICY_UNSET,
+    ) -> DataResource:
+        """Return a runtime-bound copy; omitted policy inherits, None disables."""
+        result = self.model_copy()
+        result._descriptor_context = _bind_storage(
+            self._descriptor_context, storage_profile,
+            auth_profile=auth_profile, policy=policy, binding="resource",
+        )
+        return result
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, DataResource):
             return self.model_dump() == other.model_dump()
@@ -823,6 +837,8 @@ def _copy_resource_for_package(
     )
     resource = DataResource.model_validate(raw)
     resource._invariant_location = location
+    if isinstance(value, DataResource):
+        resource._descriptor_context = value._descriptor_context
     return resource
 
 
@@ -1068,6 +1084,25 @@ def _bind_resource(
     context: DescriptorContext,
     resource_names: frozenset[str],
 ) -> None:
+    retained = resource._descriptor_context
+    if (
+        retained.binding is not None
+        or retained.base_uri is not None
+        or retained.default_base is not None
+        or retained.policy_override is not POLICY_UNSET
+    ):
+        context = replace(
+            retained,
+            package_sources=context.package_sources,
+            base_uri=(
+                retained.base_uri if retained.base_uri is not None else context.base_uri
+            ),
+            default_base=(
+                retained.default_base if retained.default_base is not None else context.default_base
+            ),
+        )
+        if context.base_uri != retained.base_uri or context.default_base != retained.default_base:
+            context = replace(context, policy=_effective_policy(context))
     resource._descriptor_context = context
     resource._package_resource_names = resource_names
 
@@ -1349,6 +1384,24 @@ class DataPackage(BaseModel):
         )
         return type(self)._from_owned_values(values, context=context)
 
+    def with_storage(
+        self, storage_profile=None, *, auth_profile=None, policy: PolicyOverride = POLICY_UNSET,
+    ) -> DataPackage:
+        """Bind inherited resources without replacing explicit resource access."""
+        result = self.model_copy()
+        context = _bind_storage(
+            self._descriptor_context, storage_profile,
+            auth_profile=auth_profile, policy=policy, binding="package",
+        )
+        result._descriptor_context = context
+        for resource in result.resources:
+            if resource._descriptor_context.binding != "resource":
+                resource._descriptor_context = _bind_storage(
+                    resource._descriptor_context, context.storage_profile,
+                    auth_profile=context.auth_profile, policy=policy, binding="package",
+                )
+        return result
+
     @classmethod
     def from_descriptor(
         cls,
@@ -1356,7 +1409,7 @@ class DataPackage(BaseModel):
         *,
         base_uri: str | Path | None = None,
         resolver: DescriptorResolver | None = None,
-        policy: "LocationPolicy | None" = None,
+        policy: PolicyOverride = POLICY_UNSET,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_descriptor
 
@@ -1371,7 +1424,7 @@ class DataPackage(BaseModel):
         *,
         base_uri: str | Path | None = None,
         resolver: DescriptorResolver | None = None,
-        policy: "LocationPolicy | None" = None,
+        policy: PolicyOverride = POLICY_UNSET,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_json
 
@@ -1385,7 +1438,7 @@ class DataPackage(BaseModel):
         path: str | Path,
         *,
         resolver: DescriptorResolver | None = None,
-        policy: "LocationPolicy | None" = None,
+        policy: PolicyOverride = POLICY_UNSET,
     ) -> DataPackage:
         from mountainash.typespec.frictionless_codec import decode_package_path
 

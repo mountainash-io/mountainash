@@ -74,3 +74,50 @@ def join_data():
 @pytest.fixture
 def polars_join_df(join_data):
     return pl.DataFrame(join_data)
+
+
+@pytest.fixture
+def schema_resource_http_url(tmp_path):
+    from functools import partial
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    class RangeHandler(SimpleHTTPRequestHandler):
+        def end_headers(self):
+            self.send_header("Accept-Ranges", "bytes")
+            super().end_headers()
+
+        def do_GET(self):
+            requested = self.headers.get("Range")
+            if requested is None:
+                return super().do_GET()
+            from pathlib import Path
+
+            path = Path(self.translate_path(self.path))
+            size = path.stat().st_size
+            left, right = requested.removeprefix("bytes=").split("-")
+            start = int(left) if left else max(0, size - int(right))
+            end = min(int(right), size - 1) if left and right else size - 1
+            if start >= size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.send_header("Content-Length", str(end - start + 1))
+            self.end_headers()
+            with path.open("rb") as stream:
+                stream.seek(start)
+                self.wfile.write(stream.read(end - start + 1))
+
+    handler = partial(RangeHandler, directory=str(tmp_path))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/rows.csv"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()

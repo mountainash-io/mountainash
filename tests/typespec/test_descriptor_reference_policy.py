@@ -27,52 +27,85 @@ def _pkg(root, schema_ref, **kw):
     p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": "a.csv", "schema": schema_ref}]}))
     return ma.DataPackage.from_path(p, **kw)
 
+def _confined():
+    # Owner default is OFF; every protective case opts in explicitly.
+    return LocationPolicy()
+
 def test_in_root_reference_resolves(layout):
     root, *_ = layout
     assert _pkg(root, "schema.json").resources[0].to_table_schema()
+    assert _pkg(root, "schema.json", policy=_confined()).resources[0].to_table_schema()
 
-def test_absolute_outside_reference_rejected(layout):
+def test_absolute_outside_reference_rejected_when_confined(layout):
     root, out, *_ = layout
     with pytest.raises(LocationNotAllowed):
-        _pkg(root, str(out / "schema.json")).resources[0].to_table_schema()
+        _pkg(root, str(out / "schema.json"), policy=_confined()).resources[0].to_table_schema()
 
-def test_remote_reference_needs_allow_list(layout):
+def test_absolute_outside_reference_resolves_by_default(layout):
+    root, out, *_ = layout
+    assert _pkg(root, str(out / "schema.json")).resources[0].to_table_schema()
+    assert _pkg(root, str(out / "schema.json"), policy=None).resources[0].to_table_schema()
+
+def test_remote_reference_needs_allow_list_when_confined(layout):
     root, _, port, hits = layout
     url = f"http://127.0.0.1:{port}/schema.json"
     with pytest.raises(LocationNotAllowed):
-        _pkg(root, url).resources[0].to_table_schema()
+        _pkg(root, url, policy=_confined()).resources[0].to_table_schema()
     assert hits["n"] == 0
     pol = LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})})
     assert _pkg(root, url, policy=pol).resources[0].to_table_schema()
 
-def test_remote_base_relative_reference_needs_allow_list(layout, monkeypatch):
+def test_remote_reference_resolves_by_default_without_hidden_denial(layout):
+    root, _, port, hits = layout
+    url = f"http://127.0.0.1:{port}/schema.json"
+    assert _pkg(root, url).resources[0].to_table_schema()
+    assert hits["n"] >= 1
+
+def test_remote_base_relative_reference_needs_allow_list_when_confined(layout, monkeypatch):
     root, _, port, hits = layout
     monkeypatch.chdir(root)
     raw = {"name": "p", "resources": [{"name": "r", "path": "a.csv", "schema": "schema.json"}]}
-    pkg = ma.DataPackage.from_descriptor(raw, base_uri=f"http://127.0.0.1:{port}/")
+    pkg = ma.DataPackage.from_descriptor(raw, base_uri=f"http://127.0.0.1:{port}/", policy=_confined())
     with pytest.raises(LocationNotAllowed):
         pkg.resources[0].to_table_schema()
     assert hits["n"] == 0
 
-def test_dotdot_reference_escaping_root_rejected(layout):
+def test_remote_base_relative_reference_resolves_by_default(layout, monkeypatch):
+    root, _, port, hits = layout
+    monkeypatch.chdir(root)
+    raw = {"name": "p", "resources": [{"name": "r", "path": "a.csv", "schema": "schema.json"}]}
+    pkg = ma.DataPackage.from_descriptor(raw, base_uri=f"http://127.0.0.1:{port}/")
+    assert pkg.resources[0].to_table_schema()
+    assert hits["n"] >= 1
+
+def test_dotdot_reference_escaping_root_rejected_when_confined(layout):
     root, *_ = layout
     with pytest.raises(LocationNotAllowed):          # spec: a valid reference that escapes the root
-        _pkg(root, "../out/schema.json").resources[0].to_table_schema()
+        _pkg(root, "../out/schema.json", policy=_confined()).resources[0].to_table_schema()
+
+def test_dotdot_reference_resolves_by_default(layout):
+    root, *_ = layout
+    assert _pkg(root, "../out/schema.json").resources[0].to_table_schema()
 
 def test_dialect_reference_obeys_policy(layout):
     root, out, port, hits = layout
     (root / "dialect.json").write_text(json.dumps({"delimiter": ";"})); (out / "dialect.json").write_text(json.dumps({"delimiter": ";"}))
-    def pkg(ref):
+    def pkg(ref, **kw):
         p = root / "datapackage.json"
         p.write_text(json.dumps({"name": "p", "resources": [{"name": "r", "path": "a.csv", "dialect": ref}]}))
-        return ma.DataPackage.from_path(p)
-    assert pkg("dialect.json").resources[0].to_dialect()
-    with pytest.raises(LocationNotAllowed): pkg(str(out / "dialect.json")).resources[0].to_dialect()
-    with pytest.raises(LocationNotAllowed): pkg(f"http://127.0.0.1:{port}/dialect.json").resources[0].to_dialect()
+        return ma.DataPackage.from_path(p, **kw)
+    remote = f"http://127.0.0.1:{port}/dialect.json"
+    assert pkg("dialect.json", policy=_confined()).resources[0].to_dialect()
+    with pytest.raises(LocationNotAllowed): pkg(str(out / "dialect.json"), policy=_confined()).resources[0].to_dialect()
+    with pytest.raises(LocationNotAllowed): pkg(remote, policy=_confined()).resources[0].to_dialect()
     assert hits["n"] == 0
+    # owner default OFF: the same references resolve without confinement
+    assert pkg(str(out / "dialect.json")).resources[0].to_dialect()
+    assert pkg(remote).resources[0].to_dialect()
+    assert hits["n"] >= 1
 
 
-def test_unknown_scheme_reference_rejected(layout):
+def test_unknown_scheme_reference_rejected_when_confined(layout):
     root, *_ = layout
     with pytest.raises(LocationNotAllowed, match="unknown scheme"):
-        _pkg(root, "hf://host/schema.json").resources[0].to_table_schema()
+        _pkg(root, "hf://host/schema.json", policy=_confined()).resources[0].to_table_schema()

@@ -274,12 +274,12 @@ class MountainashNarwhalsExtensionRelationSystem(
         )
 
     def _native_scan_for(self, resource: Any, dialect: Any, *, location: Any = None) -> bool:
-        return self._native_scan_paths(resource, dialect, location=location) is not None
+        return self._native_scan_sources(resource, dialect, location=location) is not None
 
-    def _native_scan_paths(self, resource: Any, dialect: Any, *, location: Any = None) -> list[str] | None:
-        """The one native-scan decision (predicate and reader), yielding the
-        effective paths: the Polars-backed scan applies only at a polars/lazy
-        Narwhals location, or with none."""
+    def _native_scan_sources(
+        self, resource: Any, dialect: Any, *, location: Any = None,
+    ) -> list[tuple[str, dict[str, str]]] | None:
+        """Shared eligibility and options for the Polars-backed Narwhals locations."""
         if location is not None and location.dialect not in (None, "narwhals-polars", "narwhals-lazy"):
             return None
         from mountainash.relations.backends.relation_systems import resource_files as rf
@@ -288,12 +288,10 @@ class MountainashNarwhalsExtensionRelationSystem(
         )
 
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        return rf.polars_native_scan_paths(resource, fmt, dialect)
+        return rf.polars_native_scan_sources(resource, fmt, dialect)
 
     def read_resource(self, resource: Any, *, location: Any = None) -> Any:
-        """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
-        local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
-        glob, archive, remote."""
+        """Native plain CSV/Parquet where representable; existing Arrow fallback otherwise."""
         from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
 
         self._resource_lowering = OCCURRENCE
@@ -314,21 +312,12 @@ class MountainashNarwhalsExtensionRelationSystem(
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        paths = self._native_scan_paths(resource, dialect, location=location)
-        if paths is not None:
-            from mountainash.core.location import resource_policy
-
+        sources = self._native_scan_sources(resource, dialect, location=location)
+        if sources is not None:
             self._resource_lowering = DEFERRED_ONLY
-            kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
-                resource, fmt, dialect
+            scanned = nw.from_native(
+                MountainashPolarsExtensionRelationSystem()._native_scan(fmt, sources, resource, dialect)
             )
-            literal = {"glob": False} if resource_policy(resource) is not None else {}
-            scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
-            frames = [
-                scan(p, backend="polars", **literal, **(kwargs if fmt == "csv" else {}))
-                for p in paths
-            ]
-            scanned = frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
             if location is not None and location.form is ExecutionForm.EAGER:
                 scanned = scanned.collect()
             return scanned

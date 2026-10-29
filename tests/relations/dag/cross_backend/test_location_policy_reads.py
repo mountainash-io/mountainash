@@ -10,7 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import ibis
 import polars as pl
 import pytest
-from mountainash_transport.location import LocationNotAllowed, LocationPolicy
+from mountainash_transport.location import POLICY_UNSET, LocationNotAllowed, LocationPolicy
 
 from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.relation_api.relation import Relation
@@ -96,43 +96,63 @@ def _descriptor(path, fmt="csv"):
     }]}
 
 
-def _load_path(directory, descriptor, policy=None):
+def _load_path(directory, descriptor, policy=POLICY_UNSET):
     (directory).mkdir(parents=True, exist_ok=True)
     (directory / "datapackage.json").write_text(json.dumps(descriptor))
     return DataPackage.from_path(directory / "datapackage.json", policy=policy)
 
 
 def _collect(pkg, name):
-    return _values(pkg.to_relation_dag().collect("r", target=_target(name)))
+    target = _target(name)
+    try:
+        return _values(pkg.to_relation_dag().collect("r", target=target))
+    finally:
+        if hasattr(target, "disconnect"):
+            target.disconnect()
 
 
+def _expect_nonrange_http_gap(request, target_name):
+    request.node.add_marker(pytest.mark.xfail(
+        target_name in {"polars", "narwhals"},
+        reason="PL-REL-01: Polars 2.1 native HTTP needs Range support; backlog 393 blocks item 387",
+        strict=True, raises=OSError,
+    ))
+
+
+# Owner default is OFF: every protective case opts in explicitly ("confined" or a stricter allow-list).
 POLICIES = {
-    None: None,
+    "confined": lambda: LocationPolicy(),
     "allow-127": lambda: LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})}),
     "allow-any-http": lambda: LocationPolicy(allowed_remote={"http": frozenset()}),
     "unconfined": lambda: LocationPolicy(allow_unconfined=True),
 }
 
 CASES = [
-    ("in_root_glob_named_root", "data/a.csv", None, [99]),
-    ("absolute_outside", "{outside}/secret.csv", None, "reject"),
-    ("symlink_escape", "data/link.csv", None, "reject"),
-    ("dir_with_escaping_entry", "badtree", None, "reject"),
-    ("remote_no_allow", "http://127.0.0.1:{port}/secret.csv", None, "reject"),
+    ("in_root_glob_named_root", "data/a.csv", "confined", [99]),
+    ("absolute_outside", "{outside}/secret.csv", "confined", "reject"),
+    ("symlink_escape", "data/link.csv", "confined", "reject"),
+    ("dir_with_escaping_entry", "badtree", "confined", "reject"),
+    ("remote_no_allow", "http://127.0.0.1:{port}/secret.csv", "confined", "reject"),
     ("remote_allowed", "http://127.0.0.1:{port}/secret.csv", "allow-127", [666]),
     ("allow_list_only_keeps_root", "{outside}/secret.csv", "allow-any-http", "reject"),
-    ("unknown_scheme", "hf://x/y.csv", None, "reject"),
+    ("unknown_scheme", "hf://x/y.csv", "confined", "reject"),
     ("opt_out", "{outside}/secret.csv", "unconfined", [666]),
-    ("remote_base_relative_resource", "<base_uri=http://127.0.0.1:{port}/> secret.csv", None, "reject"),
-    ("remote_base_absolute_local", "<base_uri=http://127.0.0.1:{port}/> {outside}/secret.csv", None, "reject"),
+    ("remote_base_relative_resource", "<base_uri=http://127.0.0.1:{port}/> secret.csv", "confined", "reject"),
+    ("remote_base_absolute_local", "<base_uri=http://127.0.0.1:{port}/> {outside}/secret.csv", "confined", "reject"),
+]
+
+# Same sources with the policy omitted or explicitly None: nothing is confined (spec A1).
+DEFAULT_OFF_CASES = [
+    ("in_root_glob_named_root", "data/a.csv", [99]),
+    ("absolute_outside", "{outside}/secret.csv", [666]),
+    ("symlink_escape", "data/link.csv", [666]),
+    ("remote", "http://127.0.0.1:{port}/secret.csv", [666]),
+    ("remote_base_relative_resource", "<base_uri=http://127.0.0.1:{port}/> secret.csv", [666]),
+    ("remote_base_absolute_local", "<base_uri=http://127.0.0.1:{port}/> {outside}/secret.csv", [666]),
 ]
 
 
-@pytest.mark.parametrize("case", CASES, ids=[c[0] for c in CASES])
-def test_read_confinement(case, target_name, world, monkeypatch):
-    _id, spec, pol_key, expected = case
-    factory = POLICIES[pol_key]
-    policy = factory() if factory else None
+def _load_case(world, spec, policy, monkeypatch):
     base = None
     if spec.startswith("<base_uri="):
         base, spec = spec[len("<base_uri="):].split("> ", 1)
@@ -140,9 +160,14 @@ def test_read_confinement(case, target_name, world, monkeypatch):
     path = spec.format(outside=world["outside"], port=world["port"])
     if base is not None:
         monkeypatch.chdir(world["elsewhere"])
-        pkg = DataPackage.from_descriptor(_descriptor(path), base_uri=base, policy=policy)
-    else:
-        pkg = _load_path(world["root"], _descriptor(path), policy)
+        return DataPackage.from_descriptor(_descriptor(path), base_uri=base, policy=policy)
+    return _load_path(world["root"], _descriptor(path), policy)
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c[0] for c in CASES])
+def test_read_confinement(case, target_name, world, monkeypatch):
+    _id, spec, pol_key, expected = case
+    pkg = _load_case(world, spec, POLICIES[pol_key](), monkeypatch)
     if expected == "reject":
         with pytest.raises(LocationNotAllowed):
             _collect(pkg, target_name)
@@ -151,12 +176,22 @@ def test_read_confinement(case, target_name, world, monkeypatch):
         assert _collect(pkg, target_name) == expected
 
 
+@pytest.mark.parametrize("policy", [POLICY_UNSET, None], ids=["omitted", "explicit-none"])
+@pytest.mark.parametrize("case", DEFAULT_OFF_CASES, ids=[c[0] for c in DEFAULT_OFF_CASES])
+def test_read_default_off(case, policy, target_name, world, monkeypatch, request):
+    _id, spec, expected = case
+    if _id in {"remote", "remote_base_relative_resource"}:
+        _expect_nonrange_http_gap(request, target_name)
+    pkg = _load_case(world, spec, policy, monkeypatch)
+    assert _collect(pkg, target_name) == expected
+
+
 def test_plain_root_directory_reads_natively(target_name, tmp_path):
     root = tmp_path / "plainroot"
     (root / "tree" / "sub").mkdir(parents=True)
     (root / "tree" / "x.csv").write_text("v\n7\n")
     (root / "tree" / "sub" / "y.csv").write_text("v\n8\n")
-    pkg = _load_path(root, _descriptor("tree"))
+    pkg = _load_path(root, _descriptor("tree"), LocationPolicy())
     if target_name == "ibis-polars":
         with pytest.raises(LocationNotAllowed):
             _collect(pkg, target_name)
@@ -167,28 +202,36 @@ def test_plain_root_directory_reads_natively(target_name, tmp_path):
 def test_glob_named_root_directory_on_ibis_duckdb_rejected(world):
     (world["root"] / "tree").mkdir()
     (world["root"] / "tree" / "x.csv").write_text("v\n7\n")
-    pkg = _load_path(world["root"], _descriptor("tree"))
+    pkg = _load_path(world["root"], _descriptor("tree"), LocationPolicy())
     with pytest.raises(LocationNotAllowed):
         _collect(pkg, "ibis-duckdb")
 
 
-@pytest.mark.parametrize("opt_out", [False, True], ids=["policy", "opt-out"])
-def test_literal_percent_filename(target_name, tmp_path, opt_out):
+@pytest.mark.parametrize("mode", ["default", "policy", "opt-out"])
+def test_literal_percent_filename(target_name, tmp_path, mode):
     root = tmp_path / "pct"
     root.mkdir()
     (root / "report%20a.csv").write_text("v\n1\n")
     (root / "report a.csv").write_text("v\n2\n")
-    policy = LocationPolicy(allow_unconfined=True) if opt_out else None
+    policy = {"default": POLICY_UNSET, "policy": LocationPolicy(),
+              "opt-out": LocationPolicy(allow_unconfined=True)}[mode]
     pkg = _load_path(root, _descriptor("report%20a.csv"), policy)
     assert _collect(pkg, target_name) == [1]
 
 
 def test_path_assigned_after_load_is_confined(target_name, world):
-    pkg = _load_path(world["root"], _descriptor("data/a.csv"))
+    pkg = _load_path(world["root"], _descriptor("data/a.csv"), LocationPolicy())
     assert _collect(pkg, target_name) == [99]
     pkg.resources[0].path = str(world["outside"] / "secret.csv")
     with pytest.raises(LocationNotAllowed):
         _collect(pkg, target_name)
+
+
+def test_path_assigned_after_load_is_unconfined_by_default(target_name, world):
+    pkg = _load_path(world["root"], _descriptor("data/a.csv"))
+    assert _collect(pkg, target_name) == [99]
+    pkg.resources[0].path = str(world["outside"] / "secret.csv")
+    assert _collect(pkg, target_name) == [666]
 
 
 def test_opt_out_reads_relative_to_descriptor_not_cwd(target_name, tmp_path, monkeypatch):
@@ -203,7 +246,8 @@ def test_opt_out_reads_relative_to_descriptor_not_cwd(target_name, tmp_path, mon
     assert _collect(pkg, target_name) == [5]
 
 
-def test_opt_out_remote_base_relative_resource_takes_fallback(target_name, world, monkeypatch):
+def test_opt_out_remote_base_relative_resource(target_name, world, monkeypatch, request):
+    _expect_nonrange_http_gap(request, target_name)
     monkeypatch.chdir(world["elsewhere"])
     (world["elsewhere"] / "secret.csv").write_text("v\n1\n")
     pkg = DataPackage.from_descriptor(
@@ -211,6 +255,15 @@ def test_opt_out_remote_base_relative_resource_takes_fallback(target_name, world
         base_uri=f"http://127.0.0.1:{world['port']}/",
         policy=LocationPolicy(allow_unconfined=True),
     )
+    assert _collect(pkg, target_name) == [666]
+
+
+def test_nonrange_http_parquet_preserves_values(target_name, world, request):
+    _expect_nonrange_http_gap(request, target_name)
+    pl.DataFrame({"v": [666]}).write_parquet(world["outside"] / "secret.parquet")
+    pkg = DataPackage.from_descriptor(_descriptor(
+        f"http://127.0.0.1:{world['port']}/secret.parquet", fmt="parquet",
+    ))
     assert _collect(pkg, target_name) == [666]
 
 
@@ -223,8 +276,8 @@ def test_schema_phase_rejects_outside_and_reads_inside(target_name, world, monke
     if target_name.startswith("ibis-"):
         monkeypatch.setattr(ibis.options, "default_backend", getattr(ibis, target_name[5:]).connect())
     target = "ibis" if target_name.startswith("ibis-") else target_name
-    inside = _load_path(world["root"], _descriptor("data/a.csv"))
-    outside = _load_path(world["root"] / "o", _descriptor(str(world["outside"] / "secret.csv")))
+    inside = _load_path(world["root"], _descriptor("data/a.csv"), LocationPolicy())
+    outside = _load_path(world["root"] / "o", _descriptor(str(world["outside"] / "secret.csv")), LocationPolicy())
     _native, visitor = _schema_relation(inside.resources[0])._compile_and_execute_with_visitor(
         target=target, phase=ExecutionPhase.SCHEMA)
     visitor._execution_session.close(release_owned=True)

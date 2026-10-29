@@ -31,6 +31,7 @@ _ZERO_REF_OK = {
 _REFERENCE_ONLY: dict[str, str] = {
     "IB-CTE-01": "Reference-only: no current recursive-CTE public target; backlog 238, capability maintainers. Since 2026-09-17.",
     "IB-TYPE-04": "Reference-only: no concrete type-inference call/scenario; backlog 238, capability maintainers. Since 2026-09-17.",
+    "PL-REL-01": "Resource HTTP server capability, not a backend operation-signature fact; strict CSV/Parquet regressions in tests/relations/dag/cross_backend/test_location_policy_reads.py. Backlog 393, resource I/O maintainers. Since 2026-10-29.",
 }
 
 _PENDING_CAPABILITY_FACTS: dict[str, str] = {}

@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 try:
@@ -18,11 +19,15 @@ except ImportError:  # pragma: no cover - Python 3.10 compatibility
 
 from mountainash.core.io import facade_read_bytes
 from mountainash_transport.location import (
+    POLICY_UNSET,
     LocationNotAllowed,
+    LocationPolicy,
+    PolicyOverride,
     confine_local,
     identify_scheme,
     local_path,
     require_known_scheme,
+    resolve_policy,
 )
 from mountainash.typespec.errors import (
     DescriptorReferenceInvalid,
@@ -40,9 +45,6 @@ except ImportError:  # pragma: no cover - optional storage dependency
 else:
     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError, _TransportPathNotFoundError)
 
-
-if TYPE_CHECKING:
-    from mountainash_transport.location import LocationPolicy
 
 
 class DescriptorKind(StrEnum):
@@ -68,6 +70,12 @@ class DescriptorContext:
     resolver: DescriptorResolver
     package_sources: tuple[Mapping[str, Any], ...]
     policy: "LocationPolicy | None" = None
+    policy_override: PolicyOverride = POLICY_UNSET
+    storage_profile: Any = field(default=None, repr=False)
+    auth_profile: Any = field(default=None, repr=False)
+    storage_root: str | None = None
+    default_base: str | None = None
+    binding: str | None = None
 
 
 def _base_error(value: object, message: str) -> InvalidDescriptorStructure:
@@ -273,7 +281,7 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         return _canonical_remote_uri(reference)
     except ValueError as exc:
         # Keep absolute non-hierarchical references representable so the
-        # resolver can apply its scheme policy (which denies them by default).
+        # resolver can apply the selected policy or the provider's normal error.
         if parts.scheme and not parts.netloc:
             return urlunsplit((scheme, parts.netloc, parts.path, parts.query, parts.fragment))
         raise DescriptorReferenceInvalid(
@@ -325,12 +333,11 @@ def _parse_descriptor_bytes(
 
 
 class DefaultDescriptorResolver:
-    """Resolve JSON descriptors under the context ``LocationPolicy``.
+    """Resolve one descriptor, enforcing confinement only when selected."""
 
-    Local results are confined to the policy root; remote results go through the
-    storage facade, which enforces the remote allow-list before any request. With
-    no policy (programmatic, no base) local reads are allowed and remote is denied.
-    """
+    def __init__(self, storage_profile=None, auth_profile=None):
+        self.storage_profile = storage_profile
+        self.auth_profile = auth_profile
 
     def resolve(
         self,
@@ -349,9 +356,11 @@ class DefaultDescriptorResolver:
                 )
                 payload = Path(path).read_bytes()
             else:
-                if policy is None:
-                    raise LocationNotAllowed(reference, "remote not allowed")
-                payload = facade_read_bytes(normalized, policy)
+                from mountainash.core.io import bound_access
+
+                payload = facade_read_bytes(
+                    normalized, policy, **bound_access(self, normalized)
+                )
         except _STORAGE_NOT_FOUND_ERRORS as exc:
             raise DescriptorReferenceNotFound(
                 "descriptor reference does not exist",
@@ -367,49 +376,80 @@ class DefaultDescriptorResolver:
         )
 
 
+def _anchor_policy(policy: PolicyOverride) -> PolicyOverride:
+    if isinstance(policy, LocationPolicy) and policy.root is not None:
+        root = os.fspath(policy.root)
+        if not os.path.isabs(root) and identify_scheme(root) == "":
+            return replace(policy, root=os.path.join(os.getcwd(), root))
+    return policy
+
+
+def _effective_policy(context: DescriptorContext) -> LocationPolicy | None:
+    selected = resolve_policy(context.policy_override, context.storage_profile)
+    if selected is None:
+        return None
+    selected = _anchor_policy(selected)
+    declared = context.base_uri or context.storage_root or context.default_base
+    if declared is None or identify_scheme(declared) not in ("", "file"):
+        declared = context.default_base or os.getcwd()
+    return selected.with_declared_root(local_path(declared))
+
+
+def _bind_storage(
+    context: DescriptorContext,
+    storage_profile=None,
+    *,
+    auth_profile=None,
+    policy: PolicyOverride = POLICY_UNSET,
+    binding: str,
+) -> DescriptorContext:
+    from mountainash_transport import CONST_STORAGE_PROVIDER_TYPE
+
+    if isinstance(storage_profile, str):
+        from mountainash_transport import resolve_storage
+
+        storage_profile, named_auth = resolve_storage(storage_profile)
+        if auth_profile is None:
+            auth_profile = named_auth
+    storage_root = None
+    provider = getattr(getattr(storage_profile, "__spec__", None), "provider_type", None)
+    if provider == CONST_STORAGE_PROVIDER_TYPE.LOCAL:
+        root = getattr(storage_profile, "ROOT_PATH", None)
+        if root:
+            storage_root = os.path.join(os.getcwd(), os.fspath(root))
+    resolver = context.resolver
+    if type(resolver) is DefaultDescriptorResolver:
+        resolver = DefaultDescriptorResolver(storage_profile, auth_profile)
+    bound = replace(
+        context,
+        storage_profile=storage_profile,
+        auth_profile=auth_profile,
+        storage_root=storage_root,
+        binding=binding,
+        resolver=resolver,
+        policy_override=(
+            context.policy_override if policy is POLICY_UNSET else _anchor_policy(policy)
+        ),
+    )
+    return replace(bound, policy=_effective_policy(bound))
+
+
 def build_descriptor_context(
     *,
     base_uri: str | Path | None = None,
     resolver: DescriptorResolver | None = None,
     package_sources: Iterable[Mapping[str, Any]] = (),
-    policy: "LocationPolicy | None" = None,
+    policy: PolicyOverride = POLICY_UNSET,
 ) -> DescriptorContext:
-    """Build a context with canonical base and owned package-source storage."""
-    frozen_sources = tuple(deepcopy(dict(source)) for source in package_sources)
-    return DescriptorContext(
+    """Own descriptor metadata and anchor resolution without enabling policy."""
+    context = DescriptorContext(
         base_uri=normalize_base_uri(base_uri),
         resolver=resolver if resolver is not None else DefaultDescriptorResolver(),
-        package_sources=frozen_sources,
-        policy=policy,
+        package_sources=tuple(deepcopy(dict(source)) for source in package_sources),
+        policy_override=_anchor_policy(policy),
+        default_base=os.getcwd(),
     )
-
-
-def loader_policy(
-    base_uri: str | Path | None,
-    policy: "LocationPolicy | None",
-) -> "LocationPolicy":
-    """Return the loader's policy with its root declared (explicit root wins).
-
-    A local base roots at that base; no base or a remote base roots at the
-    load-time working directory. A remote base grants no permission.
-    """
-    import os
-
-    from mountainash_transport.location import LocationPolicy
-
-    normalized = normalize_base_uri(base_uri)  # existing descriptor errors fire first
-    declared = os.getcwd()
-    if normalized is not None and urlsplit(normalized).scheme == "file":
-        declared = local_path(normalized)
-    effective = policy or LocationPolicy()
-    root = effective.root
-    if (
-        root is not None
-        and not os.path.isabs(root)
-        and identify_scheme(os.fspath(root)) == ""
-    ):
-        effective = replace(effective, root=os.path.join(os.getcwd(), root))  # anchor once; no `..` collapse
-    return effective.with_declared_root(declared)
+    return replace(context, policy=_effective_policy(context))
 
 
 __all__ = [
@@ -417,7 +457,6 @@ __all__ = [
     "DescriptorResolver",
     "DescriptorContext",
     "build_descriptor_context",
-    "loader_policy",
     "normalize_base_uri",
     "normalize_document_uri",
     "descriptor_cache_key",

@@ -104,7 +104,7 @@ def resolve_descriptor_mapping(
         try:
             raw = context.resolver.resolve(
                 value,
-                base_uri=context.base_uri,
+                base_uri=context.base_uri or context.storage_root,
                 expected_kind=expected_kind,
                 **_policy_kwargs(context),
             )

@@ -129,3 +129,10 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
     def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
         """Non-executing decision whether ``read_resource`` scans natively."""
         ...
+
+    def native_setup_required(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        """Non-executing decision whether a native read must first create engine setup.
+
+        Preparation asks this before COMPILE: new setup is execution work. A backend
+        whose native scan needs no engine-side setup keeps this default."""
+        return False

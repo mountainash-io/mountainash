@@ -8,7 +8,7 @@ from typing import Any
 
 import polars as pl
 import pytest
-from mountainash_transport.location import LocationNotAllowed
+from mountainash_transport.location import LocationNotAllowed, LocationPolicy
 
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
@@ -356,7 +356,7 @@ def test_relationship_construction_matrix_has_constraint_edge_without_dependency
         assert len(dag.constraint_metadata[("parent", "child")]) == 1
 
 
-def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) -> None:
+def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path, monkeypatch) -> None:
     missing = tmp_path / "missing-schema.json"
     package = DataPackage(
         resources=[DataResource(name="child", path="child.csv", type="table", table_schema=missing.as_uri())]
@@ -404,7 +404,14 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
                 table_schema=denied_reference,
             )
         ]
-    )
+    ).with_storage(policy=LocationPolicy())
+    import socket
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("denied descriptor attempted remote access")
+
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(socket.socket, "connect", forbidden)
     with pytest.raises(LocationNotAllowed):
         denied.resources[0].to_table_schema()
 

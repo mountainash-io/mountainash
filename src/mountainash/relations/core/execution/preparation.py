@@ -394,7 +394,29 @@ def prepare_execution(
                     f"Boundary {requirement.source_key} requires execution; use .collect()",
                     node_key=requirement.source_key, destination=_label(requirement.destination),
                 )
+    if phase is ExecutionPhase.COMPILE:
+        _require_no_native_setup(prepared)
     return prepared
+
+
+def _require_no_native_setup(p: PreparedExecution) -> None:
+    """Compile may reuse ready native-read setup but never create it.
+
+    Creating engine setup (a DuckDB temporary secret for a remote source) is
+    execution work. EXPLAIN and SCHEMA never reach read_resource, so only COMPILE
+    asks; the Ibis system answers from engine metadata without changing it."""
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    for key, node in p.nodes.items():
+        location = p.locations[key]
+        if (isinstance(node, ResourceReadRelNode) and location.family is CONST_BACKEND.IBIS
+                and location.binding == "bound" and location.connection is not None
+                and get_relation_system(CONST_BACKEND.IBIS)().native_setup_required(
+                    node.resource, location=location)):
+            raise CompileRequiresExecutionError(
+                f"Resource read at {key} needs native storage setup; use .collect()",
+                node_key=key, destination=_label(location),
+            )
 
 
 def render_execution(prepared: PreparedExecution) -> str:

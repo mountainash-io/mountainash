@@ -352,3 +352,38 @@ def test_missing_transport_extra_is_not_relabelled_as_files(monkeypatch, tmp_pat
         with pytest.raises(MissingExtraError) as caught:
             rf.inspect_resource_schema(res, dialect=res.to_dialect())
     assert caught.value is err
+
+
+# ---- loader policy default: off; opted-in confinement is retained ----------
+
+def _loaded_outside_resource(tmp_path, **load_kw):
+    import json
+    from mountainash import DataPackage
+
+    root = tmp_path / "root"; root.mkdir()
+    outside = tmp_path / "outside.csv"; outside.write_text("a\n7\n")
+    raw = {"name": "p", "resources": [{"name": "d", "path": str(outside), "format": "csv"}]}
+    return DataPackage.from_json(json.dumps(raw), base_uri=root, **load_kw).resources[0]
+
+
+@pytest.mark.parametrize("entry", ["parse", "inspect"])
+@pytest.mark.parametrize("load_kw", [{}, {"policy": None}], ids=["omitted", "explicit-none"])
+def test_loaded_outside_path_is_readable_without_policy(tmp_path, entry, load_kw):
+    res = _loaded_outside_resource(tmp_path, **load_kw)
+    if entry == "parse":
+        assert _parse(res).to_pylist() == [{"a": 7}]
+    else:
+        schema, _complete = rf.inspect_resource_schema(res, dialect=res.to_dialect())
+        assert schema.names == ["a"]
+
+
+@pytest.mark.parametrize("entry", ["parse", "inspect"])
+def test_loaded_outside_path_is_rejected_when_policy_enabled(tmp_path, entry):
+    from mountainash_transport.location import LocationNotAllowed, LocationPolicy
+
+    res = _loaded_outside_resource(tmp_path, policy=LocationPolicy())
+    with pytest.raises(LocationNotAllowed):
+        if entry == "parse":
+            _parse(res)
+        else:
+            rf.inspect_resource_schema(res, dialect=res.to_dialect())

@@ -20,6 +20,7 @@ from mountainash.relations.dag.errors import (
 
 if TYPE_CHECKING:
     import pyarrow as pa
+    from mountainash_transport import NativeReadAccess
 
 __all__ = [
     "MissingFilesDependency",
@@ -152,19 +153,18 @@ def dialect_is_default(dialect: Any) -> bool:
     return True
 
 
-def dialect_native_safe(dialect: Any) -> bool:
-    """True when every set field of ``dialect`` can be represented CORRECTLY by a
-    native Polars/Narwhals ``scan_csv`` (via ``to_polars_read_csv_kwargs``).
+def dialect_native_safe(dialect: Any, *, max_delimiter_bytes: int = 1) -> bool:
+    """Whether the native CSV reader can represent every configured dialect value.
 
-    ``escape_char`` is CsvSpec-mappable (so ``ensure_dialect_supported`` allows it)
-    but has no correct native Polars target, so a dialect that sets it returns
-    False here and the Polars/Narwhals readers route it to the CsvSpec fallback --
-    where it IS honoured -- matching Ibis (which fallback-routes any non-default
-    dialect). Unmappable fields never reach this check (``ensure_dialect_supported``
-    rejects them first); if one did, it returns False and the fallback's
-    ``_csv_spec_from_dialect`` re-raises, so the answer stays consistent."""
+    Polars accepts one-byte separators; DuckDB accepts up to four bytes.
+    Escape-bearing and other fallback-only dialects retain the files parser.
+    """
     if dialect is None:
         return True
+    if dialect.delimiter is not None and not 1 <= len(dialect.delimiter.encode()) <= max_delimiter_bytes:
+        return False
+    if dialect.quote_char is not None and len(dialect.quote_char.encode()) != 1:
+        return False
     for name in type(dialect).model_fields:
         if name == "extras" or name in _NATIVE_SAFE_DIALECT_FIELDS or name in _IGNORED_DIALECT_FIELDS:
             continue
@@ -206,35 +206,61 @@ def confined_local_paths(resource: Any, *, tree: bool) -> list[str] | None:
     return out
 
 
-def polars_native_scan_paths(resource: Any, fmt: str, dialect: Any) -> list[str] | None:
-    """Effective paths for a Polars/Narwhals lazy scan, or ``None`` for the files fallback.
+def native_read_accesses(resource: Any) -> list[NativeReadAccess] | None:
+    """Resolve plain native sources without opening data or creating clients."""
+    from mountainash_transport import resolve_native_read
+    from mountainash_transport.location import confine_local
 
-    The one native decision: routing classifies the descriptor-resolved location,
-    and under an active policy authored globs and non-local locations fall back.
-    """
-    if resource.data is not None or fmt not in {"csv", "parquet"} or resource.path is None:
-        return None
-
-    from mountainash.core.io import is_remote
+    from mountainash.core.io import bound_access, is_remote
     from mountainash.core.location import resolve_resource_location, resource_policy
 
+    if resource.data is not None or resource.path is None:
+        return None
     authored = resource.path if isinstance(resource.path, list) else [resource.path]
     if not authored:
         return None
+    policy = resource_policy(resource)
+    context = resource._descriptor_context
+    accesses = []
     for path in authored:
         text = str(path)
-        if (
-            is_remote(resolve_resource_location(resource, text))
-            or any(char in text for char in _GLOB_CHARS)
-            or text.lower().endswith(_COMPRESSION_SUFFIXES)
-        ):
+        if any(char in text for char in _GLOB_CHARS) or text.lower().endswith(_COMPRESSION_SUFFIXES):
             return None
+        resolved = resolve_resource_location(resource, text)
+        if is_remote(resolved):
+            if policy is not None:
+                return None  # Transport retains active remote confinement.
+        elif policy is not None:
+            resolved = confine_local(resolved, policy, tree=True)
+        access = resolve_native_read(resolved, policy=policy, **bound_access(context, resolved))
+        if access is None:
+            return None
+        accesses.append(access)
+    return accesses
 
+
+def polars_native_scan_sources(
+    resource: Any, fmt: str, dialect: Any,
+) -> list[tuple[str, dict[str, str]]] | None:
+    """One eligibility decision supplying exact paths and immutable-plan options."""
+    if fmt not in {"csv", "parquet"}:
+        return None
     if fmt == "csv":
         ensure_dialect_supported(dialect)
         if not dialect_native_safe(dialect):
             return None
-    return confined_local_paths(resource, tree=resource_policy(resource) is not None)
+    accesses = native_read_accesses(resource)
+    if accesses is None:
+        return None
+    from mountainash.relations.backends.relation_systems.native_access import polars_storage_options
+
+    sources = []
+    for access in accesses:
+        options = polars_storage_options(access)
+        if options is None:
+            return None
+        sources.append((access.location, options))
+    return sources
 
 
 def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
@@ -243,7 +269,7 @@ def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
     This is shared by the reader and schema-phase visitor so schema inspection
     never mistakes the eager Arrow fallback for native metadata planning.
     """
-    return polars_native_scan_paths(resource, fmt, dialect) is not None
+    return polars_native_scan_sources(resource, fmt, dialect) is not None
 
 
 def _normalise_format(resource: Any, path_for_suffix: str) -> str | None:
@@ -303,6 +329,7 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
     _parse, FileSourceSpec, _CsvSpec, GzipCompression, ZipArchive = _require_files()
     from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
 
+    from mountainash.core.io import bound_access
     from mountainash.core.location import resolve_resource_location, resource_policy
 
     policy = resource_policy(resource)
@@ -333,7 +360,8 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
                     )
         specs.append(
             FileSourceSpec(path=base, glob=pattern, format=format_arg,
-                           archive=archive, policy=policy)
+                           archive=archive, policy=policy,
+                           **bound_access(getattr(resource, "_descriptor_context", None), base))
         )
     return specs
 

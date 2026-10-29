@@ -60,52 +60,105 @@ resource declares exactly one of `path` or `data`.
 
 ## Location policy
 
-Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
-every resource, schema and dialect location by default. `from_path`, `from_json` and
-`from_descriptor` accept `policy=`, a `mountainash_transport.location.LocationPolicy`;
-`datacontract(source)` takes no `policy` and always confines to the source's parent directory.
+Location confinement is **off by default**. `from_path`, `from_json` and
+`from_descriptor` accept `policy=`. Existing transport storage profiles expose
+`LOCATION_POLICY`, which can also be configured through named-profile settings.
+Authentication, TLS and operating-system permissions are independent of confinement.
 
-| Loader call | Root when `policy` has none |
+| Override | Effective policy |
 |---|---|
-| `from_path(path)` | the descriptor directory |
-| `from_json` / `from_descriptor` with a local `base_uri` | that directory |
-| the same with a remote `base_uri`, or no `base_uri` | the working directory at load time |
-| `datacontract(source)` | the source file's parent directory |
-| `DataPackage(...)` / `DataResource(...)` built in code | none (unconfined) |
+| Omitted | Inherit the bound profile's `LOCATION_POLICY`, or off if none is configured |
+| `policy=None` | Explicitly off, including after attaching a profile |
+| `policy=LocationPolicy(...)` | Replace the profile policy; allow-lists are not merged |
 
-- Relative resource paths resolve beside the descriptor (or against `base_uri` / the
-  working directory), matching Frictionless. A remote `base_uri` joins relative paths but
-  grants no permission to fetch from its host.
-- Absolute local paths outside the root, symlinks leaving the root, and `file://` URIs outside
-  the root raise `LocationNotAllowed` at read time (absolute paths inside the root are accepted),
-  including paths assigned after load. `..` and hidden
-  segments are still rejected at decode time with the existing error.
-- Remote resources and references (`http(s)`, `s3`, ...) need
-  `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
-  allows any host for that scheme. Unknown schemes are rejected.
-- `LocationPolicy(root=...)` replaces the declared root; `allowed_remote` alone keeps it.
-  `LocationPolicy(allow_unconfined=True)` is the single opt-out.
-- `model_copy`, `DataResource.model_validate(bound)` and `DataPackage.model_validate(bound)`
-  keep the context and its policy. `to_package()` exports build a new package in code and
-  are rootless.
-- Reads are confined on Polars, Narwhals and Ibis alike; the descriptor round-trip is
-  unchanged because the policy is a private, non-serialized context field.
+Resolution remains independent of enforcement:
+
+- `from_path` resolves resource paths beside the descriptor. A supplied `base_uri`
+  remains authoritative even when a profile or policy specifies a different root.
+- Without a descriptor base, a bound local profile's `ROOT_PATH` selects relative
+  data paths. Otherwise loaders retain their load-time working directory, even after
+  `chdir`. A policy-only root retains its existing relative-path shorthand.
+- `datacontract(source)` still resolves references beside its source file. It has no
+  `policy` argument and no longer manufactures confinement.
+- Absolute outside-base paths and remote resources/references are permitted by default.
+  Existing Frictionless descriptor validation still applies; this does not legalize
+  otherwise-invalid authored paths.
+- With confinement enabled, outside-root paths and symlink escapes raise
+  `LocationNotAllowed`. Remote access needs an allow-list or a matching trusted profile.
+  `LocationPolicy(root=...)` changes the boundary, not an independently declared base.
+  `allow_unconfined=True` remains supported; explicit `None` is the direct off switch.
 
 ```python
 from mountainash import DataPackage
 from mountainash_transport.location import LocationPolicy
+from mountainash_transport.settings.storage.profiles import LocalStorageProfile
 
-package = DataPackage.from_path("pkg/datapackage.json")  # confined to pkg/
-open_pkg = DataPackage.from_path(
-    "pkg/datapackage.json", policy=LocationPolicy(allow_unconfined=True)
+package = DataPackage.from_path("pkg/datapackage.json")  # unconfined
+confined = package.with_storage(LocalStorageProfile(LOCATION_POLICY={}))
+explicit = DataPackage.from_path(
+    "pkg/datapackage.json", policy=LocationPolicy()
 )
+open_pkg = DataPackage.from_path(
+    "pkg/datapackage.json", policy=None
+).with_storage(LocalStorageProfile(LOCATION_POLICY={}))  # remains unconfined
 ```
+
+### Runtime storage bindings
+
+`DataResource.with_storage(storage_profile=None, *, auth_profile=None, policy=...)`
+and the same method on `DataPackage` return copies without reading resource data.
+Profiles may be objects or existing named storage profiles. Loading named settings
+can read configuration; it does not read the resource. Explicit auth replaces the
+named profile's auth.
+
+A package binding applies to inherited resources. An explicitly resource-bound
+profile/auth/policy triplet survives package construction and subsequent package
+rebinding, allowing heterogeneous packages without a new selector API:
+
+```python
+orders = resource.with_storage("orders-store")
+bound = package.with_storage("default-store")
+```
+
+Byte reads, collection, schema inspection and matching-provider schema/dialect
+references use the binding. Local references retain local descriptor-base resolution;
+references to another provider do not inherit unrelated credentials. Custom descriptor
+resolvers retain their existing interface and one-hop resolution.
+
+`model_copy`, `DataResource.model_validate(bound)` and
+`DataPackage.model_validate(bound)` preserve runtime access and base resolution.
+Profile/auth objects and policy intent remain private: `to_descriptor()` and
+`to_canonical_descriptor()` do not serialize them. Authored extension keys with
+profile-like names are metadata, never trusted runtime configuration.
 
 Not covered: a writer who can change the filesystem inside the root between check and open,
 DNS rebinding, custom `DescriptorResolver` code, and endpoints named by profiles you
 supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed` unless
 the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
 see the [resource-read support matrix](resource-read-support-matrix.md).
+
+### Native collection
+
+With confinement off, representable plain CSV/Parquet resources use native readers
+automatically. There is no route selector or size threshold. Static S3 bindings and
+anonymous range-capable HTTP are qualified on Polars, Polars-backed Narwhals and
+Ibis-DuckDB; other access uses the existing fallback. `narwhals-lazy` retains
+downstream pushdown, while `narwhals-polars` remains eager.
+
+DuckDB uses the connection supplied through `target=`. Its compatible temporary
+setup remains available to deferred results and other connections sharing that
+database. Conflicting credentials select fallback without replacing earlier or
+caller-owned setup. Compile cannot create new setup; use collection first, after
+which compatible setup may be reused.
+
+Non-range HTTP preservation is currently blocked by upstream `PL-REL-01` (backlog
+393); item 387 is not release-qualified. See the support matrix for the exact
+native/fallback and option boundaries.
+
+DuckDB route changes after preparation are also unqualified: newly conflicting
+shared setup can cause an unbound fallback or eager work during compile. This is
+an implementation/design blocker, not a supported change to connection ownership
+or phase semantics.
 
 ## Outputs and ownership
 

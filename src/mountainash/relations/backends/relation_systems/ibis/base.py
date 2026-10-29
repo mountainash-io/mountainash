@@ -120,12 +120,20 @@ class IbisBaseRelationSystem(BaseRelationSystem):
     def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
         """Whether ``read_resource`` scans this resource natively (non-executing).
 
-        Local plain CSV/Parquet; CSV also needs a default dialect (the
-        connection's ``read_csv`` ignores ours). JSON takes the fallback route.
+        Plain CSV/Parquet: local files, and remote sources on DuckDB where the
+        native adapter can represent their access. CSV needs a dialect the engine
+        maps (DuckDB: delimiter/header/quote/null; others: default). JSON takes
+        the fallback route.
         """
         return self._native_scan_for(
             resource, resource.to_dialect(), location=location,
         )
+
+    def native_setup_required(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        """Whether a native read here must first create new engine setup (non-executing).
+
+        Preparation asks this before COMPILE: new setup is execution work."""
+        return self._native_setup_required(resource, location=location)
 
 
 def _canonical_type(dtype: pa.DataType) -> pa.DataType:

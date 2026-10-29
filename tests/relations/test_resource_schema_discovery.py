@@ -24,42 +24,36 @@ def resource_relation(path, *, format, schema=None):
     )))
 
 
-def test_http_parquet_dag_preserves_recursive_types_without_row_loading(tmp_path, monkeypatch):
+def test_http_parquet_dag_preserves_recursive_types_without_row_loading(
+    tmp_path, monkeypatch, schema_resource_http_url,
+):
     path = tmp_path / "rows.parquet"
     pq.write_table(pa.table({
         "id": [1],
         "at": pa.array([0], type=pa.timestamp("us", "UTC")),
         "items": pa.array([[2, 3]], type=pa.list_(pa.int32())),
     }), path)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(tmp_path)))
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        source = resource_relation(f"http://127.0.0.1:{server.server_port}/rows.parquet", format="parquet")
-        dag = ma.RelationDAG()
-        dag.add("source", source)
-        query = dag.ref("source").select(ma.col("id").add(1).alias("next"), "at", "items")
-        dag.add("output", query)
-        expected = {
-            "next": D.I64,
-            "at": TimestampDtype(precision=6, timezone_aware=True, timezone="UTC"),
-            "items": ListDtype(element=D.I32),
-        }
-        from mountainash.relations.backends.relation_systems import resource_files
+    source = resource_relation(schema_resource_http_url.removesuffix(".csv") + ".parquet", format="parquet")
+    dag = ma.RelationDAG()
+    dag.add("source", source)
+    query = dag.ref("source").select(ma.col("id").add(1).alias("next"), "at", "items")
+    dag.add("output", query)
+    expected = {
+        "next": D.I64,
+        "at": TimestampDtype(precision=6, timezone_aware=True, timezone="UTC"),
+        "items": ListDtype(element=D.I32),
+    }
+    from mountainash.relations.backends.relation_systems import resource_files
 
-        def forbid_rows(*args, **kwargs):
-            raise AssertionError("schema inspection loaded resource rows")
+    def forbid_rows(*args, **kwargs):
+        raise AssertionError("schema inspection loaded resource rows")
 
-        with monkeypatch.context() as guard:
-            guard.setattr(resource_files, "parse_resource_to_arrow", forbid_rows)
-            assert dag.schema("output") == expected
-            assert query.collect_schema() == expected
-            assert query.collect_schema(allow_execution=True) == expected
-        assert query.to_dict()["next"] == [2]
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+    with monkeypatch.context() as guard:
+        guard.setattr(resource_files, "parse_resource_to_arrow", forbid_rows)
+        assert dag.schema("output") == expected
+        assert query.collect_schema() == expected
+        assert query.collect_schema(allow_execution=True) == expected
+    assert query.to_dict()["next"] == [2]
 
 
 @pytest.mark.parametrize("backend", ["polars", "narwhals"])
@@ -199,3 +193,62 @@ def test_complete_discovery_preserves_invalid_projection_error(tmp_path, allow_e
     relation = resource_relation(path, format="json").select("absent")
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
         relation.collect_schema(allow_execution=allow_execution)
+
+
+# --- bound storage binding: profile headers reach schema discovery and every reader ----
+
+@pytest.fixture
+def token_files(tmp_path):
+    """Loopback server whose served directory is chosen by the X-Token request header."""
+    import gzip
+
+    for token, column in (("alpha", "a"), ("beta", "b")):
+        d = tmp_path / token
+        d.mkdir()
+        pq.write_table(pa.table({column: pa.array([1, 2], type=pa.int32())}), d / "rows.parquet")
+        (d / "rows.csv.gz").write_bytes(gzip.compress(f"{column}\n1\n2\n".encode()))
+
+    class H(SimpleHTTPRequestHandler):
+        def translate_path(self, path):
+            return super().translate_path(f"/{self.headers.get('X-Token', 'none')}{path}")
+
+        def log_message(self, *a):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(H, directory=str(tmp_path)))
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield server.server_port
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+
+def _bound(port, name, token):
+    from mountainash_transport.settings.storage.profiles import HTTPStorageProfile
+
+    raw = {"name": "p", "resources": [{
+        "name": "r", "path": f"http://127.0.0.1:{port}/{name}", "format": name.split(".")[1],
+    }]}
+    return ma.DataPackage.from_descriptor(raw).with_storage(HTTPStorageProfile(HEADERS={"X-Token": token}))
+
+
+def test_bound_headers_choose_discovered_schema(token_files):
+    for token, column in (("alpha", "a"), ("beta", "b")):
+        dag = _bound(token_files, "rows.parquet", token).to_relation_dag()
+        assert dag.schema("r") == {column: D.I32}
+
+
+@pytest.mark.parametrize("target", ["polars", "narwhals", "ibis-duckdb"])
+@pytest.mark.parametrize("name", ["rows.parquet", "rows.csv.gz"])
+def test_bound_headers_choose_collected_rows_on_every_backend(token_files, target, name):
+    import ibis
+
+    engine = ibis.duckdb.connect() if target == "ibis-duckdb" else target
+    try:
+        for token, column in (("alpha", "a"), ("beta", "b")):
+            dag = _bound(token_files, name, token).to_relation_dag()
+            assert ma.relation(dag.collect("r", target=engine)).to_dict() == {column: [1, 2]}
+    finally:
+        if target == "ibis-duckdb":
+            engine.disconnect()
