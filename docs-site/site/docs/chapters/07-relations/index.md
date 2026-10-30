@@ -104,9 +104,12 @@ Method names and parameters follow the Polars `LazyFrame` API. Where mountainash
 | Argument | Where the plan runs |
 |---|---|
 | Polars `DataFrame` or `LazyFrame` | Polars |
-| pandas, PyArrow, Dask or DuckDB objects, Narwhals frames, anything `narwhals.from_native` accepts | Narwhals, on that library |
+| pandas or PyArrow objects, Narwhals frames (including `narwhals.from_native(...)` wrappers of Dask frames and DuckDB relations) | Narwhals, on that library |
 | Ibis table bound to a connection | that connection, as SQL |
 | `list`, `dict`, dataclass instance, Pydantic model instance | Polars, after conversion (see [Relations from Python data](#relations-from-python-data)) |
+
+!!! warning "Backend limit"
+    A bare Dask frame or DuckDB relation is detected as a Narwhals source but fails at the terminal with Narwhals' `TypeError: Cannot only use series_only=True or eager_only=False with DuckDBPyRelation`. Wrap it first: `ma.relation(narwhals.from_native(duckdb_relation))`. See [Narwhals and its providers](../21-backends/index.md#narwhals-and-its-providers).
 
 The backend is detected from the object's type as described in [Backend detection](../02-installation-and-package-surface/index.md#backend-detection). `collect()` returns the engine's own result type, so the result stays in the library you started with:
 

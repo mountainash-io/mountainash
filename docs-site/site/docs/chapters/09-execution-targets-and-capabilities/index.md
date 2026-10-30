@@ -124,7 +124,7 @@ Selected execution location at root has unresolved Ibis binding: ibis-duckdb (un
 Explicit target at root is ibis-duckdb (bound), not polars (bound)
 ```
 
-Placement and transfer planning are part of how relations compile; [How relations compile](../19-relation-compilation/index.md) covers the planner.
+Placement and transfer planning are part of how relations compile; [How relations compile](../19-relation-compilation/index.md) describes how preparation fits into compilation; the placement and transfer rules themselves are the ones on this page.
 
 ## Materialization scopes and checkpoints
 
