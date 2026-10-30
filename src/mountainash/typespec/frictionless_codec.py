@@ -25,6 +25,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.spec import TableSchema
 from mountainash.typespec.errors import (
+    clean_cause,
     DescriptorReferenceNotFound,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -118,7 +119,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             descriptor_path="$",
             rejected_value=path,
             required_form="UTF-8 JSON text",
-        ) from exc
+        ) from clean_cause(exc, path)
     except (TypeError, ValueError) as exc:
         raise _structure_error(
             "package descriptor path must be a local path",
@@ -126,7 +127,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             rejected_value=path,
             required_form="local filesystem path",
             descriptor_kind="package",
-        ) from exc
+        ) from clean_cause(exc, path)
     except (FileNotFoundError, OSError) as exc:
         raise DescriptorReferenceNotFound(
             "package descriptor path does not exist",
@@ -134,7 +135,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             descriptor_path="$path",
             rejected_value=path,
             required_form="existing local JSON file",
-        ) from exc
+        ) from clean_cause(exc, path)
     return absolute_path, text
 
 
@@ -232,7 +233,7 @@ def _validate_metadata_models(
                 required_form=f"valid {model.__name__[1:-10].lower()} object",
                 descriptor_kind=kind,
                 resource_name=resource_name,
-            ) from exc
+            ) from clean_cause(exc)
         if model is _ContributorDescriptor and validated.roles is not None and not validated.roles:
             raise _structure_error(
                 "contributor roles must not be empty",

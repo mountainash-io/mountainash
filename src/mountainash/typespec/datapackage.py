@@ -15,6 +15,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
+    clean_cause,
     DescriptorError,
     DescriptorReferenceInvalid,
     InvalidDescriptorRelationship,
@@ -74,7 +75,7 @@ def _parse_descriptor_json_input(
             descriptor_path="$",
             rejected_value=json_data,
             required_form="valid JSON text",
-        ) from exc
+        ) from clean_cause(exc)
     return parse_descriptor_json(text, descriptor_kind=descriptor_kind)
 
 
@@ -490,7 +491,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from exc
+            ) from clean_cause(exc)
         self._invariant_location = location
         self._package_resource_names = frozenset()
 
@@ -524,7 +525,7 @@ class DataResource(BaseModel):
                 else None
             )
             if isinstance(nested_error, InvalidDescriptorStructure):
-                raise nested_error from exc
+                raise nested_error from clean_cause(exc)
             raise pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
@@ -533,7 +534,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from exc
+            ) from clean_cause(exc)
         result._invariant_location = InvariantLocation("$", resource_name)
         result._descriptor_context = (
             retained_context
@@ -571,7 +572,7 @@ class DataResource(BaseModel):
                 else None
             )
             if isinstance(nested_error, InvalidDescriptorStructure):
-                raise nested_error from exc
+                raise nested_error from clean_cause(exc)
             raise pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
@@ -580,7 +581,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from exc
+            ) from clean_cause(exc)
         result._invariant_location = location
         result._descriptor_context = _default_descriptor_context()
         result._package_resource_names = frozenset()
@@ -693,7 +694,7 @@ class DataResource(BaseModel):
                 expected_kind=DescriptorKind.SCHEMA.value,
                 rejected_value=exc.rejected_value,
                 required_form=exc.required_form,
-            ) from exc
+            ) from clean_cause(exc)
         except TypeSpecError:
             # Typed structural errors (field/type/key shape, field-match) pass
             # through unchanged — never wrapped as descriptor errors.
@@ -713,7 +714,7 @@ class DataResource(BaseModel):
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Schema mapping",
-            ) from exc
+            ) from clean_cause(exc)
 
     def to_dialect(self) -> TableDialect | None:
         if self.dialect is None:
@@ -751,7 +752,7 @@ class DataResource(BaseModel):
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Dialect mapping",
-            ) from exc
+            ) from clean_cause(exc)
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         schema = self.to_table_schema()
@@ -952,7 +953,7 @@ def _validate_package_metadata(raw: Mapping[str, object]) -> None:
                 created,
                 "RFC 3339 date-time string",
                 descriptor_kind="package",
-            ) from exc
+            ) from clean_cause(exc)
     if "keywords" in raw:
         keywords = raw["keywords"]
         if (
@@ -1252,7 +1253,7 @@ class DataPackage(BaseModel):
         try:
             super().__init__(**prepared)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from exc
+            raise _package_validation_error(exc) from clean_cause(exc)
         self._descriptor_context = context
 
     def __eq__(self, other: object) -> bool:
@@ -1281,7 +1282,7 @@ class DataPackage(BaseModel):
         try:
             result = super().model_validate(prepared, **kwargs)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from exc
+            raise _package_validation_error(exc) from clean_cause(exc)
         result._descriptor_context = context
         _rebind_package_resources(result, context)
         return result
@@ -1302,7 +1303,7 @@ class DataPackage(BaseModel):
         try:
             result = super().model_validate(prepared, **kwargs)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from exc
+            raise _package_validation_error(exc) from clean_cause(exc)
         result._descriptor_context = context
         _rebind_package_resources(result, context)
         return result
@@ -1328,7 +1329,7 @@ class DataPackage(BaseModel):
         try:
             BaseModel.__init__(package, **prepared)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from exc
+            raise _package_validation_error(exc) from clean_cause(exc)
         package._descriptor_context = final_context
         return package
 

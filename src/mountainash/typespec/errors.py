@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
+from os import PathLike
 from typing import TYPE_CHECKING, Any, Literal
 
 from mountainash.core.errors import MountainashError
@@ -7,9 +10,57 @@ from mountainash.core.errors import MountainashError
 if TYPE_CHECKING:
     from mountainash.typespec.universal_types import UniversalType
 
+# scheme "://" then userinfo (no "/", "?", "#" or whitespace) then "@".
+_USERINFO = re.compile(r"(?P<scheme>[A-Za-z][A-Za-z0-9+.\-]*://)[^/?#\s@]*@")
+
+
+def redact_userinfo(text: str) -> str:
+    """Replace the userinfo of every ``scheme://userinfo@`` in *text* with ``***``."""
+    return _USERINFO.sub(lambda m: f"{m.group('scheme')}***@", text)
+
+
+def _redact(value: Any) -> Any:
+    """Return *value* with URL userinfo redacted; the same object when nothing changes."""
+    if isinstance(value, str):
+        return redact_userinfo(value)
+    if isinstance(value, Mapping):
+        pairs = [(key, item, _redact(key), _redact(item)) for key, item in value.items()]
+        if all(new_key is key and new_item is item for key, item, new_key, new_item in pairs):
+            return value
+        return {new_key: new_item for _, _, new_key, new_item in pairs}
+    if isinstance(value, (list, tuple)):
+        items = [_redact(item) for item in value]
+        if all(new is old for new, old in zip(items, value)):
+            return value
+        return type(value)(items)
+    return value
+
+
+def clean_cause(exc: BaseException, source: object = None) -> BaseException | None:
+    """Return *exc* for chaining unless it may carry URL userinfo.
+
+    *source* is the caller's input; when it carries userinfo the cause is dropped
+    outright, because native errors may echo it in a form the regex cannot see
+    (``Path`` collapses ``https://`` to ``https:/``).
+    """
+    if isinstance(source, (str, PathLike)) and redact_userinfo(str(source)) != str(source):
+        return None
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        text = repr(current) + repr(getattr(current, "__dict__", {}))
+        if redact_userinfo(text) != text:
+            return None
+        current = current.__cause__ or (None if current.__suppress_context__ else current.__context__)
+    return exc
+
 
 class DescriptorError(MountainashError):
-    """Base for descriptor decoding, encoding, and reference errors."""
+    """Base for descriptor decoding, encoding, and reference errors.
+
+    The message and every attribute are stored with URL userinfo redacted.
+    """
 
     def __init__(
         self,
@@ -24,15 +75,15 @@ class DescriptorError(MountainashError):
         rejected_value: Any = None,
         required_form: str | None = None,
     ) -> None:
-        super().__init__(message)
-        self.descriptor_kind = descriptor_kind
-        self.descriptor_path = descriptor_path
-        self.resource_name = resource_name
-        self.reference = reference
-        self.normalized_reference = normalized_reference
-        self.expected_kind = expected_kind
-        self.rejected_value = rejected_value
-        self.required_form = required_form
+        super().__init__(redact_userinfo(message))
+        self.descriptor_kind = _redact(descriptor_kind)
+        self.descriptor_path = _redact(descriptor_path)
+        self.resource_name = _redact(resource_name)
+        self.reference = _redact(reference)
+        self.normalized_reference = _redact(normalized_reference)
+        self.expected_kind = _redact(expected_kind)
+        self.rejected_value = _redact(rejected_value)
+        self.required_form = _redact(required_form)
 
 
 class InvalidDescriptorSyntax(DescriptorError, ValueError):

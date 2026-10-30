@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from mountainash.typespec.errors import (
+    clean_cause,
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -392,7 +393,7 @@ def parse_descriptor_json(text: str, *, descriptor_kind: str = "package") -> obj
             descriptor_path="$",
             rejected_value=text,
             required_form="valid JSON text",
-        ) from exc
+        ) from clean_cause(exc)
 
 
 def require_package_mapping(raw: object) -> Mapping[str, object]:
