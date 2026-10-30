@@ -78,3 +78,18 @@ def test_candidate_with_unsupported_python_claim_is_rejected(tmp_path):
         )
     with pytest.raises(ValueError, match="Python"):
         _metadata(wheel)
+
+
+def test_base_install_allows_required_siblings_and_rejects_optional_ones():
+    from scripts.verify_release import check_base_siblings
+
+    requires = [
+        "polars",
+        "mountainash-transport",
+        'mountainash-files; extra == "files"',
+    ]
+    check_base_siblings({"mountainash", "mountainash-transport", "polars"}, requires)
+    with pytest.raises(ValueError, match="mountainash-files"):
+        check_base_siblings({"mountainash", "mountainash-transport", "mountainash-files"}, requires)
+    with pytest.raises(ValueError, match="mountainash-settings"):
+        check_base_siblings({"mountainash", "mountainash-transport", "mountainash-settings"}, requires)
