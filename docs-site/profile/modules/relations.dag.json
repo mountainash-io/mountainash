@@ -1,0 +1,186 @@
+{
+  "id": "relations.dag",
+  "path": "src/mountainash/relations/dag/",
+  "summary": "Orchestrator for named, interconnected Relations built on the shared Graph kernel. RelationDAG registers relations and sources, tracks dependency_edges separately from constraint_edges (foreign keys), and compiles targets via DAGMaterializationSession, with collect, collect_with_drift, execute, schema, validate, to_dot and to_package. DAGRelation is a type-preserving Relation bound to a DAG; the session caches canonical per-name results across backends and dialects.",
+  "role": "orchestration",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "executives-marketing"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "RelationDAG",
+    "DAGRelation",
+    "DAGError",
+    "MissingResourceSchema",
+    "RelationDAGRequired",
+    "UnknownRelationRef",
+    "UnsupportedResourceFormat",
+    "CanonicalEntry",
+    "DAGMaterializationSession",
+    "RelationDAGProtocol",
+    "ResourceRef",
+    "relation_children",
+    "walk_refs",
+    "DAGValidationResult"
+  ],
+  "key_classes": [
+    "RelationDAG — registers named relations/sources, resolves refs, collects with cross-backend coercion",
+    "DAGRelation — Relation subclass returned by dag.ref()/dag.source(); terminals compile through dag.execute() without mutating the DAG",
+    "DAGMaterializationSession — per-run cache and resolver of canonical entries, coercion keys and ownership",
+    "RelationDAGProtocol — structural contract used by DAGRelation, validation and packaging",
+    "DAGValidationResult — result of validate/validate_quick"
+  ],
+  "key_functions": [
+    "RelationDAG.add(name, relation) — register a relation",
+    "RelationDAG.source(name, data) — register a source and return a DAGRelation",
+    "RelationDAG.ref(name) — reference a registered relation",
+    "RelationDAG.bind(**sources) — produce an execution DAG with bound data",
+    "RelationDAG.collect(name, *, target=None) — compile and collect a named relation",
+    "RelationDAG.collect_with_drift(...) — collect plus conform drift report",
+    "RelationDAG.execute(relation, *, target=None) — compile an arbitrary relation against the DAG",
+    "RelationDAG.topological_order(target=None) — ordering over dependency_edges",
+    "RelationDAG.add_constraint(child, fk) — record a ForeignKey constraint edge",
+    "RelationDAG.to_package(strict=False) — export as a DataPackage",
+    "RelationDAG.validate / validate_quick — validate DataPackage constraints",
+    "resource_to_relation(ref_or_resource) — build a Relation from a ResourceRef/DataResource"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "datacontracts",
+    "exceptions",
+    "expressions",
+    "expressions.core.unified_visitor",
+    "graph",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "typespec",
+    "validation"
+  ],
+  "dependents": [
+    "core",
+    "datacontracts",
+    "exceptions",
+    "pipelines",
+    "relations",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "toplevel",
+    "typespec",
+    "validation"
+  ],
+  "extension_points": [
+    "RefRelNode / ref_resolver kwarg on UnifiedRelationVisitor",
+    "RelationDAGProtocol for alternate DAG implementations",
+    "ResourceRef for non-tabular resources",
+    "validation_context / key_context hooks for DataPackage validation"
+  ],
+  "lifecycle_notes": [
+    "155a93e9 feat(dag): RelationDAG on Graph kernel; bind() for execution DAGs",
+    "7d906a0a fix(pipelines): kernel-owned DAG introspection",
+    "60bc546a/c449ed25 egress refactor: native endpoints, consumer-location implementation",
+    "__init__ uses lazy_loader to avoid a circular import with relation_base"
+  ],
+  "documentation_hooks": [
+    "RelationDAG user guide: build, ref, collect",
+    "Two-edge graph model: dependency vs constraint edges",
+    "DataPackage round trip: to_package / package-to-DAG and validation loop",
+    "Cross-family DAG collection (mixed backends)"
+  ],
+  "examples": [
+    "dag = RelationDAG(); dag.source('a', df); dag.add('b', dag.ref('a').filter(...)); dag.collect('b')",
+    "tests/relations/dag/test_relation_dag.py",
+    "tests/relations/dag/cross_backend/test_dag_collect.py"
+  ],
+  "tests": [
+    "tests/relations/dag/test_relation_dag.py",
+    "tests/relations/dag/test_dag_bind.py",
+    "tests/relations/dag/test_dag_relation.py",
+    "tests/relations/dag/test_dag_to_package.py",
+    "tests/relations/dag/test_dag_validation.py",
+    "tests/relations/dag/test_materialization_session.py",
+    "tests/relations/dag/test_dag_protocol_alignment.py",
+    "tests/relations/dag/cross_backend/test_dag_collect.py",
+    "tests/relations/dag/cross_backend/test_dag_execute.py"
+  ],
+  "risks": [
+    "materialization.py (881 lines) is a complexity hotspot: caching, cross-family coercion and ownership interplay",
+    "Lazy loading in __init__ is load-bearing for import order; eager imports reintroduce a circular import",
+    "Constraint edges are metadata only and must not affect execution (two-edge-graph-model)",
+    "Cross-family and dialect identity handling affects cache keys"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/dag/__init__.py",
+      "detail": "lazy_loader attach list of public names"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/dag/dag.py",
+      "detail": "RelationDAG built on Graph with dependency_edges/constraint_edges properties and collect/execute"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/dag/materialization.py",
+      "detail": "DAGMaterializationSession and CanonicalEntry"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/dag/dag_relation.py",
+      "detail": "DAGRelation type-preserving Relation"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/dag/protocol.py",
+      "detail": "RelationDAGProtocol"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/relations/dag/dag.py",
+      "detail": "imports mountainash.graph Graph kernel"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/dag/dag.py",
+      "detail": "relation-dag-orchestrator (thin orchestrator over visitor) and two-edge-graph-model principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/dag/test_relation_dag.py",
+      "detail": "core DAG behaviour tests"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/dag/test_dag_to_package.py",
+      "detail": "package export tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

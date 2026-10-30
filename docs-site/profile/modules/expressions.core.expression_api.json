@@ -1,0 +1,147 @@
+{
+  "id": "expressions.core.expression_api",
+  "path": "src/mountainash/expressions/core/expression_api/",
+  "summary": "User-facing fluent API layer. BaseExpressionAPI and BooleanExpressionAPI wrap an AST node, compose Substrait and Mountainash-extension API builders via multiple inheritance, expose namespaces (.str, .dt, .name, .struct, .list, .cat, .geo) through NamespaceDescriptor, and overload Python operators. entrypoints.py provides the free functions (col, lit, when, coalesce, t_col, today, now, ...). The layer only builds backend-agnostic AST nodes; .compile(df) detects the backend and lowers via the visitor.",
+  "role": "api-builder",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "extension-authors",
+    "executives-marketing",
+    "broader-hype"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "BaseExpressionAPI",
+    "BooleanExpressionAPI",
+    "NamespaceDescriptor",
+    "col",
+    "lit",
+    "when",
+    "coalesce",
+    "greatest",
+    "least",
+    "t_col",
+    "native",
+    "today",
+    "now",
+    "element",
+    "count_records",
+    "corr",
+    "median",
+    "quantile"
+  ],
+  "key_classes": [
+    "BaseExpressionAPI — wraps an ExpressionNode, compile/collect plumbing, operator hooks",
+    "BooleanExpressionAPI — primary user class composing all builders and namespaces",
+    "NamespaceDescriptor — descriptor creating namespace builder instances (.str, .dt, ...)",
+    "DatetimeAPIBuilder / StringAPIBuilder / StructAPIBuilder / ListAPIBuilder / CategoricalAPIBuilder / GeospatialAPIBuilder — namespace-bound builders",
+    "Substrait*APIBuilder and MountainAsh*APIBuilder (api_builders/) — per-domain builders producing nodes"
+  ],
+  "key_functions": [
+    "col(name) — column reference expression",
+    "lit(value) — literal expression",
+    "when(condition) — start conditional (when/then/otherwise)",
+    "coalesce(*exprs), greatest, least, *_horizontal — iterable/horizontal entry points",
+    "native(expr) — wrap backend-native expression",
+    "t_col(name, unknown=...) — ternary column with sentinel unknowns"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.membership"
+  ],
+  "dependents": [
+    "conform",
+    "datacontracts",
+    "expressions",
+    "expressions.core.unified_visitor",
+    "expressions.membership",
+    "relations.core.relation_api",
+    "validation"
+  ],
+  "extension_points": [
+    "Add an api_bldr_* builder (substrait/ or extensions_mountainash/) implementing the matching prtcl_api_bldr_* protocol",
+    "NamespaceDescriptor for new namespaces",
+    "Short aliases live only in extension builders (short-aliases principle)"
+  ],
+  "lifecycle_notes": [
+    "Six-step adding-operations process governs new methods",
+    "Recent git: 642480f8 (relations target= change touching shared files)"
+  ],
+  "documentation_hooks": [
+    "Expression API tour",
+    "Namespace reference (.str/.dt/.name/.list/.struct)",
+    "Operator overloading",
+    "Conditional and ternary builders",
+    "Entry-point function reference"
+  ],
+  "examples": [
+    "ma.col('x').str.upper()",
+    "ma.when(ma.col('a')>1).then(ma.lit('hi')).otherwise(ma.lit('lo'))",
+    "tests/expressions/cross_backend/test_boolean.py"
+  ],
+  "tests": [
+    "tests/expressions/cross_backend",
+    "tests/expressions/argument_types",
+    "tests/expressions/ast",
+    "tests/core/test_api_reachability.py",
+    "tests/core/test_namespace_infrastructure.py",
+    "tests/core/test_mro_method_collisions.py",
+    "tests/core/test_free_function_aliases.py",
+    "tests/core/test_signature_conformance.py"
+  ],
+  "risks": [
+    "Method-name collisions across many mixed-in builders (guarded by test_mro_method_collisions)",
+    "Public method signatures must stay in sync with protocols (test_signature_conformance)",
+    "Argument vs option distinction (arguments-vs-options principle)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_api/boolean.py",
+      "detail": "BooleanExpressionAPI and namespace builder classes"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_api/api_base.py",
+      "detail": "BaseExpressionAPI"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_api/descriptor.py",
+      "detail": "NamespaceDescriptor"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_api/entrypoints.py",
+      "detail": "free-function entry points"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/core/expression_api/api_builders/__init__.py",
+      "detail": "fluent-builder-pattern and three-layer-separation principles; substrait/ vs extensions_mountainash/ split"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_mro_method_collisions.py",
+      "detail": "guards builder composition"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

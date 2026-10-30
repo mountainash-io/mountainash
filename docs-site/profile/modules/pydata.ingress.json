@@ -1,0 +1,127 @@
+{
+  "id": "pydata.ingress",
+  "path": "src/mountainash/pydata/ingress/",
+  "summary": "Converts Python data (dataclasses, Pydantic models, dict-of-lists, list-of-dicts, named tuples, tuples, indexed data, Series dicts, collections) to a Polars DataFrame. PydataIngress.convert selects a handler through PydataIngressFactory and can apply a target TableSchema and an explicit source_table_schema; it also reports a compilation reuse descriptor for inline relation sources.",
+  "role": "io",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "PydataIngress",
+    "PydataIngressFactory",
+    "BasePydataIngressHandler",
+    "DataframeFromDataclass",
+    "DataframeFromPydantic",
+    "DataframeFromPydict",
+    "DataframeFromPylist",
+    "DataframeFromNamedTuple",
+    "DataframeFromTuple",
+    "DataframeFromIndexedData",
+    "DataframeFromSeriesDict",
+    "IngressFromCollection",
+    "DataframeFromDefault"
+  ],
+  "key_classes": [
+    "PydataIngress — public entry; convert(data, table_schema, source_table_schema=, inline_conform=) -> Polars frame",
+    "PydataIngressFactory — BaseStrategyFactory that detects the data format and lazily loads a handler",
+    "BasePydataIngressHandler — abstract handler base",
+    "DataframeFromDataclass / DataframeFromPydantic / DataframeFromPydict / DataframeFromPylist / DataframeFromNamedTuple / DataframeFromTuple / DataframeFromIndexedData / DataframeFromSeriesDict / IngressFromCollection / DataframeFromDefault — format handlers"
+  ],
+  "key_functions": [
+    "PydataIngress.convert(data, /, table_schema=None, *, source_table_schema=None, inline_conform=True) — convert Python data to a Polars DataFrame",
+    "repeatable_ingress_value(value) -> bool — decides whether an input is safe to reuse across compilations"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.dtypes",
+    "pydata",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "pydata",
+    "pydata.egress",
+    "relations",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_system"
+  ],
+  "extension_points": [
+    "Subclass BasePydataIngressHandler and register in PydataIngressFactory._configure_strategy_mapping/_get_strategy_key",
+    "CONST_PYTHON_DATAFORMAT enum for format keys",
+    "selected_lowering/OCCURRENCE descriptors for compilation reuse"
+  ],
+  "lifecycle_notes": [
+    "5fe83898: session-scoped compilation reuse (352, #405).",
+    "c1e8da53 and 22cc3292: source dtypes resolve per column (explicit source schema, then annotations, then bounded native inference).",
+    "a68147b6 removed transit policing; 838a285b shared schema declarations refactor."
+  ],
+  "documentation_hooks": [
+    "Creating relations from Python data",
+    "Source schema vs target table_schema semantics",
+    "Supported Python input formats",
+    "Writing a custom ingress handler"
+  ],
+  "examples": [
+    "PydataIngress.convert([{'id': 1, 'name': 'Alice'}])",
+    "tests/pydata/test_ingress_handlers.py",
+    "tests/pydata/test_pydata_roundtrips.py"
+  ],
+  "tests": [
+    "tests/pydata/ingress",
+    "tests/pydata/test_ingress_factory.py",
+    "tests/pydata/test_ingress_handlers.py",
+    "tests/pydata/test_hybrid_conversion.py",
+    "tests/pydata/test_pydata_roundtrips.py"
+  ],
+  "risks": [
+    "Exports are lazy via lazy_loader, so names resolve only at attribute access.",
+    "table_schema is a conversion target and never source-type evidence; unrefined ANY is not an override.",
+    "Handler selection depends on data shape detection; ambiguous inputs fall to DataframeFromDefault."
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/pydata/ingress/__init__.py",
+      "detail": "lazy_loader submod_attrs list handlers and factory"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/ingress/pydata_ingress.py",
+      "detail": "PydataIngress.convert signature and docstring"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/ingress/pydata_ingress_factory.py",
+      "detail": "PydataIngressFactory"
+    },
+    {
+      "kind": "test",
+      "path": "tests/pydata/test_ingress_handlers.py",
+      "detail": "handler tests"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/pydata/ingress",
+      "detail": "git log: 838a285b, 5fe83898, c1e8da53"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

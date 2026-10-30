@@ -1,0 +1,146 @@
+{
+  "id": "toplevel",
+  "path": "src/mountainash/__init__.py",
+  "summary": "Package root. Eagerly re-exports lightweight names (dtypes, errors, typespec data models, value classification) and lazily attaches expression, relation, DAG, pydata-ingress and capability-policy names via lazy_loader so no dataframe backend is imported at init. Also defines the table_schema() and datacontract() convenience constructors.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "executives-marketing",
+    "broader-hype"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "col",
+    "lit",
+    "when",
+    "t_col",
+    "relation",
+    "concat",
+    "from_arrow",
+    "RelationDAG",
+    "materialization_scope",
+    "CheckpointPolicy",
+    "DataPackage",
+    "DataResource",
+    "TableDialect",
+    "DescriptorWriteMode",
+    "TableSchema",
+    "FieldDefinition",
+    "table_schema",
+    "datacontract",
+    "MountainashDtype",
+    "DecimalDtype",
+    "MountainashError",
+    "ResourceRef",
+    "DataFrameT",
+    "ValueKind",
+    "value_kind",
+    "boolean_value",
+    "text_value",
+    "CapabilityPolicy",
+    "CapabilityIssueClass",
+    "ProtectionMechanism",
+    "capability_policy",
+    "PydataIngress",
+    "BaseExpressionAPI",
+    "BooleanExpressionAPI",
+    "CaseFailureBehaviour",
+    "native",
+    "coalesce",
+    "all_horizontal",
+    "any_horizontal",
+    "__version__"
+  ],
+  "key_classes": [],
+  "key_functions": [
+    "table_schema(columns: dict[str,str], **metadata) -> TableSchema — build a TableSchema from a {name: type_string} mapping",
+    "datacontract(source) -> type[BaseDataContract] — compile a contract class from a TableSchema, Pydantic model, Frictionless dict/JSON path/string, simple dict, or an existing contract class"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "datacontracts",
+    "expressions",
+    "pipelines",
+    "relations",
+    "relations.core.relation_api",
+    "relations.dag",
+    "typespec"
+  ],
+  "dependents": [
+    "conform",
+    "core",
+    "datacontracts",
+    "expressions",
+    "expressions.core.expression_system",
+    "pydata.egress",
+    "pydata.ingress",
+    "relations.backends.ibis",
+    "relations.core.relation_api",
+    "relations.core.relation_system",
+    "typespec",
+    "validation"
+  ],
+  "extension_points": [
+    "lazy_loader.attach submod_attrs map: new top-level names are added to the submod_attrs dict and __all__"
+  ],
+  "lifecycle_notes": [
+    "Root __init__ last touched by 838a285b (shared schema declarations and adapter ownership); bd0f13de added Arrow ingestion export (from_arrow); 9f2848d8 added DecimalDtype export.",
+    "Version 0.1.0 released via PR #437."
+  ],
+  "documentation_hooks": [
+    "Quick-start / top-level API reference (import mountainash as ma)",
+    "Lazy-import behaviour and optional backend installation",
+    "Choosing between table_schema(), datacontract() and DataPackage for schema declarations"
+  ],
+  "examples": [
+    "ma.relation(df).conform(spec).to_polars() (see principle build-then-conform)",
+    "ma.datacontract({'id':'int64'}) returns a BaseDataContract subclass",
+    "tests/core/test_api_reachability.py exercises exported names"
+  ],
+  "tests": [
+    "tests/core/test_api_reachability.py",
+    "tests/core/test_py_typed.py"
+  ],
+  "risks": [
+    "Eager exports from typespec and core.dtypes mean those subpackages must remain import-light; adding a heavy import here defeats the lazy design.",
+    "datacontract() resolves str inputs either as a file path or JSON text based on Path.is_file(), which is an ambiguity for odd strings.",
+    "Import cycles: toplevel is imported back by core, typespec, validation and others (e.g. `from mountainash import ...`), so ordering of eager imports matters."
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/__init__.py",
+      "detail": "__all__ and lazy_loader.attach submod_attrs define the public surface"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/__init__.py",
+      "detail": "datacontract() and table_schema() defined at module level"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_api_reachability.py",
+      "detail": "reachability tests for exported names"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/__init__.py",
+      "detail": "git log: 838a285b, bd0f13de, 973ef118, 9f2848d8"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,229 @@
+{
+  "id": "core.capabilities",
+  "path": "src/mountainash/core/capabilities/",
+  "summary": "The capability spine: the schema, registry and policy machinery that describes and enforces what each backend/dialect can do for a given operation call. Backend packages (expressions.backends.capabilities and relations.backends.capabilities) author import-safe SEGMENT declarations; bootstrap.load_all_capability_declarations discovers and binds them, and CapabilityRegistry validates and publishes them as qualified information (descriptive) and qualified policies (executable gate or materialize-residue rules). Registry lookups such as capability_for, violations_for and validate_plan_capabilities are consulted at build/compile time with a BoundCall and an execution context, so a descriptive record alone never changes execution. The package also holds cold read-only layers: capture/catalogue/gaps/retired for evidence and history, and coverage/render_markdown which build the expression coverage report.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors",
+    "users",
+    "executives-marketing"
+  ],
+  "doc_priority": "essential",
+  "confidence": "medium",
+  "public_api": [
+    "CapabilityRegistry",
+    "CapabilityViolation",
+    "CapabilityFact",
+    "CapabilityPolicy",
+    "capability_policy",
+    "ProtectionMechanism",
+    "BackendIdentity",
+    "KNOWN_DIALECTS",
+    "BoundCall",
+    "CapabilitySegment",
+    "CapabilityInformation",
+    "CapabilityPolicyRule",
+    "CapabilityKey",
+    "Selector",
+    "BoundSegment",
+    "Domain",
+    "FactSource",
+    "Enforcement",
+    "Fidelity",
+    "TargetKind",
+    "CapabilityLevel",
+    "CapabilityIssueClass",
+    "PolicyAction",
+    "PolicyConsumer",
+    "ValueClass",
+    "Predicate",
+    "Clause",
+    "ClauseOp",
+    "KnownGap",
+    "GapKind",
+    "AssertionChange",
+    "ChangeDisposition",
+    "load_all_capability_declarations",
+    "unbounded",
+    "classify_domain",
+    "classify_source",
+    "WILDCARD_PARAM"
+  ],
+  "key_classes": [
+    "CapabilityRegistry — classmethod singleton: ensure_loaded, register_segment, capability_for, violations_for, residue_for, validate_plan_capabilities, snapshot/restore/reset",
+    "CapabilitySegment / BoundSegment — authoring unit of declarations and its validated scope binding",
+    "CapabilityInformation — descriptive record (level, layer, message) with no execution consequence",
+    "CapabilityPolicyRule — executable rule naming consumer, action and bounded applicability",
+    "CapabilityFact — runtime policy fact with Enforcement (GATE at BUILD, MATERIALIZE_RESIDUE at MATERIALIZE; default GATE)",
+    "CapabilityPolicy — immutable user/runtime protection preferences applied via the capability_policy() context manager",
+    "BackendIdentity / Scope / FamilyWide / Dialect — family plus dialect identity; KNOWN_DIALECTS is the allowed set",
+    "BoundCall and Predicate/Clause/ClauseOp — predicates over the whole bound call (capability is a property of the call)",
+    "ValueClass + value_classes.predicate_for — support-relevant membership classes for literal values",
+    "CoverageReport / build_coverage_report — pure model for the generated expression coverage report",
+    "ScopeReader / CatalogueQuery — immutable descriptive views, never execution authority"
+  ],
+  "key_functions": [
+    "load_all_capability_declarations() — discover and bind all declaration leaves from expression and relation capability roots",
+    "CapabilityRegistry.capability_for(...) — single-fact lookup (the lookup API)",
+    "CapabilityRegistry.violations_for(bound_call, ...) — what forbids this call (the predicate API)",
+    "CapabilityRegistry.validate_plan_capabilities(...) — plan-level check",
+    "capability_policy(policy) — context manager scoping a CapabilityPolicy",
+    "render_markdown(report) / render_scoped(report) — deterministic coverage report rendering",
+    "classify_domain(operation_key) / classify_source(operation_key) — map an operation enum to Domain and FactSource"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.backends.capabilities",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "relations",
+    "relations.backends.capabilities",
+    "validation"
+  ],
+  "dependents": [
+    "core",
+    "expressions",
+    "expressions.backends.capabilities",
+    "expressions.core.expression_api",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "pipelines",
+    "relations.backends.capabilities",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "extension_points": [
+    "Declaration leaves exporting SEGMENT under the backend capabilities roots (discovered by bootstrap)",
+    "CapabilityPolicy / capability_policy() to select protection mechanisms and consumers per request",
+    "Enforcement role on CapabilityFact: GATE vs MATERIALIZE_RESIDUE",
+    "New ValueClass entries with predicates in value_classes.py",
+    "New dialects registered in KNOWN_DIALECTS",
+    "TargetKind/Fidelity for serialization targets"
+  ],
+  "lifecycle_notes": [
+    "Registry load is batch-validated and published atomically; execution queries use concrete-scope policy indexes only; information never participates in execution",
+    "PR #241 shipped explicit enforcement role (CapabilityFact.enforcement closed enum); the broader implementation/information/policy responsibility split is PROPOSED in the capability-roles principle",
+    "Recent: 642480f8 feat(relations)!: target= replaces backend=, native_identity single recognizer; 4abc5163 policy-presence query; e693cf28 native-argument classification for predicates; 8a2125a7 window-shape metadata (364)",
+    "Capability-as-call-property principle is ADOPTED (lookup and predicate are separate APIs)"
+  ],
+  "documentation_hooks": [
+    "Capability spine architecture overview: backend segments -> bootstrap -> registry -> gates at build/materialize",
+    "Understanding capability errors and how to adjust protection with capability_policy",
+    "Expression coverage report and how it is generated",
+    "Authoring capability declarations (information vs policy, scopes, dialects)",
+    "Known divergences and gaps inventory",
+    "Relationship: backend implementation (code) vs catalogue (description) vs policy (protection) vs tests (verification)"
+  ],
+  "examples": [
+    "with capability_policy(CapabilityPolicy(...)): ... to scope protection preferences",
+    "CapabilityRegistry.ensure_loaded() loads all declarations before queries",
+    "tests/core/test_capability_policy_execution.py and tests/core/test_capability_gating.py show gates in action"
+  ],
+  "tests": [
+    "tests/core/test_capability_applicability.py",
+    "tests/core/test_capability_declarations.py",
+    "tests/core/test_capability_enforcement.py",
+    "tests/core/test_capability_errors.py",
+    "tests/core/test_capability_gate.py",
+    "tests/core/test_capability_gating.py",
+    "tests/core/test_capability_information_policy.py",
+    "tests/core/test_capability_integrity.py",
+    "tests/core/test_capability_load_state.py",
+    "tests/core/test_capability_policy.py",
+    "tests/core/test_capability_policy_execution.py",
+    "tests/core/test_capability_predicates.py",
+    "tests/core/test_capability_predicate_registry.py",
+    "tests/core/test_capability_registry.py",
+    "tests/core/test_capability_retired.py",
+    "tests/core/test_capability_schema.py",
+    "tests/core/test_backend_identity.py",
+    "tests/core/test_value_classes.py",
+    "tests/core/test_expression_coverage_model.py",
+    "tests/core/test_expression_coverage_render.py",
+    "tests/core/test_gap_staleness.py"
+  ],
+  "risks": [
+    "Descriptive fields must never decide execution (explicit-enforcement-role principle); conflating information and policy reintroduces silent gating or silently disabled gates",
+    "Known footgun: a policy `condition` is prose only and does not enable gating; compound predicates may block nothing after probe (project notes 66a/66b)",
+    "Registry is global classmethod state; tests rely on snapshot/restore/reset",
+    "schema.py (~1100 lines) and registry.py (~1250 lines) are complexity hotspots",
+    "Relation namespace changes must be gated against tests/core and protocol alignment, not only tests/relations"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/core/capabilities/__init__.py",
+      "detail": "Public re-exports: CapabilityRegistry, CapabilityFact, CapabilityPolicy, BackendIdentity, BoundCall, declarations types"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/registry.py",
+      "detail": "CapabilityRegistry methods: ensure_loaded, register_segment, capability_for, violations_for, residue_for, validate_plan_capabilities"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/schema.py",
+      "detail": "Enforcement enum (GATE/MATERIALIZE_RESIDUE) with Boundary mapping; TargetKind, Fidelity, ValueClass, ClauseOp"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/bootstrap.py",
+      "detail": "discover_declaration_modules walks expression and relation capability roots and binds SEGMENT leaves"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/identity.py",
+      "detail": "KNOWN_DIALECTS and Scope/FamilyWide/Dialect"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/policy.py",
+      "detail": "CapabilityPolicy, ProtectionMechanism, capability_policy context manager"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/capabilities/coverage.py",
+      "detail": "build_coverage_report is pure over explicit inputs; rendering lives in render_markdown.py"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/core/capabilities/registry.py",
+      "detail": "capability-as-call-property (ADOPTED), explicit-enforcement-role (ADOPTED), capability roles principle (PROPOSED)"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_capability_registry.py",
+      "detail": "Registry validation and lookup behaviour"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/core/capabilities/",
+      "detail": "642480f8, 4abc5163, d29e5fe0, 8a2125a7 recent commits"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

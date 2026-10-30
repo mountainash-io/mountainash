@@ -1,0 +1,102 @@
+{
+  "id": "relations.backends.narwhals",
+  "path": "src/mountainash/relations/backends/relation_systems/narwhals/",
+  "summary": "Narwhals implementation of the relation system, serving pandas, PyArrow, cuDF and lazy-frame inputs through the Narwhals adapter. Composes the same eight Substrait mixins and Mountainash extension mixin as other backends into NarwhalsRelationSystem.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": [
+    "NarwhalsRelationSystem"
+  ],
+  "key_classes": [
+    "NarwhalsRelationSystem — registered (NARWHALS) relation system composing the base mixin, eight Substrait-aligned mixins (read, project, filter, sort, fetch, join, aggregate, set) and the Mountainash extension mixin by multiple inheritance",
+    "NarwhalsBaseRelationSystem — identifies the backend, supplies export/import_into/check_import and name-inference hooks"
+  ],
+  "key_functions": [
+    "register_relation_system(CONST_BACKEND.NARWHALS) — decorator in the package __init__ registering the composed class",
+    "declare_lowering(method[, LoweringDescriptor]) — module-level loop declaring every lowering method reusable; pivot declared REPEATABLE with materializes_input=True"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions.backends.narwhals",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor"
+  ],
+  "dependents": [
+    "relations",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "Subclass/compose a Substrait*/Mountainash* mixin and add it to the composed class bases",
+    "register_relation_system decorator",
+    "BaseRelationSystem hooks: infer_row_index_names, infer_cross_join_names, export, import_into, check_import, native_scan_eligible"
+  ],
+  "lifecycle_notes": [
+    "Latest change: 08ac43e6 feat(resources): confine native and fallback resource reads; decision-7 allow-list (381)",
+    "3b4cc887 lazy check_import payload so non-SQLite destinations never export",
+    "31f2f12f guard inline resources in native_scan_eligible"
+  ],
+  "documentation_hooks": [
+    "Backend implementation guide: adding a relation operation to a backend",
+    "Cross-backend divergences for relational operations",
+    "Execution locations and Arrow import/export boundary"
+  ],
+  "examples": [
+    "Dispatched via the relation visitor: ma.relation(df).filter(...).collect() routes to the registered system for the frame's backend"
+  ],
+  "tests": [
+    "tests/relations/test_rel_narwhals.py",
+    "tests/relations/cross_backend/test_rel_core_ops_results.py",
+    "tests/relations/cross_backend/test_lazy_operation_execution.py"
+  ],
+  "risks": [
+    "Wraps pandas, PyArrow, cuDF and lazy frames via Narwhals; behaviour differs between eager and lazy dialects (narwhals-lazy, narwhals-pandas, narwhals-dask ...)",
+    "Row-level semantics follow the Narwhals subset, so some ops rely on workarounds (see known-divergences)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/backends/relation_systems/narwhals/__init__.py",
+      "detail": "NarwhalsRelationSystem registered for CONST_BACKEND.NARWHALS"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/narwhals/base.py",
+      "detail": "NarwhalsBaseRelationSystem export/import hooks"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/narwhals/extensions_mountainash/relsys_nw_ext_ma_util.py",
+      "detail": "Mountainash utility ops for Narwhals"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_rel_narwhals.py",
+      "detail": "Narwhals relation system tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

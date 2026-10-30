@@ -1,0 +1,115 @@
+{
+  "id": "exceptions",
+  "path": "src/mountainash/exceptions.py",
+  "summary": "Public façade for the mountainash typed error hierarchy, modelled on polars.exceptions. It defines nothing itself; it re-exports error classes from core, conform, relations, dag, dtypes, typespec, expressions.membership and validation so users have one import home.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "MountainashError",
+    "BackendConversionError",
+    "InvalidOptionValueError",
+    "ConformError",
+    "MissingFieldsError",
+    "ExtraFieldsError",
+    "SchemaDriftError",
+    "DAGError",
+    "MissingResourceSchema",
+    "RelationDAGRequired",
+    "UnsupportedResourceFormat",
+    "DtypeError",
+    "UnknownDtypeError",
+    "DtypeMappingError",
+    "SchemaValidationError",
+    "DescriptorError",
+    "TypeSpecError",
+    "ValidationError",
+    "CheckDeclarationError",
+    "IdentityRequiredError",
+    "IdentityInvalidError",
+    "UnknownCheckTypeError",
+    "MembershipArgumentError",
+    "BackendCapabilityError"
+  ],
+  "key_classes": [
+    "MountainashError — root marker class for every mountainash-raised typed error (defined in core/errors.py)"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.dtypes",
+    "expressions.membership",
+    "relations.core",
+    "relations.dag",
+    "typespec",
+    "validation"
+  ],
+  "dependents": [
+    "expressions.membership",
+    "pipelines",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "New typed errors are defined in their owning module's errors.py and then re-exported here and in __all__",
+    "Hybrid hierarchy: subclass MountainashError plus a builtin (ValueError/TypeError) for builtin-compatible catches"
+  ],
+  "lifecycle_notes": [
+    "Recent additions track new modules: cdee565d (descriptor/location errors), 22cc3292 (schema resolution errors).",
+    "Governed by principle typed-error-hierarchy (ADOPTED, boy-scout migration ratchet)."
+  ],
+  "documentation_hooks": [
+    "Error handling guide: catching MountainashError vs specific errors",
+    "Error catalogue grouped by owning module",
+    "Contributor note on adding a new error"
+  ],
+  "examples": [
+    "from mountainash.exceptions import MissingResourceSchema",
+    "except MountainashError: for broad catches"
+  ],
+  "tests": [
+    "tests/test_exceptions_facade.py",
+    "tests/core/test_errors.py"
+  ],
+  "risks": [
+    "Façade must be kept in sync by hand; a new error absent from this file is not reachable from the canonical import home (tests/test_exceptions_facade.py guards this).",
+    "Only MountainashError is exported from the package root; all others live here."
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/exceptions.py",
+      "detail": "imports and __all__ re-export errors from eight modules"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/exceptions.py",
+      "detail": "typed-error-hierarchy.md: MountainashError root, façade convention"
+    },
+    {
+      "kind": "test",
+      "path": "tests/test_exceptions_facade.py",
+      "detail": "façade coverage test"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/exceptions.py",
+      "detail": "git log: cdee565d, 988d3ee0, 22cc3292"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
