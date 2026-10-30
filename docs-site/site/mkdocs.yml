@@ -3,8 +3,8 @@
 # Use the book-installer skill to add features incrementally
 # (math, mascot, slides, learning graph viewer, etc.).
 
-site_name: 'Mountainash Core'
-site_description: 'An intelligent textbook for the mountainash cross-backend data expression and relational pipeline library'
+site_name: 'mountainash'
+site_description: 'Documentation for mountainash: write tabular data logic once with a Polars-style API and run it on Polars, Narwhals-reached libraries and Ibis SQL engines.'
 site_author: 'Nathaniel Ramm'
 site_url: !ENV [TEXTBOOK_SITE_URL, 'https://docs.mountainash.io/mountainash/']
 
@@ -20,7 +20,7 @@ repo_url: 'https://github.com/mountainash-io/mountainash'
 edit_uri: !ENV [TEXTBOOK_EDIT_URI, 'edit/main/docs-site/site/docs/']
 
 # Copyright
-copyright: 'Copyright &copy; 2026 Nathaniel Ramm. Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> for non-commercial use.'
+copyright: 'Copyright &copy; 2024-2026 Mountain Ash Solutions Pty. Ltd. Code licensed under Apache-2.0; bundled GeoJSON schema under MIT. See <a href="license/">License</a>.'
 
 # Navigation
 # IMPORTANT: do NOT add `navigation.tabs` — these books use side navigation
@@ -55,6 +55,9 @@ nav:
           - "21. Backends": chapters/21-backends/index.md
           - "22. Extending mountainash": chapters/22-extending-mountainash/index.md
           - "23. Contributing and testing": chapters/23-contributing-and-testing/index.md
+  - Appendices:
+      - FAQ: faq.md
+      - Glossary: glossary.md
   - License: license.md
   - Contact: contact.md
   - About: about.md

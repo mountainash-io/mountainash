@@ -1,29 +1,64 @@
 ---
-title: 'About This Manual'
-description: 'What this manual is, who wrote it, and how it relates to the mountainash code repository'
+title: 'About'
+description: 'Why mountainash exists, the design ideas behind it, where it fits, and who maintains it'
 ---
 
-# About This Manual
+[← Back to Home](index.md)
 
-**Mountainash Core** is an intelligent textbook — a guided, chapter-by-chapter manual for the [mountainash](https://github.com/mountainash-io/mountainash) Python library, a cross-backend data expression and relational pipeline engine that compiles a single fluent API to Polars, pandas, PyArrow, DuckDB, Snowflake, BigQuery, and every backend that Ibis and Narwhals reach.
+# About mountainash
 
-This site is not the library itself, and it is not API reference documentation. It is a companion manual that explains *why* mountainash is designed the way it is: how the expression system, relation AST, type system, conformance pipeline, ternary logic, and DAG orchestration fit together, and how to use them effectively in real projects. Where API reference tells you what a function does, this manual builds the mental model underneath it — with interactive diagrams (MicroSims) alongside the prose to make the architecture tangible rather than abstract.
+**Polars, Narwhals and Ibis execute your data logic. mountainash decides how that logic is described, checked and carried between them.**
 
-## What's Here
+## Why it exists
 
-- **[Home](index.md)** — the manual's landing page: what mountainash is, who it's for, and what you'll get out of working through it
-- **[Chapters](chapters/index.md)** — 15 chapters and 200 concepts, ordered so each builds on the last, covering core infrastructure through the expression and relation systems to pipelines and DAG orchestration
-- **Learning Graph** — the concept dependency structure underlying the chapter ordering
-- **MicroSims** — interactive diagrams illustrating backend routing, AST construction, the conform pipeline, DAG validation, and more
+Polars, Narwhals and Ibis each solve part of the portability problem. Polars gives a clear expression API and a fast engine. Narwhals puts a Polars-like API over pandas, PyArrow, Dask, DuckDB and others. Ibis compiles a dataframe API to SQL for many databases. A team that stays on one of them is well served.
 
-See the [Package Overview](course-description.md) for a course-style breakdown of audience, prerequisites, and learning outcomes.
+The trouble starts when the same logic has to live in more than one place. A transformation is prototyped on a Polars frame, then has to run against a pandas frame in an existing service and against a database table in production. Each copy is rewritten for its engine. Schemas, type conversions and quality checks are rewritten with it, and the copies drift. When a backend cannot do something, the failure shows up late, as an engine error or a quietly different result.
 
-## Relationship to the Code Repository
+mountainash answers this with one idea: hold the logic as a backend-agnostic plan and compile it only when a result is requested. Expressions, relations, schemas, conformance, data contracts and validation are all built on that plan, so they move together to whatever engine holds the data.
 
-This manual documents [mountainash-io/mountainash](https://github.com/mountainash-io/mountainash), the actual Python package. The manual and the library are versioned and maintained separately: the repository holds the source, tests, and API surface; this site holds the explanatory material built on top of it. If something in this manual is unclear, missing, or drifts from the library's current behavior, issues and contributions are welcome on the [GitHub repository](https://github.com/mountainash-io/mountainash).
+## What it adds to Polars, Narwhals and Ibis
 
-## Authorship and License
+Those libraries supply the engines and their native APIs; mountainash adds a shared layer over them.
 
-This manual was written by **Nathaniel Ramm**, author of mountainash.
+| Area | What you get |
+|---|---|
+| Portable logic | Expressions and relations with Polars method names that compile to Polars, to Narwhals-reached libraries and to Ibis SQL engines, chosen from the data you pass in |
+| Mixed sources | Joins across a Polars frame, a pandas frame, an Arrow table or a Python dict in one plan, with the data moved to one execution location |
+| Schemas | `TableSchema` declarations aligned with Frictionless Table Schema, read and written as descriptors, and extracted from dataframes, dataclasses and Pydantic models |
+| Conformance | `relation.conform(schema)` converts columns to the declared types and names under a contract, and can report how the input drifted |
+| Data quality | Data contracts and a validation engine whose checks compile through the same plans, with row-level failure cases and foreign-key checks |
+| Multi-table work | `RelationDAG` for graphs of named relations, round-tripped through a Frictionless `DataPackage`, and pipelines with checkpoints and resume |
+| Python data in and out | Relations from dicts, rows, dataclasses and Pydantic models, and results back as dicts, tuples, dataclasses or Pydantic models |
 
-Copyright © 2026 Nathaniel Ramm. The content of this manual is licensed under [CC BY-NC-SA 4.0](license.md) (Attribution-NonCommercial-ShareAlike 4.0 International) — you're free to share and adapt it for non-commercial purposes with attribution, under the same license. See the [License](license.md) page for the full terms, and [Contact](contact.md) for commercial licensing inquiries or feedback on the manual itself.
+## Design ideas
+
+Build, then compile. Writing `ma.col("age") > 30` or `ma.relation(df).filter(...)` builds a tree of nodes and touches no data. The backend is detected from the data at compile time, so an expression defined in a shared module applies to frames from different libraries, and you never name the backend yourself. See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-plans-and-the-ast).
+
+Polars on the surface, Substrait underneath. Method and parameter names follow Polars, so a Polars user can read the code. The internal tree follows the [Substrait](https://substrait.io/) model of relations and functions, and operations Substrait does not define, such as ternary logic, sit in a separate mountainash namespace. Backends compile from that tree, never from the Polars-style call. Substrait plan import and export are not available.
+
+The same logic gives the same result, and known differences are named. One expression or relation is meant to produce the same logical result on every backend that supports it, and the cross-backend test suite checks this. Where a backend differs, the difference is recorded as a known divergence rather than patched over quietly. See [Backend support and known limits](chapters/16-backend-support-and-limits/index.md).
+
+A limit belongs to the call. Backend support is recorded for an operation together with its parameters and option values on a specific dialect, not for the operation as a whole. A dialect can run an operation in general and still refuse one parameter or option value. On DuckDB through Ibis, `sample(n=5)` runs, while `sample(n=5, seed=7)` raises `BackendCapabilityError` before it runs, because a seeded exact-count sample is declared unsupported there. `capability_policy` adjusts that protection. See [Capability errors and capability_policy](chapters/09-execution-targets-and-capabilities/index.md#capability-errors-and-capability_policy).
+
+Unknown is a value, not a null. Ternary expressions return TRUE (1), UNKNOWN (0) or FALSE (-1), with AND as the minimum and OR as the maximum. A missing value stays visible as UNKNOWN, and you choose at the point of use whether UNKNOWN rows pass a filter. See [Ternary logic and unknown values](chapters/06-ternary-logic/index.md).
+
+Dependencies drive execution; foreign keys describe data. A `RelationDAG` keeps the edges that come from one relation referring to another apart from the edges that come from declared foreign keys. Only the first decide what is collected and in which order. Foreign keys are checked during validation and never change execution. See [RelationDAG](chapters/14-relationdag/index.md).
+
+## Where it fits
+
+mountainash is the core package of the mountainash project. It owns the semantic layer: expressions, relations, schemas, conformance, data contracts, validation and multi-table orchestration. Execution belongs to the engines it compiles to: Polars directly, pandas, PyArrow, Dask and DuckDB through Narwhals, and DuckDB, SQLite, PostgreSQL, MySQL, Polars, SingleStoreDB and Exasol through Ibis, each at the support level the capability registry records.
+
+Sibling packages own the byte-level work. `mountainash-transport` reads resources from remote locations, `mountainash-files` parses file-backed resources such as CSV and Parquet, and `mountainash-data` handles transactions and owned table copies on SQL backends. [Where mountainash sits](chapters/02-installation-and-package-surface/index.md#where-mountainash-sits) shows which extra brings in each one.
+
+## Who maintains it
+
+mountainash is written and maintained by Nathaniel Ramm. The source, tests and this documentation live in the public repository [mountainash-io/mountainash](https://github.com/mountainash-io/mountainash); work happens on the `develop` branch and `main` is the release line.
+
+Every code example in this documentation is run against the package source, and the shown output is copied from that run. The repository README carries further short examples, and the test suite under `tests/` exercises each feature across backends.
+
+To correct a page, use the edit icon at the top of it, which opens the page's source file on GitHub, and propose the change as a pull request following the repository's [contributing guide](https://github.com/mountainash-io/mountainash/blob/main/CONTRIBUTING.md). For anything else, see [Contact](contact.md).
+
+## License
+
+mountainash is Copyright 2024-2026 Mountain Ash Solutions Pty. Ltd. Its first-party code is licensed under the Apache License, Version 2.0. The bundled GeoJSON schema (`src/mountainash/validation/schemas/GeoJSON.json`) is Copyright (c) 2018 Tim Schaub and is licensed under the MIT License, with its original licence and attribution retained. The distribution's SPDX licence expression is `Apache-2.0 AND MIT`; this does not offer the first-party code under MIT. See [License](license.md) for the files that state these terms.

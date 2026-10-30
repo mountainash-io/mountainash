@@ -1,40 +1,25 @@
-# Creative Commons License
+---
+title: 'License'
+description: 'The licence terms for mountainash, as stated in the repository LICENSE and NOTICE files'
+---
 
-![License](./img/license.png)
+# License
 
-All content in this repository is governed by the following license agreement:
+mountainash is distributed under the SPDX licence expression `Apache-2.0 AND MIT`, as declared in its `pyproject.toml`. The two licences cover different parts of the package.
 
-## License Type
+## Apache License 2.0
 
-Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0 DEED)
+Mountainash's first-party code is licensed under the Apache License, Version 2.0.
 
-## Link to License Agreement
+- Copyright 2024-2026 Mountain Ash Solutions Pty. Ltd.
+- Full text: [LICENSE](https://github.com/mountainash-io/mountainash/blob/main/LICENSE) in the repository, also published at [apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-[https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en)
+## MIT License
 
-## Your Rights
+The bundled GeoJSON schema, `src/mountainash/validation/schemas/GeoJSON.json`, is Copyright (c) 2018 Tim Schaub and is licensed under the MIT License. Its original licence and attribution are retained in [LICENSE.geojson-schema.txt](https://github.com/mountainash-io/mountainash/blob/main/src/mountainash/validation/schemas/LICENSE.geojson-schema.txt).
 
-You are free to:
+The `MIT` part of the licence expression refers to this schema only. It does not offer Mountainash's first-party code under MIT.
 
-* **Share** — copy and redistribute the material in any medium or format
-* **Adapt** — remix, transform, and build upon the material
+## Notices
 
-The licensor cannot revoke these freedoms as long as you follow the license terms.
-
-## Restrictions
-
-* **Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
-* **NonCommercial** — You may not use the material for commercial purposes.
-* **ShareAlike** — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
-* **No additional restrictions** — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
-
-!!! Notices
-    You do not have to comply with the license for elements of the material in the public domain or where your use is permitted by an applicable exception or limitation.
-
-    No warranties are given. The license may not give you all of the permissions necessary for your intended use. For example, other rights such as publicity, privacy, or moral rights may limit how you use the material.
-
-    This deed highlights only some of the key features and terms of the actual license. It is not a license and has no legal value. You should carefully review all of the terms and conditions of the actual license before using the licensed material.
-
-## Commercial Licensing
-
-Commercial rights are reserved by the copyright holder. For commercial licensing, publication inquiries, or permission to use this work in commercial contexts, please contact [Nathaniel Ramm](https://www.linkedin.com/in/nathanielramm/).
+The [NOTICE](https://github.com/mountainash-io/mountainash/blob/main/NOTICE) file records the copyright holders and which licence applies to which part. The LICENSE, NOTICE and GeoJSON licence files are the authoritative statement of these terms; this page summarises them.

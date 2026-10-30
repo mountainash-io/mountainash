@@ -2,101 +2,282 @@
   "schema_version": "1.0",
   "project": "mountainash",
   "baseline": {
-    "source_commit": "00e99834097053e30395b1943913b8b4a74a6e28",
-    "refresh_date": "2026-06-04",
+    "source_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+    "refresh_date": "2026-10-31",
     "tool_versions": {
-      "chapter-content-generator": "0.09",
-      "learning-graph-generator": "0.05",
-      "faq-generator": "1.0",
-      "textbook-refresh": "1.0"
+      "chapter-content-generator": "2.0.0",
+      "learning-graph-generator": "2.0.0",
+      "faq-generator": "2.0.0",
+      "glossary-generator": "2.0.0",
+      "textbook-refresh": "2.0.0",
+      "mountainash-ibook-skills": "36c2babce38a51ee6886eb2e783bce9899aefef6"
     }
   },
   "chapter_state": {
-    "01-foundations": {
-      "content_hash": "229d6e2883716a17213e94155514a6e2bd25823a704e8633762be5a13109169f",
-      "word_count": 2685,
-      "has_concept_markers": true
+    "01-what-mountainash-does": {
+      "content_hash": "sha256:eb130a620ccf522be9a9b99bc5a8016653ea4d404b358d55616e2dc463ec9fbb",
+      "word_count": 2343,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "02-core-infrastructure": {
-      "content_hash": "0208fd4907f20a1cce79dfe18933e19b67ee5f6432acb204751b2315ef670361",
-      "word_count": 2329,
-      "has_concept_markers": true
+    "02-installation-and-package-surface": {
+      "content_hash": "sha256:260268332322ca282ac5d94a4245db707cf91422a119e2c87f187729c50322a5",
+      "word_count": 2112,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "03-expression-api-basics": {
-      "content_hash": "d91b65ab22a90a22937e7c607a318a090c159cc97d4ae5e04dbe6588a352ed47",
-      "word_count": 2021,
-      "has_concept_markers": true
+    "03-dtypes": {
+      "content_hash": "sha256:8e9cdc49b122584681aa5b088c958b99d2bb755a777b2deccbe7fae080332841",
+      "word_count": 2062,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "04-expression-namespaces-and-functions": {
-      "content_hash": "e3e3948e26db5ef6685e7e96bc98d73b1e54cadbea36c57ec1637cdefd9ca9af",
-      "word_count": 2032,
-      "has_concept_markers": true
+    "04-building-expressions": {
+      "content_hash": "sha256:35ed70b1446b93d736813176cbbac831f277679ec49df369e6a26103a59d0fc0",
+      "word_count": 3538,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "05-expression-operations": {
-      "content_hash": "a4fc9ff53027d61c4ed3d600dfff11b7d7f44ef58cdc0cbbda7e38f05cb6ead6",
-      "word_count": 2094,
-      "has_concept_markers": true
+    "05-namespaces-aggregates-and-windows": {
+      "content_hash": "sha256:33d0029fad66fe6896f88001543e9f9b72bcbcff7f005df8fb82ae8d47382629",
+      "word_count": 2730,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "06-expression-ast-and-function-keys": {
-      "content_hash": "28f11bff6680c7539ad8dad7903cdbe8a9ef8529cf25483be8b91388dbebeeb0",
-      "word_count": 2110,
-      "has_concept_markers": true
+    "06-ternary-logic": {
+      "content_hash": "sha256:e6abaa3c3eba03e8fdfb48e04d240da94ddaab01792daae12b27cd595d113df3",
+      "word_count": 1951,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "07-expression-function-registry": {
-      "content_hash": "b70a36f2c326eb703edb7f8f25ab8e018a81f54ca832206385fc63ea1b19277e",
-      "word_count": 2254,
-      "has_concept_markers": true
+    "07-relations": {
+      "content_hash": "sha256:ae30dad0d8c39bf342145e8294eb25532be18c704991757ed9d9dddaec44651c",
+      "word_count": 3938,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "08-expression-backends": {
-      "content_hash": "e385e7cfc229485aaa74a19bee2b86210f0e1dcb5ff20249764fd1d7d44ba1cd",
-      "word_count": 2108,
-      "has_concept_markers": true
+    "08-collecting-results": {
+      "content_hash": "sha256:c17d5dcd55557991a6a3fadcd86fef49aee3fd2027c95a2beb752e21279d5a37",
+      "word_count": 2072,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "09-type-system-and-schema": {
-      "content_hash": "0838b05aae8cab5bf3d49294b78e350b1765fa3af64dbd3fcc3455bc69a9255b",
-      "word_count": 2440,
-      "has_concept_markers": true
+    "09-execution-targets-and-capabilities": {
+      "content_hash": "sha256:15b72b355f632c012c9dfa6ea94ecd70517f8d2bed3ca1aa3336d29d532c39fb",
+      "word_count": 2830,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "10-relation-api-core": {
-      "content_hash": "26a73223e6b0cde21c032ef950e8bdaec10c36244cb7e389f471e2c9f009a2a0",
-      "word_count": 1977,
-      "has_concept_markers": true
+    "10-table-schemas-and-datapackage": {
+      "content_hash": "sha256:5f9aeac4d00abe6d0e3a3792b511f4da65effb6626f8820b319a2a94999a80b3",
+      "word_count": 3754,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "11-relation-api-advanced": {
-      "content_hash": "d8dca30ac0887f7952840424a5ab4cadf5e2cea88dabbb0e016c739160976369",
-      "word_count": 1647,
-      "has_concept_markers": true
+    "11-conforming-data": {
+      "content_hash": "sha256:b0133e1b79c7e37790169be283628032a9751a2f360d288a5ee2906989dfce10",
+      "word_count": 2923,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "12-pipeline-framework": {
-      "content_hash": "ad833f262d4b7d7165736797e0da1dcfdba4ffd906a307f820628c329113811a",
-      "word_count": 1621,
-      "has_concept_markers": true
+    "12-data-contracts": {
+      "content_hash": "sha256:a7b2f15315b3046c59593fcc1017a7937a79229ce2a7b9fc66648e4606f2f69a",
+      "word_count": 2881,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "13-dag-and-datapackage": {
-      "content_hash": "125d188e0db8b345a4eda3c3d8781a69dfa6818a4092d733c3d8d46173897964",
-      "word_count": 3550,
-      "has_concept_markers": true
+    "13-validation": {
+      "content_hash": "sha256:de89752408547bc78da827d50e12c0753b7b1c19aa27b06bbce6dca38f55dc0f",
+      "word_count": 3988,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "14-relation-ast-and-system": {
-      "content_hash": "df42c15d0b95d2608107776b948613c64a0a4430b6e7c0714a5ba5951fb3d858",
-      "word_count": 3390,
-      "has_concept_markers": true
+    "14-relationdag": {
+      "content_hash": "sha256:86dc13d69e7f7ac25ebdcc617ba7b30880d84d7265d3ae0d7ef74a7922145e3d",
+      "word_count": 2344,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
     },
-    "15-relation-backends": {
-      "content_hash": "71b5baa3d8de9bc9a64c87f65776f8964912ea8b8c859fb7839f5febbb656817",
-      "word_count": 3181,
-      "has_concept_markers": true
+    "15-pipelines": {
+      "content_hash": "sha256:9484fa3e77449824ea9f938e254b19d4f7c323b04809b8fae44a87565cf3eafb",
+      "word_count": 2815,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
+    },
+    "16-backend-support-and-limits": {
+      "content_hash": "sha256:9c4d232c62eec0dc4c2a1876d481c5c32d0ae28b7efe7435185ca954f87b804f",
+      "word_count": 8927,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-30",
+      "generator_version": "2.0.0"
+    },
+    "17-architecture": {
+      "content_hash": "sha256:2abfdd88746a1c630e824728a3fc474dd79bec499f38e0d74eea331d7088209b",
+      "word_count": 1968,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "18-expression-compilation": {
+      "content_hash": "sha256:ae9c42de4f1fb4ac57e1f9529f26d8be3576ce829fdd18ef8805525db39576cc",
+      "word_count": 2579,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "19-relation-compilation": {
+      "content_hash": "sha256:74ed573112c4bf538b452b36e3047c162cce86e1ad5c33c0fe39fc9c659ded06",
+      "word_count": 2453,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "20-capability-spine": {
+      "content_hash": "sha256:88f6e6ee24d345310f3f44910e0d11db9aff965e8dcf40db9ac50828dd78fdd3",
+      "word_count": 3081,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "21-backends": {
+      "content_hash": "sha256:88278cf2cf1731f4959d0ab5a6264807d8f5274a77aa292d40182998a66dbc30",
+      "word_count": 2024,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "22-extending-mountainash": {
+      "content_hash": "sha256:6f1b53b39c0966d17bab8df2b29c8d3fa26fc1dad9a2783644e05a9141c15047",
+      "word_count": 2681,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
+    },
+    "23-contributing-and-testing": {
+      "content_hash": "sha256:93d7414aaa60d7d0ea608b98be63e0faa56ecbf2289bba37a53aecf1a6a3a05c",
+      "word_count": 2171,
+      "has_concept_markers": true,
+      "last_generated": "2026-10-31",
+      "generator_version": "2.0.0"
     }
   },
   "learning_graph_state": {
-    "concept_count": 200,
-    "edge_count": 383,
-    "enriched_count": 110,
-    "content_hash": "3ac015b9ca83ecd9166fb1226f2e886727e47f2efc63691d63e43f00a7a27af4"
+    "concept_count": 213,
+    "edge_count": 310,
+    "enriched_count": 204,
+    "content_hash": "sha256:01a66a62c30dc3154151e13e71042e3b11d2f44f99aaaae1eafe7151a73e6bb2"
   },
   "faq_state": {
-    "question_count": 72,
-    "content_hash": "50250cb827f57607f0d488377ffb64a499b21ec30ab99198707b02ecbf3a12f6"
+    "question_count": 60,
+    "content_hash": "sha256:4651d33d4d8b074f61e9c29614f4f673143895f70797b68f43624401382d8ebf"
   },
-  "refresh_history": []
+  "landing_state": {
+    "index.md": {
+      "content_hash": "sha256:8e5b70f3a33e317693bdef7b6985150f24fd8906f4659fc190d1addc48efee8e",
+      "inputs": {
+        "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
+        "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
+        "docs-site/editorial-brief.md": "sha256:cce07cc3ab5a015f1731fb2f2aaa5b75ab72fe3ca32c257173b75702d5514eef",
+        "docs-site/profile/facets/backend-architecture.json": "sha256:d64660a391e4ddd964b5dc2e25ad74e2be57a64bf35ce57c5fbf7096be84644a",
+        "docs-site/profile/facets/broader-hype.json": "sha256:adbae73bf7c000fb5956c6a723514151d958f14862160444d33bc2b7e24cca1d",
+        "docs-site/profile/facets/contributors.json": "sha256:68b50251612386a68c815e616b74b2ffcca01a5efe7b8b0cdc00eae3fae858bf",
+        "docs-site/profile/facets/executives-marketing.json": "sha256:413b20439238519ef53e0f67e023baa0e3129c9aabf65f1170d660e42fcb5962",
+        "docs-site/profile/facets/extension-authors.json": "sha256:feb0c71e78362ee7131ad7abefcbaf375c15b55487315d4c7bc42c05f3ed9841",
+        "docs-site/profile/facets/maintainers.json": "sha256:94d8bf403c5a61c8fce68c7634c5e09a05c822082b3a6fcf3e7da4835a76f806",
+        "docs-site/profile/facets/users.json": "sha256:c687e2c9434dcd33a7e5d7a52e7ee5feab5deda9a8586c5605e5a80152ec0098",
+        "docs-site/site/docs/chapters/01-what-mountainash-does/index.md": "sha256:eb130a620ccf522be9a9b99bc5a8016653ea4d404b358d55616e2dc463ec9fbb",
+        "docs-site/site/docs/chapters/02-installation-and-package-surface/index.md": "sha256:260268332322ca282ac5d94a4245db707cf91422a119e2c87f187729c50322a5",
+        "docs-site/site/docs/chapters/16-backend-support-and-limits/index.md": "sha256:9c4d232c62eec0dc4c2a1876d481c5c32d0ae28b7efe7435185ca954f87b804f",
+        "docs-site/site/docs/chapters/index.md": "sha256:f8125d9ca65d6e9559d5f66af8288f29dd9c1f5ca24ac826fa0058211ec0e725"
+      },
+      "public_symbols": [
+        "ma.col",
+        "ma.relation"
+      ],
+      "last_generated": "2026-10-31"
+    },
+    "about.md": {
+      "content_hash": "sha256:6eef5e4669e554f635b0053db9bdd37f27af69b904e1d9b9ade2c2386d3742d8",
+      "inputs": {
+        "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
+        "LICENSE": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "NOTICE": "sha256:398336579b6e1a65022c20b741e000971ec36105f3a9ce826e14f56a393f03cf",
+        "src/mountainash/validation/schemas/LICENSE.geojson-schema.txt": "sha256:1cde2b2cc000fdc8edaeb8811ddf43f6a4470e0ab55abf27a8f4ed1d399ae018",
+        "docs-site/site/mkdocs.yml": "sha256:a8a6f74d79df53cd489ef2f1d2d338a6b001792e9702197391f548e920ad65c7",
+        "docs-site/profile/facets/backend-architecture.json": "sha256:d64660a391e4ddd964b5dc2e25ad74e2be57a64bf35ce57c5fbf7096be84644a",
+        "docs-site/profile/facets/broader-hype.json": "sha256:adbae73bf7c000fb5956c6a723514151d958f14862160444d33bc2b7e24cca1d",
+        "docs-site/profile/facets/contributors.json": "sha256:68b50251612386a68c815e616b74b2ffcca01a5efe7b8b0cdc00eae3fae858bf",
+        "docs-site/profile/facets/executives-marketing.json": "sha256:413b20439238519ef53e0f67e023baa0e3129c9aabf65f1170d660e42fcb5962",
+        "docs-site/profile/facets/extension-authors.json": "sha256:feb0c71e78362ee7131ad7abefcbaf375c15b55487315d4c7bc42c05f3ed9841",
+        "docs-site/profile/facets/maintainers.json": "sha256:94d8bf403c5a61c8fce68c7634c5e09a05c822082b3a6fcf3e7da4835a76f806",
+        "docs-site/profile/facets/users.json": "sha256:c687e2c9434dcd33a7e5d7a52e7ee5feab5deda9a8586c5605e5a80152ec0098",
+        "../mountainash-central/01.principles/mountainash/a.architecture/core/capability-as-call-property.md": "sha256:e8fad60f6ba62880236583d394bc44f3c29b36d99cdd0553aae8d22a6facd0b6",
+        "../mountainash-central/01.principles/mountainash/a.architecture/core/substrait-first-design.md": "sha256:d20a55f2b8775a3416414c149d8075ba6231f30276e528a469add1c11f140665",
+        "../mountainash-central/01.principles/mountainash/a.architecture/dag/two-edge-graph-model.md": "sha256:16e9fd32515771e1af7d37515330841d3f1f27f1defa8f2bd6851657545a9e9c",
+        "../mountainash-central/01.principles/mountainash/b.type-system/expressions/ternary/three-valued-semantics.md": "sha256:7c0f4766ede67e36fc4e7d8976cc6d7e083dac1d8b48818b18cb99c4edd27e6c",
+        "../mountainash-central/01.principles/mountainash/c.api-design/core/polars-api-substrait-ast.md": "sha256:014d25281412389fb87ee001ad84389842703e9ab63592d33f473e5ae8e92b72",
+        "../mountainash-central/01.principles/mountainash/c.api-design/expressions/build-then-compile.md": "sha256:42070a29f6ffd2d8a901092c84a93558f479250f8c2fe419cfa338c339b3109a",
+        "../mountainash-central/01.principles/mountainash/d.cross-backend/core/consistency-guarantees.md": "sha256:dffc24f5176e4fd0155eaf6c3fd5db0b0b507a9b01f733a1591f388c873d5a06",
+        "../mountainash-central/01.principles/mountainash/i.competitor-analysis/competitive-positioning.md": "sha256:317a26dd11525c588515914cbbe62188035bfc9197ff61ee83ad376ffcc82b28"
+      },
+      "public_symbols": [],
+      "last_generated": "2026-10-31"
+    }
+  },
+  "refresh_history": [
+    {
+      "date": "2026-10-31",
+      "from_commit": "00e99834097053e30395b1943913b8b4a74a6e28",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [
+        "01-what-mountainash-does",
+        "02-installation-and-package-surface",
+        "03-dtypes",
+        "04-building-expressions",
+        "05-namespaces-aggregates-and-windows",
+        "06-ternary-logic",
+        "07-relations",
+        "08-collecting-results",
+        "09-execution-targets-and-capabilities",
+        "10-table-schemas-and-datapackage",
+        "11-conforming-data",
+        "12-data-contracts",
+        "13-validation",
+        "14-relationdag",
+        "15-pipelines",
+        "16-backend-support-and-limits",
+        "17-architecture",
+        "18-expression-compilation",
+        "19-relation-compilation",
+        "20-capability-spine",
+        "21-backends",
+        "22-extending-mountainash",
+        "23-contributing-and-testing"
+      ],
+      "sections_regenerated": 213,
+      "faq_questions_updated": 60,
+      "landing_pages_updated": [
+        "index.md",
+        "about.md"
+      ],
+      "learning_graph_nodes_updated": 213,
+      "tokens_used": 0,
+      "note": "Replacement rebuild (editorial brief confirmed 2026-10-30): retired the 15-chapter book at 00e99834 and its graph (IDs 1-200); new 23-chapter book, graph IDs 301-554, written from develop 0a625ad (src identical to profile 1d32ab4a). Previous chapter_state entries belonged to the retired chapters and were dropped. tokens_used not measured."
+    }
+  ]
 }
