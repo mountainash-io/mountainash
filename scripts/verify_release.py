@@ -86,6 +86,20 @@ def check_public_files(published: dict, expected: dict[str, str]) -> None:
         raise ValueError("Public artifact hash differs from the approved candidate")
 
 
+def check_base_siblings(installed: set[str], requires_dist: list[str]) -> None:
+    """Reject Mountainash siblings in the base install unless the wheel requires them unconditionally."""
+    required = {
+        canonicalize_name(requirement.name)
+        for requirement in map(Requirement, requires_dist)
+        if requirement.marker is None or "extra" not in str(requirement.marker)
+    }
+    unexpected = sorted(
+        name for name in map(canonicalize_name, installed) if name.startswith("mountainash-") and name not in required
+    )
+    if unexpected:
+        raise ValueError(f"Base installation unexpectedly requires optional siblings: {unexpected}")
+
+
 def _metadata(wheel: Path) -> dict:
     with zipfile.ZipFile(wheel) as archive:
         names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
@@ -222,9 +236,7 @@ def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool 
                 )
             else:
                 names = _install(str(wheel), wheel, "wheel", work, evidence, environment)
-                owned = sorted(name for name in names if name.startswith("mountainash-"))
-                if owned:
-                    raise ValueError(f"Base installation unexpectedly requires optional siblings: {owned}")
+                check_base_siblings(names, metadata["requires_dist"])
                 build_env = work / "build"
                 venv.EnvBuilder(with_pip=True).create(build_env)
                 rebuilt = work / "rebuilt"
