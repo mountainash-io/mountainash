@@ -176,8 +176,8 @@ ConceptID,ConceptLabel,Dependencies,TaxonomyID
 509,Backend Capabilities,313|376,CAP
 510,Capability Spine,509|505|499,CAP
 511,Capability Information vs Policy,510,CAP
-512,Capability Segments and Scopes,511,CAP
-513,Families and Dialects,512|514,CAP
+512,Capability Segments and Scopes,511|513,CAP
+513,Families and Dialects,514,CAP
 514,Backend Identity,313,CAP
 515,Capability Bootstrap,512,CAP
 516,CapabilityRegistry,515,CAP

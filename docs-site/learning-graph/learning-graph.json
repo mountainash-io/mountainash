@@ -135,1282 +135,1495 @@
       "label": "Dataframe Libraries and Engines",
       "group": "FOUND",
       "shape": "box",
-      "cis": 1511
+      "cis": 1373,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 302,
       "label": "Lazy Evaluation",
       "group": "FOUND",
-      "cis": 471
+      "cis": 408,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 303,
       "label": "Backend-Agnostic Data Logic",
       "group": "FOUND",
-      "cis": 918
+      "cis": 842,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 304,
       "label": "Abstract Syntax Trees",
       "group": "FOUND",
       "shape": "box",
-      "cis": 813
+      "cis": 666,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 305,
       "label": "Build Then Compile",
       "group": "FOUND",
-      "cis": 470
+      "cis": 407,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 306,
       "label": "Substrait Alignment",
       "group": "FOUND",
-      "cis": 228
+      "cis": 172,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 307,
       "label": "Polars-Style Public API",
       "group": "FOUND",
-      "cis": 185
+      "cis": 178,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 308,
       "label": "Mountainash Ecosystem Dependencies",
       "group": "FOUND",
-      "cis": 262
+      "cis": 256,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 309,
       "label": "Three-Valued Logic",
       "group": "FOUND",
       "shape": "box",
-      "cis": 27
+      "cis": 27,
+      "chapter": "01-what-mountainash-does"
     },
     {
       "id": 310,
       "label": "Installation and Extras",
       "group": "SURF",
-      "cis": 261
+      "cis": 255,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 311,
       "label": "Top-Level Namespace",
       "group": "SURF",
-      "cis": 260
+      "cis": 254,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 312,
       "label": "Lazy Top-Level Imports",
       "group": "SURF",
-      "cis": 2
+      "cis": 2,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 313,
       "label": "Backend Detection",
       "group": "SURF",
-      "cis": 54
+      "cis": 55,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 314,
       "label": "MountainashError Hierarchy",
       "group": "SURF",
-      "cis": 6
+      "cis": 6,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 315,
       "label": "Exceptions Facade",
       "group": "SURF",
-      "cis": 1
+      "cis": 1,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 316,
       "label": "Value Classification",
       "group": "SURF",
-      "cis": 2
+      "cis": 2,
+      "chapter": "02-installation-and-package-surface"
     },
     {
       "id": 320,
       "label": "Expression Builder Objects",
       "group": "EXPR",
-      "cis": 89
+      "cis": 89,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 321,
       "label": "col",
       "group": "EXPR",
-      "cis": 39
+      "cis": 39,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 322,
       "label": "lit",
       "group": "EXPR",
-      "cis": 2
+      "cis": 2,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 323,
       "label": "when-then-otherwise",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 324,
       "label": "Operator Overloading",
       "group": "EXPR",
-      "cis": 28
+      "cis": 28,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 325,
       "label": "Expression Compile",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 326,
       "label": "native Passthrough",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 327,
       "label": "coalesce greatest and least",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 328,
       "label": "Horizontal Functions",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 329,
       "label": "Aggregate Expressions",
       "group": "EXPR",
-      "cis": 5
+      "cis": 5,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 330,
       "label": "Window Expressions with over",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 331,
       "label": "Expression Output Names",
       "group": "EXPR",
-      "cis": 2
+      "cis": 2,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 332,
       "label": "AST Introspection",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 333,
       "label": "Membership with is_in",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 334,
       "label": "today and now",
       "group": "EXPR",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 335,
       "label": "Expression Namespaces",
       "group": "XOPS",
-      "cis": 9
+      "cis": 9,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 336,
       "label": "String Namespace",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 337,
       "label": "Datetime Namespace",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 338,
       "label": "Name Namespace",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 339,
       "label": "Struct Namespace",
       "group": "XOPS",
-      "cis": 2
+      "cis": 2,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 340,
       "label": "List Namespace and element",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 341,
       "label": "Categorical Namespace",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 342,
       "label": "Geospatial Namespace",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows"
     },
     {
       "id": 343,
       "label": "Arithmetic and Comparison Operations",
       "group": "XOPS",
-      "cis": 3
+      "cis": 3,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 344,
       "label": "Boolean Operations",
       "group": "XOPS",
-      "cis": 24
+      "cis": 24,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 345,
       "label": "Casting",
       "group": "XOPS",
-      "cis": 2
+      "cis": 2,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 346,
       "label": "Null Handling Operations",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 347,
       "label": "Rounding and Logarithmic Operations",
       "group": "XOPS",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 350,
       "label": "Ternary Columns with t_col",
       "group": "TERN",
-      "cis": 26
+      "cis": 26,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 351,
       "label": "Sentinel Unknown Values",
       "group": "TERN",
-      "cis": 1
+      "cis": 1,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 352,
       "label": "Ternary Comparisons",
       "group": "TERN",
-      "cis": 1
+      "cis": 1,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 353,
       "label": "Ternary Logical Operators",
       "group": "TERN",
-      "cis": 22
+      "cis": 22,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 354,
       "label": "Booleanization",
       "group": "TERN",
-      "cis": 21
+      "cis": 21,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 355,
       "label": "Booleanizer Choices",
       "group": "TERN",
-      "cis": 1
+      "cis": 1,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 356,
       "label": "Boolean-Ternary Coercion",
       "group": "TERN",
-      "cis": 1
+      "cis": 1,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 357,
       "label": "always_true always_false always_unknown",
       "group": "TERN",
-      "cis": 1
+      "cis": 1,
+      "chapter": "06-ternary-logic"
     },
     {
       "id": 360,
       "label": "Relation Objects",
       "group": "REL",
-      "cis": 95
+      "cis": 88,
+      "chapter": "07-relations"
     },
     {
       "id": 361,
       "label": "relation Factory",
       "group": "REL",
-      "cis": 6
+      "cis": 6,
+      "chapter": "07-relations"
     },
     {
       "id": 362,
       "label": "Filter",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 363,
       "label": "Select and with_columns",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 364,
       "label": "Sort Head and Tail",
       "group": "REL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "07-relations"
     },
     {
       "id": 365,
       "label": "Joins",
       "group": "REL",
-      "cis": 3
+      "cis": 3,
+      "chapter": "07-relations"
     },
     {
       "id": 366,
       "label": "Cross-Type Joins",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 367,
       "label": "As-Of Joins",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 368,
       "label": "Group By and Aggregate",
       "group": "REL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "07-relations"
     },
     {
       "id": 369,
       "label": "Unique and Drop Nulls",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 370,
       "label": "Pivot and Unpivot",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 371,
       "label": "Explode Unnest and Row Index",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 372,
       "label": "Sample and Top-K",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 373,
       "label": "concat",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 374,
       "label": "from_arrow",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 375,
       "label": "Relation Schema and Columns",
       "group": "REL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "07-relations"
     },
     {
       "id": 376,
       "label": "Collect and Terminals",
       "group": "REL",
-      "cis": 56
+      "cis": 49,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 377,
       "label": "Egress Formats",
       "group": "REL",
-      "cis": 4
+      "cis": 4,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 378,
       "label": "Scalar Terminals",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 379,
       "label": "explain",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 380,
       "label": "Fingerprint",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 381,
       "label": "Snapshots",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 382,
       "label": "Logical Terminal Requirement",
       "group": "REL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 385,
       "label": "Execution Targets",
       "group": "EXEC",
-      "cis": 7
+      "cis": 7,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 386,
       "label": "Execution Locations",
       "group": "EXEC",
-      "cis": 6
+      "cis": 6,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 387,
       "label": "Operand Transfer",
       "group": "EXEC",
-      "cis": 4
+      "cis": 4,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 388,
       "label": "Materialization Scopes and Checkpoints",
       "group": "EXEC",
-      "cis": 3
+      "cis": 3,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 389,
       "label": "Owned Copies",
       "group": "EXEC",
-      "cis": 1
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 390,
       "label": "Compilation Reuse",
       "group": "EXEC",
-      "cis": 1
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 391,
       "label": "Schema Inference and Resolution",
       "group": "EXEC",
-      "cis": 1
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 395,
       "label": "Canonical Dtypes",
       "group": "TYPE",
-      "cis": 67
+      "cis": 67,
+      "chapter": "03-dtypes"
     },
     {
       "id": 396,
       "label": "Parameterized Dtypes",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "03-dtypes"
     },
     {
       "id": 397,
       "label": "Dtype Parsing",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "03-dtypes"
     },
     {
       "id": 398,
       "label": "Cast Safety",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "04-building-expressions"
     },
     {
       "id": 399,
       "label": "Native Type Targets",
       "group": "TYPE",
-      "cis": 4
+      "cis": 4,
+      "chapter": "03-dtypes"
     },
     {
       "id": 400,
       "label": "TableSchema",
       "group": "TYPE",
-      "cis": 56
+      "cis": 56,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 401,
       "label": "FieldDefinition and FieldConstraints",
       "group": "TYPE",
-      "cis": 13
+      "cis": 13,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 402,
       "label": "table_schema Shortcut",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 403,
       "label": "Frictionless Table Schema",
       "group": "TYPE",
-      "cis": 14
+      "cis": 14,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 404,
       "label": "Universal Types Boundary",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 405,
       "label": "DataPackage and DataResource",
       "group": "TYPE",
-      "cis": 11
+      "cis": 11,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 406,
       "label": "TableDialect",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 407,
       "label": "Descriptor Read and Write",
       "group": "TYPE",
-      "cis": 2
+      "cis": 2,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 408,
       "label": "Descriptor Reference Resolution",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 409,
       "label": "Schema Extraction",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 410,
       "label": "Native Schema Conversion",
       "group": "TYPE",
-      "cis": 2
+      "cis": 2,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 411,
       "label": "Schema Comparison",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 412,
       "label": "Custom Semantic Types",
       "group": "TYPE",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 413,
       "label": "Missing Values and Labeled Values",
       "group": "TYPE",
-      "cis": 3
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 414,
       "label": "Foreign Keys in Schemas",
       "group": "TYPE",
-      "cis": 3
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 415,
       "label": "Temporal Parsing",
       "group": "TYPE",
-      "cis": 3
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 420,
       "label": "Relation conform",
       "group": "CONF",
-      "cis": 10
+      "cis": 10,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 421,
       "label": "ConformContract Dimensions",
       "group": "CONF",
-      "cis": 5
+      "cis": 5,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 422,
       "label": "fields_match Presets",
       "group": "CONF",
-      "cis": 1
+      "cis": 1,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 423,
       "label": "Conform Transform Stages",
       "group": "CONF",
-      "cis": 2
+      "cis": 2,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 424,
       "label": "Conform Errors",
       "group": "CONF",
-      "cis": 1
+      "cis": 1,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 425,
       "label": "Drift Reporting",
       "group": "CONF",
-      "cis": 2
+      "cis": 2,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 426,
       "label": "collect_with_drift",
       "group": "CONF",
-      "cis": 1
+      "cis": 1,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 427,
       "label": "Structured Field Transport",
       "group": "CONF",
-      "cis": 1
+      "cis": 1,
+      "chapter": "11-conforming-data"
     },
     {
       "id": 430,
       "label": "Data Contracts",
       "group": "QUAL",
-      "cis": 10
+      "cis": 10,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 431,
       "label": "BaseDataContract",
       "group": "QUAL",
-      "cis": 3
+      "cis": 3,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 432,
       "label": "datacontract Factory",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 433,
       "label": "Rules and RuleRegistry",
       "group": "QUAL",
-      "cis": 5
+      "cis": 5,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 434,
       "label": "Guarded Rules",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 435,
       "label": "Validator",
       "group": "QUAL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 436,
       "label": "ValidationPlan",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "12-data-contracts"
     },
     {
       "id": 437,
       "label": "Validation Check IR",
       "group": "QUAL",
-      "cis": 13
+      "cis": 13,
+      "chapter": "13-validation"
     },
     {
       "id": 438,
       "label": "Value Row Scalar and Relation Rules",
       "group": "QUAL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "13-validation"
     },
     {
       "id": 439,
       "label": "ValidationRunner",
       "group": "QUAL",
-      "cis": 4
+      "cis": 4,
+      "chapter": "13-validation"
     },
     {
       "id": 440,
       "label": "ValidationResult and CheckSummary",
       "group": "QUAL",
-      "cis": 3
+      "cis": 3,
+      "chapter": "13-validation"
     },
     {
       "id": 441,
       "label": "Row Identity",
       "group": "QUAL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "13-validation"
     },
     {
       "id": 442,
       "label": "Failure Cases",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "13-validation"
     },
     {
       "id": 443,
       "label": "Severities",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "13-validation"
     },
     {
       "id": 444,
       "label": "Foreign Key Validation",
       "group": "QUAL",
-      "cis": 2
+      "cis": 2,
+      "chapter": "13-validation"
     },
     {
       "id": 445,
       "label": "Distribution Rules",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "13-validation"
     },
     {
       "id": 446,
       "label": "JSON Schema and GeoJSON Checks",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "13-validation"
     },
     {
       "id": 447,
       "label": "Table Schema Semantic Validation",
       "group": "QUAL",
-      "cis": 1
+      "cis": 1,
+      "chapter": "13-validation"
     },
     {
       "id": 450,
       "label": "Graph Kernel",
       "group": "ORCH",
       "shape": "box",
-      "cis": 29
+      "cis": 29,
+      "chapter": "14-relationdag"
     },
     {
       "id": 451,
       "label": "Dependency and Constraint Edges",
       "group": "ORCH",
-      "cis": 9
+      "cis": 9,
+      "chapter": "14-relationdag"
     },
     {
       "id": 452,
       "label": "RelationDAG",
       "group": "ORCH",
-      "cis": 8
+      "cis": 8,
+      "chapter": "14-relationdag"
     },
     {
       "id": 453,
       "label": "DAG References",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 454,
       "label": "DAG Collect",
       "group": "ORCH",
-      "cis": 3
+      "cis": 3,
+      "chapter": "14-relationdag"
     },
     {
       "id": 455,
       "label": "DAG Materialization Session",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 456,
       "label": "DataPackage to DAG",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 457,
       "label": "DAG Validation",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 458,
       "label": "Cross-Family DAG Collection",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 459,
       "label": "ResourceRef",
       "group": "ORCH",
-      "cis": 2
+      "cis": 2,
+      "chapter": "14-relationdag"
     },
     {
       "id": 460,
       "label": "Resource Reads",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "14-relationdag"
     },
     {
       "id": 465,
       "label": "Pipelines",
       "group": "ORCH",
-      "cis": 19
+      "cis": 19,
+      "chapter": "15-pipelines"
     },
     {
       "id": 466,
       "label": "Units",
       "group": "ORCH",
-      "cis": 13
+      "cis": 13,
+      "chapter": "15-pipelines"
     },
     {
       "id": 467,
       "label": "Source and Sink Units",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "15-pipelines"
     },
     {
       "id": 468,
       "label": "DAG and Python Units",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "15-pipelines"
     },
     {
       "id": 469,
       "label": "Runner Plan and Execute",
       "group": "ORCH",
-      "cis": 5
+      "cis": 5,
+      "chapter": "15-pipelines"
     },
     {
       "id": 470,
       "label": "Values Identity and Coverage",
       "group": "ORCH",
-      "cis": 3
+      "cis": 3,
+      "chapter": "15-pipelines"
     },
     {
       "id": 471,
       "label": "Pipeline Checkpoints and Resume",
       "group": "ORCH",
-      "cis": 2
+      "cis": 2,
+      "chapter": "15-pipelines"
     },
     {
       "id": 472,
       "label": "Retry and Empty Policies",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "15-pipelines"
     },
     {
       "id": 473,
       "label": "Parameter Axes",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "15-pipelines"
     },
     {
       "id": 474,
       "label": "Pipeline Errors",
       "group": "ORCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "15-pipelines"
     },
     {
       "id": 480,
       "label": "Python Data Ingress",
       "group": "PYD",
-      "cis": 4
+      "cis": 4,
+      "chapter": "07-relations"
     },
     {
       "id": 481,
       "label": "Supported Python Input Formats",
       "group": "PYD",
-      "cis": 1
+      "cis": 1,
+      "chapter": "07-relations"
     },
     {
       "id": 482,
       "label": "Source Schema vs Target Schema",
       "group": "PYD",
-      "cis": 1
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage"
     },
     {
       "id": 483,
       "label": "Python Data Egress",
       "group": "PYD",
-      "cis": 3
+      "cis": 3,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 484,
       "label": "Dataclass and Pydantic Egress",
       "group": "PYD",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 485,
       "label": "Named Tuple and Indexed Egress",
       "group": "PYD",
-      "cis": 1
+      "cis": 1,
+      "chapter": "08-collecting-results"
     },
     {
       "id": 490,
       "label": "Three-Layer Separation",
       "group": "ARCH",
-      "cis": 229
+      "cis": 180,
+      "chapter": "17-architecture"
     },
     {
       "id": 491,
       "label": "Protocols as Contracts",
       "group": "ARCH",
-      "cis": 227
+      "cis": 178,
+      "chapter": "17-architecture"
     },
     {
       "id": 492,
       "label": "API Builders",
       "group": "ARCH",
-      "cis": 2
+      "cis": 2,
+      "chapter": "17-architecture"
     },
     {
       "id": 493,
       "label": "Expression Systems",
       "group": "ARCH",
-      "cis": 181
+      "cis": 139,
+      "chapter": "17-architecture"
     },
     {
       "id": 494,
       "label": "Function Keys",
       "group": "ARCH",
-      "cis": 159
+      "cis": 117,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 495,
       "label": "Substrait vs Mountainash Extensions",
       "group": "ARCH",
-      "cis": 2
+      "cis": 2,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 496,
       "label": "Function Registry",
       "group": "ARCH",
-      "cis": 108
+      "cis": 80,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 497,
       "label": "Expression AST Nodes",
       "group": "ARCH",
-      "cis": 47
+      "cis": 33,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 498,
       "label": "Arguments vs Options",
       "group": "ARCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 499,
       "label": "Unified Expression Visitor",
       "group": "ARCH",
-      "cis": 41
+      "cis": 27,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 500,
       "label": "Operand Type Resolution",
       "group": "ARCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 501,
       "label": "Gate Then Lower",
       "group": "ARCH",
-      "cis": 3
+      "cis": 3,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 502,
       "label": "Relation AST Nodes",
       "group": "ARCH",
-      "cis": 66
+      "cis": 52,
+      "chapter": "19-relation-compilation"
     },
     {
       "id": 503,
       "label": "Relation Operation Keys and Registry",
       "group": "ARCH",
-      "cis": 63
+      "cis": 49,
+      "chapter": "19-relation-compilation"
     },
     {
       "id": 504,
       "label": "Relation Systems",
       "group": "ARCH",
-      "cis": 42
+      "cis": 35,
+      "chapter": "19-relation-compilation"
     },
     {
       "id": 505,
       "label": "Unified Relation Visitor",
       "group": "ARCH",
-      "cis": 19
+      "cis": 12,
+      "chapter": "19-relation-compilation"
     },
     {
       "id": 506,
       "label": "Keyed Registries",
       "group": "ARCH",
-      "cis": 2
+      "cis": 2,
+      "chapter": "18-expression-compilation"
     },
     {
       "id": 507,
       "label": "Optimisation Passes",
       "group": "ARCH",
-      "cis": 1
+      "cis": 1,
+      "chapter": "19-relation-compilation"
     },
     {
       "id": 509,
       "label": "Backend Capabilities",
       "group": "CAP",
-      "cis": 26
+      "cis": 19,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 510,
       "label": "Capability Spine",
       "group": "CAP",
-      "cis": 17
+      "cis": 10,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 511,
       "label": "Capability Information vs Policy",
       "group": "CAP",
-      "cis": 16
+      "cis": 9,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 512,
       "label": "Capability Segments and Scopes",
       "group": "CAP",
-      "cis": 15
+      "cis": 8,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 513,
       "label": "Families and Dialects",
       "group": "CAP",
-      "cis": 7
+      "cis": 15,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 514,
       "label": "Backend Identity",
       "group": "CAP",
-      "cis": 8
+      "cis": 16,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 515,
       "label": "Capability Bootstrap",
       "group": "CAP",
-      "cis": 6
+      "cis": 6,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 516,
       "label": "CapabilityRegistry",
       "group": "CAP",
-      "cis": 5
+      "cis": 5,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 517,
       "label": "Bound Calls",
       "group": "CAP",
-      "cis": 4
+      "cis": 4,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 518,
       "label": "Capability Gates",
       "group": "CAP",
-      "cis": 2
+      "cis": 2,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 519,
       "label": "Capability Errors",
       "group": "CAP",
-      "cis": 1
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 520,
       "label": "capability_policy",
       "group": "CAP",
-      "cis": 1
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities"
     },
     {
       "id": 521,
       "label": "Value Classes and Predicates",
       "group": "CAP",
-      "cis": 1
+      "cis": 1,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 522,
       "label": "Capability Preflight",
       "group": "CAP",
-      "cis": 1
+      "cis": 1,
+      "chapter": "20-capability-spine"
     },
     {
       "id": 523,
       "label": "Backend Support Matrix",
       "group": "CAP",
-      "cis": 4
+      "cis": 4,
+      "chapter": "16-backend-support-and-limits"
     },
     {
       "id": 524,
       "label": "Known Divergences",
       "group": "CAP",
-      "cis": 3
+      "cis": 3,
+      "chapter": "16-backend-support-and-limits"
     },
     {
       "id": 530,
       "label": "Backend Composition by Mixins",
       "group": "BACK",
-      "cis": 21
+      "cis": 21,
+      "chapter": "21-backends"
     },
     {
       "id": 531,
       "label": "Backend Registration",
       "group": "BACK",
-      "cis": 1
+      "cis": 1,
+      "chapter": "21-backends"
     },
     {
       "id": 532,
       "label": "Polars Backend",
       "group": "BACK",
-      "cis": 5
+      "cis": 5,
+      "chapter": "21-backends"
     },
     {
       "id": 533,
       "label": "Narwhals Backend",
       "group": "BACK",
-      "cis": 6
+      "cis": 6,
+      "chapter": "21-backends"
     },
     {
       "id": 534,
       "label": "Ibis Backend",
       "group": "BACK",
-      "cis": 6
+      "cis": 6,
+      "chapter": "21-backends"
     },
     {
       "id": 535,
       "label": "Narwhals Providers",
       "group": "BACK",
-      "cis": 1
+      "cis": 1,
+      "chapter": "21-backends"
     },
     {
       "id": 536,
       "label": "Ibis SQL Dialects",
       "group": "BACK",
-      "cis": 1
+      "cis": 1,
+      "chapter": "21-backends"
     },
     {
       "id": 537,
       "label": "Arrow Import and Export",
       "group": "BACK",
-      "cis": 1
+      "cis": 1,
+      "chapter": "21-backends"
     },
     {
       "id": 540,
       "label": "Adding an Expression Operation",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 541,
       "label": "Adding a Relation Operation",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 542,
       "label": "Custom Relation Nodes and Visit Handlers",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 543,
       "label": "Declaring Capability Segments",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 544,
       "label": "Native Type Adapters",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 545,
       "label": "Schema Adapters and Codecs",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 546,
       "label": "Custom Ingress Handlers",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 547,
       "label": "Custom Units Sinks and Checkpoints",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 548,
       "label": "Custom Rules and Value Validators",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "22-extending-mountainash"
     },
     {
       "id": 549,
       "label": "Naming Conventions",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "23-contributing-and-testing"
     },
     {
       "id": 550,
       "label": "Import Conventions",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "23-contributing-and-testing"
     },
     {
       "id": 551,
       "label": "Cross-Backend Testing",
       "group": "EXT",
-      "cis": 3
+      "cis": 3,
+      "chapter": "23-contributing-and-testing"
     },
     {
       "id": 552,
       "label": "Per-Backend xfail for Known Divergences",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "23-contributing-and-testing"
     },
     {
       "id": 553,
       "label": "Protocol Alignment Tests",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "23-contributing-and-testing"
     },
     {
       "id": 554,
       "label": "Typed Error Conventions",
       "group": "EXT",
-      "cis": 1
+      "cis": 1,
+      "chapter": "23-contributing-and-testing"
     }
   ],
   "edges": [
@@ -2395,8 +2608,8 @@
       "to": 511
     },
     {
-      "from": 513,
-      "to": 512
+      "from": 512,
+      "to": 513
     },
     {
       "from": 513,
