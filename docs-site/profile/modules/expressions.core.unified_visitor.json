@@ -1,0 +1,109 @@
+{
+  "id": "expressions.core.unified_visitor",
+  "path": "src/mountainash/expressions/core/unified_visitor/",
+  "summary": "UnifiedExpressionVisitor compiles any expression AST node into a backend-native expression: it derives the backend method from the function key via the registry, recursively visits operands, resolves operand metadata and applies capability gating and reusable lowering. TypeContext holds input-scoped dtype evidence and native lowering state. It is also used by relation compilation and conform.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture"
+  ],
+  "doc_priority": "useful",
+  "confidence": "medium",
+  "public_api": [
+    "UnifiedExpressionVisitor"
+  ],
+  "key_classes": [
+    "UnifiedExpressionVisitor — single visitor dispatching all node types via function-registry lookup",
+    "TypeContext — input-scoped operand dtype resolution and lowering cache",
+    "ResolvedOperand — operand descriptor with native dtype evidence",
+    "_CallOperandResolver — resolves call operands against protocol signatures"
+  ],
+  "key_functions": [
+    "UnifiedExpressionVisitor(expression_system, *, execution_context, diagnostic_trace=None, conform_node_id=None, input_data=None) — construct a visitor",
+    "visit(node) — compile a node to a backend expression"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions.backends.capabilities",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "relations.core.execution",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "Dispatch is driven by function registry entries, so new operations need no visitor change",
+    "diagnostic_trace and conform_node_id hooks used by relation conform compilation"
+  ],
+  "lifecycle_notes": [
+    "b7e9128b feat(371): reuse permitted expression lowerings within input scopes",
+    "b5074702 perf(capabilities): bypass expression gates without policy candidates"
+  ],
+  "documentation_hooks": [
+    "How expressions compile (visitor dispatch)",
+    "Capability gating during compile"
+  ],
+  "examples": [
+    "tests/core/test_visitor_param_name_for.py"
+  ],
+  "tests": [
+    "tests/core/test_visitor_param_name_for.py",
+    "tests/core/test_compile_smoke.py",
+    "tests/core/test_capability_gating.py",
+    "tests/expressions/test_option_gate.py"
+  ],
+  "risks": [
+    "visitor.py is ~1000 lines combining dispatch, option handling, capability gates and lowering reuse",
+    "Behaviour depends on execution_context being supplied (required keyword)",
+    "Input-scoped lowering cache invalidation is subtle"
+  ],
+  "open_questions": [
+    "Exact semantics of the reusable-lowering cache and TypeContext scoping were skimmed, not traced end to end."
+  ],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "detail": "UnifiedExpressionVisitor.__init__ signature and docstring"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/unified_visitor/type_context.py",
+      "detail": "TypeContext and ResolvedOperand"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/relations/core/execution/compilation.py",
+      "detail": "relations import the visitor"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/core/unified_visitor/__init__.py",
+      "detail": "unified-visitor principle: one visitor, registry dispatch"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/expressions/core/unified_visitor/visitor.py",
+      "detail": "commit b7e9128b lowering reuse"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

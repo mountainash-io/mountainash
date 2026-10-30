@@ -1,0 +1,123 @@
+{
+  "id": "expressions.backends.polars",
+  "path": "src/mountainash/expressions/backends/expression_systems/polars/",
+  "summary": "Polars implementation of the expression system. PolarsExpressionSystem is assembled by multiple inheritance from per-family Substrait mixins (cast, conditional, field reference, literal, scalar and aggregate arithmetic/boolean/comparison/datetime/string/set/logarithmic/rounding, window, geometry) and Mountainash extension mixins (name, null, ternary, list, struct, categorical, geospatial, value, and others). It compiles the unified AST into native pl.Expr and is the only backend always imported. PolarsBaseExpressionSystem also supplies schema-based operand type resolution via LazyFrame.collect_schema.",
+  "role": "backend",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "PolarsExpressionSystem",
+    "SubstraitPolarsCastExpressionSystem",
+    "SubstraitPolarsScalarStringExpressionSystem",
+    "MountainAshPolarsScalarTernaryExpressionSystem",
+    "(all Substrait*/MountainAsh* mixins listed in __all__)"
+  ],
+  "key_classes": [
+    "PolarsExpressionSystem — composed concrete backend registered for CONST_BACKEND.POLARS",
+    "PolarsBaseExpressionSystem — BACKEND_NAME='polars', is_native_expression (pl.Expr), operand-type resolution hooks",
+    "SubstraitPolars*ExpressionSystem — one mixin per Substrait protocol family under substrait/",
+    "MountainAshPolars*ExpressionSystem — mixins for Mountainash extension protocols under extensions_mountainash/"
+  ],
+  "key_functions": [
+    "cast_temporal_compatible(x, dtype, *, strict) — temporal-aware cast helper (temporal_cast.py)",
+    "cast_container(x, target, *, strict) — list/struct container cast (container_cast.py)",
+    "PolarsBaseExpressionSystem.field_operand_type(input_data, field) — maps schema dtype to OperandType without projection",
+    "PolarsBaseExpressionSystem.infer_expression_operand_type(input_data, expression) — dtype via lazy select/collect_schema"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "typespec"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions"
+  ],
+  "extension_points": [
+    "@register_expression_system(CONST_BACKEND.POLARS) registers the composed class with the visitor factory",
+    "declare_builtin_expression_system(<cls>, 'polars') declares the system for function-mapping lowering",
+    "Add an operation by implementing the protocol method in the matching substrait/ or extensions_mountainash/ expsys_*_<family> mixin, which is composed by multiple inheritance (backend-composition principle)",
+    "Override BaseExpressionSystem hooks (is_native_expression, field_operand_type, infer_expression_operand_type, fixed_result_type)"
+  ],
+  "lifecycle_notes": [
+    "Recent git history: operand type metadata and container/temporal cast support (ea16cb8e fix: execute container casts against resolved targets; 8209c2d5 Reject silent scalar numeric overflow with scoped operand evidence)",
+    "Ranking/over(order_by) ordering fix (33a80318, backlog 364)"
+  ],
+  "documentation_hooks": [
+    "Backend implementation reference: how a Polars operation is lowered",
+    "Adding an operation to the Polars backend (step 4 of adding-operations)",
+    "Polars dtype to logical-kind operand metadata",
+    "Cross-backend divergence notes where Polars is the baseline"
+  ],
+  "examples": [
+    "ma.col('a').add(1).compile(df) with a polars DataFrame selects this system via backend detection",
+    "tests/expressions/cross_backend/ shows each operation parametrized across polars, narwhals and ibis backends"
+  ],
+  "tests": [
+    "tests/expressions/cross_backend",
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_protocol_completeness.py",
+    "tests/core/test_mro_method_collisions.py",
+    "tests/core/test_backend_detection.py",
+    "tests/core/test_polars_aliases.py",
+    "tests/core/test_known_limitation.py"
+  ],
+  "risks": [
+    "Large mixin sets: method-name collisions across inheritance are a hazard (guarded by test_mro_method_collisions)",
+    "expsys_pl_scalar_string.py (~1300 lines) and arithmetic/datetime files are complexity hotspots",
+    "Polars is the reference backend; behaviour differences in Narwhals/Ibis are documented as capability facts rather than fixed here",
+    "__init__ __all__ omits several extension mixins that are imported and composed (e.g. List, Struct, Categorical, Aggregate), so __all__ is not an exhaustive list of composed parts"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/expressions/backends/expression_systems/polars/__init__.py",
+      "detail": "PolarsExpressionSystem composed by multiple inheritance and decorated with @register_expression_system(CONST_BACKEND.POLARS), followed by declare_builtin_expression_system"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/expression_systems/polars/base.py",
+      "detail": "PolarsBaseExpressionSystem: BACKEND_NAME, is_native_expression, field_operand_type, infer_expression_operand_type"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/expression_systems/polars/container_cast.py",
+      "detail": "cast_container helper"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/expressions/backends/__init__.py",
+      "detail": "Polars is always imported; Narwhals and Ibis imported only if installed"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/backends/expression_systems/polars/__init__.py",
+      "detail": "backend-composition principle (each backend composes all protocol implementations via multiple inheritance)"
+    },
+    {
+      "kind": "test",
+      "path": "tests/expressions/cross_backend",
+      "detail": "Cross-backend parametrized tests exercise this system (cross-backend-test-coverage principle)"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

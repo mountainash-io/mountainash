@@ -1,0 +1,95 @@
+{
+  "id": "expressions.membership",
+  "path": "src/mountainash/expressions/membership/",
+  "summary": "Build-time handling of is_in / t_is_in membership arguments. classify_members maps variadic Python arguments to a canonical member list purely by argument type (no backend or schema inspection) and raises typed errors for ambiguous, nested, native-expression or unsupported shapes; encode_membership turns the members into the (arguments, options) of the membership ScalarFunctionNode without coercion.",
+  "role": "model",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture"
+  ],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "MembershipArgumentError — base error (subclass of MountainashError) for invalid membership args",
+    "NestedCollectionError — nested collection inside members",
+    "BareExpressionCollectionError — single bare expression passed as collection",
+    "NativeExprMemberError — backend-native expression used as member",
+    "UnsupportedCollectionError — ndarray/Mapping/duck-typed iterables",
+    "InternalMembershipError — internal invariant breach"
+  ],
+  "key_functions": [
+    "classify_members(args: tuple) -> list — type-driven canonicalisation (sets sorted by type rank then value)",
+    "encode_membership(...) — build (arguments, options) for the membership node; scalar literals use COLLECT_VALUES",
+    "to_member_node(m) — coercion-free conversion to ExpressionNode",
+    "is_backend_native_expression(x) — lazy check for polars/narwhals/ibis native expressions"
+  ],
+  "dependencies": [
+    "core",
+    "exceptions",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes"
+  ],
+  "dependents": [
+    "exceptions",
+    "expressions.core.expression_api"
+  ],
+  "extension_points": [],
+  "lifecycle_notes": [
+    "Introduced with the membership unification (spec section 4.1); no PR number recorded in git log for this path in this check"
+  ],
+  "documentation_hooks": [
+    "is_in / t_is_in argument semantics and error migration guidance",
+    "Membership error reference"
+  ],
+  "examples": [
+    "ma.col('a').is_in([1,2,3])",
+    "ma.col('a').is_in({1,2})  # sets sorted canonically",
+    "tests/expressions/membership/test_classify.py"
+  ],
+  "tests": [
+    "tests/expressions/membership"
+  ],
+  "risks": [
+    "encode must never route through ternary coercion (_coerce_if_needed) or members like str.lower() get booleanised",
+    "Set ordering depends on closed type-rank table (bool,int,float,str,bytes)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/membership/classify.py",
+      "detail": "classify_members decision tree, closed type-based rule"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/membership/encode.py",
+      "detail": "encode_membership and coercion-free to_member_node"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/membership/errors.py",
+      "detail": "typed error hierarchy rooted at MountainashError"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/membership/native_expr.py",
+      "detail": "is_backend_native_expression lazy imports"
+    },
+    {
+      "kind": "test",
+      "path": "tests/expressions/membership/test_classify.py",
+      "detail": "unit tests for classifier"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

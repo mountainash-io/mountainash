@@ -1,0 +1,135 @@
+{
+  "id": "relations",
+  "path": "src/mountainash/relations/",
+  "summary": "Package entry point for the relational AST. Re-exports the fluent Relation API (relation, concat, GroupedRelation), from_arrow eager ingestion and the LogicalTerminalRequired error, and imports the backends package so Polars, Narwhals and Ibis relation systems register. Also holds two shared engines: AST-level schema inference (schema_inference.py) and compile-based schema resolution (schema_resolution.py).",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "backend-architecture"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "Relation",
+    "GroupedRelation",
+    "relation",
+    "concat",
+    "from_arrow",
+    "LogicalTerminalRequired"
+  ],
+  "key_classes": [
+    "Relation — fluent plan builder (re-exported from core.relation_api)",
+    "GroupedRelation — group_by result"
+  ],
+  "key_functions": [
+    "relation(data) — wrap a DataFrame/Python data/resource as a Relation",
+    "concat(relations, ...) — union relations",
+    "from_arrow(table, *, target=None) — eagerly import an Arrow table into an owned native source",
+    "infer_schema(node, ...) — AST-level output schema inference with per-field SchemaTypeStatus",
+    "resolve_schema(relation, ...) — structural-then-compiled schema evidence for a relation",
+    "assess_drift(...) — compare inferred schema to a contract (schema_inference.py)"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.dtypes",
+    "expressions",
+    "pydata",
+    "pydata.ingress",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.dag",
+    "typespec"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "datacontracts",
+    "graph",
+    "pipelines",
+    "relations.core.relation_api",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "extension_points": [
+    "Importing mountainash.relations.backends triggers register_relation_system registration"
+  ],
+  "lifecycle_notes": [
+    "Latest: 62c771f4 transport [http] extra forwarding; 08ac43e6 confined native/fallback resource reads",
+    "988d3ee0 pipelines cutover removed runners, storage, Relation.params from this surface",
+    "642480f8 target= replaced backend= and from_arrow(connection=)"
+  ],
+  "documentation_hooks": [
+    "Relations getting started: relation(df).filter().join().collect()/to_polars()",
+    "from_arrow and execution targets",
+    "Schema inference vs schema resolution (what .columns/.schema guarantee)"
+  ],
+  "examples": [
+    "import mountainash as ma; ma.relation(df).filter(ma.col('a')>1).to_polars()",
+    "tests/relations/test_arrow_ingress.py"
+  ],
+  "tests": [
+    "tests/relations/test_arrow_ingress.py",
+    "tests/relations/test_schema_inference.py",
+    "tests/relations/test_schema_inference_conform.py",
+    "tests/relations/test_schema_inference_types.py",
+    "tests/relations/test_schema_resolution_native.py",
+    "tests/relations/test_schema_resolution_fallback.py",
+    "tests/relations/cross_backend/test_schema_resolution.py"
+  ],
+  "risks": [
+    "Import-time side effect: backends package imported eagerly in __init__",
+    "schema_inference.py is ~870 lines and must stay consistent with visitor naming rules (join_layout, projection_names)",
+    "Schema may be incomplete (IncompleteSchemaError); callers must not assume .columns is always static"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/__init__.py",
+      "detail": "__all__ lists Relation, GroupedRelation, relation, concat, from_arrow, LogicalTerminalRequired"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/ingress.py",
+      "detail": "from_arrow builds a prepared transfer via LocationResolver"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/schema_inference.py",
+      "detail": "infer_schema, assess_drift, join/aggregate/project inference"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/schema_resolution.py",
+      "detail": "resolve_schema with _SchemaEvidence structural/compiled evidence"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/__init__.py",
+      "detail": "relational-ast and build-then-collect principles: plan tree is backend-agnostic until collect()"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations",
+      "detail": "git log shows 62c771f4, 08ac43e6, 988d3ee0"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

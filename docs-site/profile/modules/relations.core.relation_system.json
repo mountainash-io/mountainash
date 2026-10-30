@@ -1,0 +1,152 @@
+{
+  "id": "relations.core.relation_system",
+  "path": "src/mountainash/relations/core/relation_system/",
+  "summary": "Operation-key and registry layer for relations, the relations analog of expression function keys. Defines RKEY_SUBSTRAIT_REL and RKEY_MOUNTAINASH_REL enums, MountainashRelExtension URIs, RelationOperationDef/ArgBinding/ArgKind, the class-level RelationOperationRegistry populated by register_all_relation_operations, and handler-routed visit functions (join, join_asof, ref, resource_read, source, conform). Also owns backends/relation_systems/base.py (BaseRelationSystem) and resource_files.py (shared resource-file parsing and schema inspection).",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "MountainashRelExtension",
+    "RKEY_MOUNTAINASH_REL",
+    "RKEY_SUBSTRAIT_REL",
+    "RelationKeyEnum",
+    "ArgBinding",
+    "ArgKind",
+    "RelationOperationDef",
+    "RelationOperationRegistry"
+  ],
+  "key_classes": [
+    "RKEY_SUBSTRAIT_REL — Substrait-namespace operation keys (READ, FILTER, JOIN, AGGREGATE, ...)",
+    "RKEY_MOUNTAINASH_REL — extension keys (DROP_NULLS, SAMPLE, PIVOT, CONFORM, JOIN_ASOF, IMPORT_INTO, ...)",
+    "RelationOperationDef — declarative definition of a relation operation",
+    "RelationOperationRegistry — class-level singleton mapping key to definition",
+    "BaseRelationSystem — shared backend identity/dialect base (backends/relation_systems/base.py)"
+  ],
+  "key_functions": [
+    "register_all_relation_operations() — populate registry (definitions.py)",
+    "visit_join / visit_join_asof / visit_ref / visit_resource_read / visit_source / visit_conform — handler-routed operations (handlers.py)",
+    "classify_relation_def(d) — classify a def as protocol- vs handler-routed",
+    "parse_resource_to_arrow(resource, *, dialect) / inspect_resource_schema(...) — resource file reading (resource_files.py)",
+    "confined_local_paths(resource, *, tree) — path confinement for resource reads"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_system",
+    "pydata.ingress",
+    "relations",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "relations.backends.capabilities",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.unified_visitor",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "RelationOperationRegistry.register(RelationOperationDef) for new operations",
+    "RKEY enums: add key then definition then protocol then backends (adding-operations principle)",
+    "BaseRelationSystem subclassing"
+  ],
+  "lifecycle_notes": [
+    "2ec3e45a / 60bc546a egress and capability declaration changes",
+    "6d90ea973 schema phase never collects native narwhals scan",
+    "1f245fe7 readers bind to resolved execution location",
+    "KNOWN_REL_LIMITATIONS retired in capability spine Phase 1 (base.py docstring)"
+  ],
+  "documentation_hooks": [
+    "Adding a relation operation (key, def, protocol, backends)",
+    "Relation key namespace rule: Substrait vs mountainash",
+    "Resource reading security: confined local paths and dialect handling"
+  ],
+  "examples": [
+    "tests/relations/test_rel_operation_registry.py",
+    "tests/relations/test_rel_operation_keys.py"
+  ],
+  "tests": [
+    "tests/relations/test_rel_operation_registry.py",
+    "tests/relations/test_rel_operation_keys.py",
+    "tests/relations/test_rel_enums.py",
+    "tests/relations/test_rel_wiring_audit.py",
+    "tests/relations/test_rel_wiring_audit_registry.py",
+    "tests/relations/test_resource_native_behavior.py",
+    "tests/relations/test_resource_schema_discovery.py",
+    "tests/relations/protocol_alignment/test_rel_protocol_alignment.py"
+  ],
+  "risks": [
+    "Wiring matrix: a new key must be registered, protocol-declared and implemented on all three backends or wiring audit tests fail",
+    "Handlers duplicate some visitor logic; resource_files.py is a large I/O surface with path-confinement requirements",
+    "Directory scope spans two physical locations (core/relation_system and backends/relation_systems base/resource_files)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/core/relation_system/__init__.py",
+      "detail": "__all__ of keys and mapping types"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_system/relation_keys/enums.py",
+      "detail": "RKEY enum definitions and namespace rule"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_system/relation_mapping/registry.py",
+      "detail": "RelationOperationRegistry"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_system/relation_mapping/handlers.py",
+      "detail": "handler-routed visit functions"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/base.py",
+      "detail": "BaseRelationSystem"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/resource_files.py",
+      "detail": "parse_resource_to_arrow, confined_local_paths"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/core/relation_system/relation_keys/enums.py",
+      "detail": "function-key-enums and adding-operations principles extended to relations"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_rel_operation_registry.py",
+      "detail": "registry tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

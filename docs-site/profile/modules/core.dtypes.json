@@ -1,0 +1,172 @@
+{
+  "id": "core.dtypes",
+  "path": "src/mountainash/core/dtypes/",
+  "summary": "Canonical dtype system and single source of truth for type vocabulary: MountainashDtype enum, parameterized descriptors (DecimalDtype, TimestampDtype, ListDtype, StructDtype, etc.), string parsing, a cast-safety table, and a lazy DtypeRegistry dispatching to per-target native adapters (polars, pyarrow, pandas, ibis, narwhals, python). Used for schema, cast and conversion lowering.",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "MountainashDtype",
+    "NativeDtype",
+    "DecimalDtype",
+    "TimestampDtype",
+    "TimeDtype",
+    "DurationDtype",
+    "ListDtype",
+    "ArrayDtype",
+    "StructDtype",
+    "SchemaTypeStatus",
+    "dtype_family",
+    "dtype_is_complete",
+    "DTYPE_ALIASES",
+    "CastTarget",
+    "ConstructionDtype",
+    "PortableDtype",
+    "resolve_dtype_parameters",
+    "parse_dtype",
+    "parse_cast_target",
+    "portable_evidence",
+    "TypeTarget",
+    "detect_target",
+    "DtypeRegistry",
+    "registry",
+    "DtypeError",
+    "UnknownDtypeError",
+    "DtypeMappingError",
+    "InvalidBackendTypeError",
+    "SAFE_CASTS",
+    "UNSAFE_CASTS",
+    "is_safe_cast",
+    "CastSafety",
+    "classify_cast"
+  ],
+  "key_classes": [
+    "MountainashDtype — canonical dtype vocabulary enum",
+    "DecimalDtype — parameterized exact-numeric descriptor with native lowering",
+    "NativeDtype — wrapper carrying a backend-native type refinement",
+    "DtypeRegistry — lazy dispatch façade over per-target adapters (module-level `registry`)",
+    "TypeTarget — enum of mapping targets with detect_target()",
+    "PolarsTypeAdapter / PyArrowTypeAdapter / PandasTypeAdapter / IbisTypeAdapter / NarwhalsTypeAdapter / PythonTypeAdapter — per-target mapping tables, imported lazily",
+    "NativeTypeAdapter / NativeArrowTransportAdapter — Protocol contracts for adapters",
+    "DtypeError hierarchy — UnknownDtypeError, DtypeMappingError, InvalidBackendTypeError",
+    "CastSafety — structural cast-safety classification"
+  ],
+  "key_functions": [
+    "parse_dtype(...) — parse a dtype string or object into canonical form",
+    "parse_cast_target(...) — parse a cast target including parameters",
+    "classify_cast(from_type, to_type) -> CastSafety / is_safe_cast(...) — cast safety lookup",
+    "resolve_dtype_parameters(...) — resolve parameterized dtype",
+    "detect_target(native) -> TypeTarget | None — identify which system a native dtype belongs to",
+    "portable_evidence(...) — portable structural evidence for a dtype"
+  ],
+  "dependencies": [
+    "core"
+  ],
+  "dependents": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "datacontracts",
+    "exceptions",
+    "expressions",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "pydata.ingress",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.dag",
+    "toplevel",
+    "typespec",
+    "validation"
+  ],
+  "extension_points": [
+    "NativeTypeAdapter Protocol (protocols.py): implement per target and register in DtypeRegistry",
+    "TypeTarget enum for adding a new native target",
+    "SAFE_CASTS / UNSAFE_CASTS tables in casts.py"
+  ],
+  "lifecycle_notes": [
+    "03f53c5d completed shared parameterized type construction (backlog 340, #401).",
+    "c5fb334f retained temporal cast cardinality; f4333700 preserved source temporal parameters in expression casts.",
+    "838a285b moved shared schema declarations and adapter ownership; 9f2848d8 added DecimalDtype.",
+    "Type system unification (backlog 25) landed earlier via PRs #182-#185."
+  ],
+  "documentation_hooks": [
+    "Type system reference: canonical dtypes and native mappings per backend",
+    "Cast safety matrix",
+    "Parameterized types (decimal, timestamp, list, struct)",
+    "Extension guide: adding a native type adapter"
+  ],
+  "examples": [
+    "from mountainash.core.dtypes import parse_dtype, registry",
+    "tests/core/dtypes/test_completeness.py checks mapping completeness"
+  ],
+  "tests": [
+    "tests/core/dtypes"
+  ],
+  "risks": [
+    "Per-target tables must stay complete for every MountainashDtype; incomplete mappings surface as DtypeMappingError at runtime (tests/core/dtypes/test_completeness.py guards).",
+    "Parameterized dtypes (decimal, timestamp, nested) have per-backend fidelity differences that are tested via regression locks.",
+    "typespec.universal_types is a separate Frictionless boundary vocabulary mapped onto this canon."
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/core/dtypes/__init__.py",
+      "detail": "__all__ lists dtype vocabulary, registry, casts and errors"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/dtypes/registry.py",
+      "detail": "DtypeRegistry lazy dispatch facade"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/dtypes/protocols.py",
+      "detail": "NativeTypeAdapter protocol"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/dtypes/casts.py",
+      "detail": "CastSafety, classify_cast"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/dtypes/test_completeness.py",
+      "detail": "mapping completeness"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/core/dtypes",
+      "detail": "git log: 03f53c5d, c5fb334f, 838a285b"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

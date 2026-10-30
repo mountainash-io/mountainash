@@ -1,57 +1,149 @@
 {
   "id": "conform",
   "path": "src/mountainash/conform/",
-  "summary": "TypeSpec conformance engine with Frictionless-aligned transform pipeline. Builds column-level expressions for missingValues null sentinels, trueValues/falseValues boolean casting, numeric parsing (decimalChar/groupChar/bareNumber), temporal format parsing (strptime), categories casting, list delimiter parsing, and type coercion. Enforces fieldsMatch modes (exact/equal/subset/superset/partial/open). Returns ConformResult with expressions, renamed sources, and metadata. Used by ConformRelNode at compile time.",
+  "summary": "Structural schema conformance: builds backend-neutral conform expressions for a TableSchema (_build_conform_exprs / resolve_conform_output), models the per-dimension ConformContract (extra_columns, missing_columns, data_type, keys), reports drift (ConformDrift, ConformCollection), and carries structured-field transport plans. Called by Relation.conform() and the DAG visitor; validation owns value-level checks instead.",
   "role": "orchestration",
   "visibility": "semi-public",
   "stability": "evolving",
-  "audiences": ["maintainers", "backend-architecture", "users"],
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "executives-marketing",
+    "broader-hype"
+  ],
   "doc_priority": "essential",
   "confidence": "high",
   "public_api": [
     "ConformResult",
+    "FieldBuildResult",
     "_build_conform_exprs",
     "ConformError",
     "MissingFieldsError",
     "ExtraFieldsError",
-    "ExactFieldCountError",
+    "ExactFieldsMismatchError",
     "NoMatchingFieldsError",
-    "ConformTransformError"
+    "ConformTransformError",
+    "SchemaDriftError",
+    "DecimalConversionRequiredError",
+    "UnresolvedSourceTypeError",
+    "IncompatibleSourceTypeError",
+    "UnsupportedStructuredTransportUse",
+    "TypeDrift",
+    "ColumnDrift",
+    "KeyDrift",
+    "ConformDrift",
+    "ConformCollection"
   ],
   "key_classes": [
-    {"name": "ConformResult", "purpose": "Dataclass holding conform expressions, renamed sources, and metadata"},
-    {"name": "ConformError", "purpose": "Base exception for fieldsMatch enforcement failures"},
-    {"name": "MissingFieldsError", "purpose": "Raised when required fields are absent from source"},
-    {"name": "ExtraFieldsError", "purpose": "Raised when source has fields not in spec (exact/equal modes)"},
-    {"name": "ConformTransformError", "purpose": "Raised when a transform stage fails"}
+    "ConformContract — unified per-dimension reconciliation contract (fields_match presets expand into it)",
+    "ConformOutputContract — resolved output shape of a conform",
+    "ConformResult / FieldBuildResult — outputs of expression building",
+    "ConformDrift / TypeDrift / ColumnDrift / KeyDrift — drift report data shapes",
+    "ConformCollection — collected frame plus drift report (collect_with_drift)",
+    "StructuredFieldPlan — frozen plan for physical-to-logical structured field transport",
+    "OperationDiagnosticTrace — diagnostics carried from compilation to materialization",
+    "ConformError hierarchy — MissingFieldsError, ExtraFieldsError, SchemaDriftError, etc."
   ],
   "key_functions": [
-    {"name": "_build_conform_exprs", "purpose": "Build Mountainash expressions from TypeSpec fields with full Frictionless transform pipeline"}
+    "resolve_conform_output(...) — single reconciler producing the conform output from a contract",
+    "resolve_contract(...) / validate_contract_dict(...) — build and validate a ConformContract",
+    "_build_conform_exprs(schema, ...) — internal builder shared by Relation.conform() and the DAG visitor",
+    "freeze_structured_field_plans(...) — freeze structured transport plans"
   ],
-  "dependencies": ["typespec", "expressions.core.expression_api", "core.constants"],
-  "dependents": ["relations.core.relation_nodes.extensions_mountainash.reln_ext_conform", "relations.core.unified_visitor"],
-  "extension_points": ["Transform pipeline stages are composable — new Frictionless constraints map to new pipeline stages"],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "core",
+    "exceptions",
+    "pydata.ingress",
+    "relations",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "typespec",
+    "validation"
+  ],
+  "extension_points": [
+    "ConformContract dimension modes (extra_columns, missing_columns, data_type, keys) and FIELDS_MATCH_PRESETS",
+    "TableSchema.contract / conform(contract=...) explicit layers"
+  ],
   "lifecycle_notes": [
-    "2026-05 major rearchitecture: Relation.conform() now defers to ConformRelNode, which calls apply_conform() at compile time",
-    "Full Frictionless transform pipeline added: missingValues, trueValues/falseValues, numeric parsing, temporal parsing, categories, list delimiters",
-    "fieldsMatch enforcement with 6 modes: exact, equal, subset, superset, partial, open",
-    "fieldsMatch defaults to 'open' when unset (matching Frictionless spec)"
+    "c3578b97 and ea16cb8e: container cast execution against resolved targets and structured transport qualification.",
+    "c5fb334f retained conform fill policies and temporal cast cardinality.",
+    "838a285b shared schema declarations refactor.",
+    "Governed by principles build-then-conform and conform-contract (ADOPTED); earlier note: conform needs compile-time column detection (ConformRelNode)."
   ],
-  "documentation_hooks": ["ConformRelNode compile-time dispatch", "Transform pipeline stage ordering"],
-  "examples": [],
-  "tests": [],
+  "documentation_hooks": [
+    "Conforming a relation to a TableSchema",
+    "fields_match modes and ConformContract policy dimensions",
+    "Drift reporting with collect_with_drift",
+    "Conform error reference"
+  ],
+  "examples": [
+    "ma.relation(df).conform(schema).to_polars()",
+    "tests/conform/test_collect_with_drift.py",
+    "tests/conform/cross_backend/test_conform_drift.py"
+  ],
+  "tests": [
+    "tests/conform"
+  ],
   "risks": [
-    "Transform pipeline ordering matters — missingValues must run before type casting",
-    "Ibis backend has known limitation with coalesce type strictness in null_fill scenarios"
+    "Error family depends on provenance: preset-derived contracts raise legacy fields_match errors, explicit layers raise SchemaDriftError.",
+    "Open mode column detection cannot be decided at build time without compile-time schema knowledge.",
+    "Cross-backend temporal/decimal/list casting behaviours are heavily tested and subject to backend divergence."
   ],
   "open_questions": [],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/conform/__init__.py", "detail": "Exports ConformResult, _build_conform_exprs, and 5 error classes"},
-    {"kind": "symbol", "path": "src/mountainash/conform/expressions.py", "detail": "Single-function module: _build_conform_exprs with ConformResult dataclass"},
-    {"kind": "symbol", "path": "src/mountainash/conform/errors.py", "detail": "ConformError hierarchy with 5 specific error types"},
-    {"kind": "import", "path": "src/mountainash/relations/core/unified_visitor/_core_handlers.py", "detail": "_visit_conform_rel handler delegates to apply_conform()"}
+    {
+      "kind": "export",
+      "path": "src/mountainash/conform/__init__.py",
+      "detail": "__all__"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/conform/contract.py",
+      "detail": "ConformContract with four dimensions and fields_match presets"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/conform/drift.py",
+      "detail": "ConformDrift report shapes"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/conform/expressions.py",
+      "detail": "resolve_conform_output, ConformOutputContract"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/conform/contract.py",
+      "detail": "conform-contract.md: one contract, four policy dimensions"
+    },
+    {
+      "kind": "test",
+      "path": "tests/conform/test_contract.py",
+      "detail": "contract behaviour"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/conform",
+      "detail": "git log: c3578b97, ea16cb8e, 838a285b"
+    }
   ],
-  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
   "manual": {
     "notes": "",
     "editorial_status": "",

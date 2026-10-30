@@ -1,0 +1,132 @@
+{
+  "id": "relations.core.relation_nodes",
+  "path": "src/mountainash/relations/core/relation_nodes/",
+  "summary": "Pydantic relational AST node types. Eight Substrait-aligned nodes (ReadRelNode, ProjectRelNode, FilterRelNode, SortRelNode, FetchRelNode, JoinRelNode, AggregateRelNode, SetRelNode) live under substrait/; Mountainash-specific nodes (SourceRelNode, RefRelNode, ResourceReadRelNode, ConformRelNode, ExtensionRelNode for util operations) live under extensions_mountainash/. All derive from RelationNode and carry metadata and children, with no execution logic.",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "RelationNode",
+    "ReadRelNode",
+    "ProjectRelNode",
+    "FilterRelNode",
+    "SortRelNode",
+    "FetchRelNode",
+    "JoinRelNode",
+    "AggregateRelNode",
+    "SetRelNode",
+    "ConformRelNode",
+    "ExtensionRelNode",
+    "SourceRelNode"
+  ],
+  "key_classes": [
+    "RelationNode — abstract pydantic base for all plan nodes",
+    "ReadRelNode — data source scan",
+    "ProjectRelNode / FilterRelNode / SortRelNode / FetchRelNode — core single-input nodes",
+    "JoinRelNode — join incl. asof options",
+    "AggregateRelNode — group-by aggregation",
+    "SetRelNode — union/distinct",
+    "ExtensionRelNode — non-Substrait operations keyed by RKEY_MOUNTAINASH_REL",
+    "SourceRelNode / RefRelNode / ResourceReadRelNode — leaf nodes for in-memory sources, DAG references, DataResource reads",
+    "ConformRelNode — TypeSpec conformance node"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "conform",
+    "core",
+    "expressions.core.expression_nodes",
+    "pydata",
+    "relations.core",
+    "relations.core.relation_system",
+    "typespec"
+  ],
+  "dependents": [
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "Subclass RelationNode and register a visit handler via RelationVisitRegistry",
+    "ExtensionRelNode operation keys validated by model_validator against the operation registry"
+  ],
+  "lifecycle_notes": [
+    "838a285b3 shared schema declarations refactor",
+    "d7af5f051 relation sampling and positional execution deferred (#404)",
+    "0147a6649 join coalesce option on JoinRelNode",
+    "42d177259 concat timezone reconciliation"
+  ],
+  "documentation_hooks": [
+    "Relational AST reference: node catalogue and Substrait mapping",
+    "Contributing: adding a node type"
+  ],
+  "examples": [
+    "tests/relations/test_rel_nodes.py",
+    "tests/relations/test_node_children_exhaustive.py"
+  ],
+  "tests": [
+    "tests/relations/test_rel_nodes.py",
+    "tests/relations/test_node_children_exhaustive.py",
+    "tests/relations/test_rel_ext_options_validation.py",
+    "tests/relations/test_rel_operation_keys.py"
+  ],
+  "risks": [
+    "Nodes must stay free of logic beyond accept/children; children enumeration must stay exhaustive for new nodes",
+    "Extension node options are loosely typed dicts validated per operation",
+    "relation-ast principle states 10 core nodes; exports here are 8 Substrait plus 3 extension; verify against principle before quoting counts"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/core/relation_nodes/__init__.py",
+      "detail": "exports of node classes"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_nodes/reln_base.py",
+      "detail": "RelationNode pydantic ABC and Substrait alignment docstring"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_nodes/extensions_mountainash/reln_ext_ma_util.py",
+      "detail": "ExtensionRelNode"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/core/relation_nodes/reln_base.py",
+      "detail": "relational-ast and substrait-first-design principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_node_children_exhaustive.py",
+      "detail": "exhaustive children check"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations/core/relation_nodes",
+      "detail": "d7af5f051, 0147a6649"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
