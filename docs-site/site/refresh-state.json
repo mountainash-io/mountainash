@@ -22,8 +22,8 @@
       "generator_version": "2.0.0"
     },
     "02-installation-and-package-surface": {
-      "content_hash": "sha256:cc71680d1938c23f7bd9f0dffdac5380e2dea59f09807e6fb769b1d21881e3ae",
-      "word_count": 2111,
+      "content_hash": "sha256:335d0a1986d5eaf17cc74aa8ebc4f9cb093fde5c406d48125e331837ee44a294",
+      "word_count": 2122,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
@@ -188,7 +188,7 @@
   },
   "landing_state": {
     "index.md": {
-      "content_hash": "sha256:6dc3eafe00fb9bab3858737187d60c77bce0617f546522575cfc9107eaaf614f",
+      "content_hash": "sha256:3c0a9fcbc52038ed40600f0f202c1a2a2a8edde7c28d3e1d0155dee631eac8e4",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
@@ -201,7 +201,7 @@
         "docs-site/profile/facets/maintainers.json": "sha256:94d8bf403c5a61c8fce68c7634c5e09a05c822082b3a6fcf3e7da4835a76f806",
         "docs-site/profile/facets/users.json": "sha256:c687e2c9434dcd33a7e5d7a52e7ee5feab5deda9a8586c5605e5a80152ec0098",
         "docs-site/site/docs/chapters/01-what-mountainash-does/index.md": "sha256:eb130a620ccf522be9a9b99bc5a8016653ea4d404b358d55616e2dc463ec9fbb",
-        "docs-site/site/docs/chapters/02-installation-and-package-surface/index.md": "sha256:260268332322ca282ac5d94a4245db707cf91422a119e2c87f187729c50322a5",
+        "docs-site/site/docs/chapters/02-installation-and-package-surface/index.md": "sha256:335d0a1986d5eaf17cc74aa8ebc4f9cb093fde5c406d48125e331837ee44a294",
         "docs-site/site/docs/chapters/16-backend-support-and-limits/index.md": "sha256:9c4d232c62eec0dc4c2a1876d481c5c32d0ae28b7efe7435185ca954f87b804f",
         "docs-site/site/docs/chapters/index.md": "sha256:f8125d9ca65d6e9559d5f66af8288f29dd9c1f5ca24ac826fa0058211ec0e725"
       },
@@ -360,6 +360,22 @@
       "learning_graph_nodes_updated": [],
       "tokens_used": null,
       "note": "Experimental (not production-ready) notice on Home under the lead. Source unchanged."
+    },
+    {
+      "date": "2026-10-31",
+      "from_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [
+        "02-installation-and-package-surface"
+      ],
+      "sections_regenerated": [],
+      "faq_questions_updated": 0,
+      "landing_pages_updated": [
+        "index.md"
+      ],
+      "learning_graph_nodes_updated": [],
+      "tokens_used": null,
+      "note": "Link the examples folder from the book."
     }
   ]
 }
