@@ -29,11 +29,13 @@ def test_recipe_prints_documented_output(recipe: Path, tmp_path: Path) -> None:
     work = tmp_path / "examples"
     shutil.copytree(EXAMPLES, work)
     before = _tree(work)
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
     script = str(work / recipe.relative_to(EXAMPLES))
     outputs = []
     for _ in range(2):
         result = subprocess.run(
-            [sys.executable, "-I", script], cwd=tmp_path,
+            [sys.executable, "-I", script], cwd=cwd,
             capture_output=True, text=True, timeout=120, check=False,
         )
         assert result.returncode == 0, result.stdout + result.stderr
@@ -41,6 +43,7 @@ def test_recipe_prints_documented_output(recipe: Path, tmp_path: Path) -> None:
     assert outputs[0] == outputs[1], "recipe output differs between runs"
     assert outputs[0].strip() == _documented_output(recipe)
     assert _tree(work) == before, "recipe left files in the examples tree"
+    assert not list(cwd.iterdir()), "recipe left files in its working directory"
 
 
 def test_index_lists_every_recipe() -> None:
