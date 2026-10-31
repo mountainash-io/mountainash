@@ -15,7 +15,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
-    clean_cause,
+    raise_with_cause,
     DescriptorError,
     DescriptorReferenceInvalid,
     InvalidDescriptorRelationship,
@@ -69,13 +69,13 @@ def _parse_descriptor_json_input(
     try:
         text = json_data.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise InvalidDescriptorSyntax(
+        raise_with_cause(InvalidDescriptorSyntax(
             "descriptor text is not valid JSON",
             descriptor_kind=descriptor_kind,
             descriptor_path="$",
             rejected_value=json_data,
             required_form="valid JSON text",
-        ) from clean_cause(exc)
+        ), exc)
     return parse_descriptor_json(text, descriptor_kind=descriptor_kind)
 
 
@@ -483,7 +483,7 @@ class DataResource(BaseModel):
         try:
             super().__init__(**prepared)
         except ValidationError as exc:
-            raise pydantic_structure_error(
+            raise_with_cause(pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
                 base_path="$",
@@ -491,7 +491,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from clean_cause(exc)
+            ), exc)
         self._invariant_location = location
         self._package_resource_names = frozenset()
 
@@ -525,8 +525,8 @@ class DataResource(BaseModel):
                 else None
             )
             if isinstance(nested_error, InvalidDescriptorStructure):
-                raise nested_error from clean_cause(exc)
-            raise pydantic_structure_error(
+                raise_with_cause(nested_error, exc)
+            raise_with_cause(pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
                 base_path="$",
@@ -534,7 +534,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from clean_cause(exc)
+            ), exc)
         result._invariant_location = InvariantLocation("$", resource_name)
         result._descriptor_context = (
             retained_context
@@ -572,8 +572,8 @@ class DataResource(BaseModel):
                 else None
             )
             if isinstance(nested_error, InvalidDescriptorStructure):
-                raise nested_error from clean_cause(exc)
-            raise pydantic_structure_error(
+                raise_with_cause(nested_error, exc)
+            raise_with_cause(pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
                 base_path="$",
@@ -581,7 +581,7 @@ class DataResource(BaseModel):
                 reference=None,
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from clean_cause(exc)
+            ), exc)
         result._invariant_location = location
         result._descriptor_context = _default_descriptor_context()
         result._package_resource_names = frozenset()
@@ -685,7 +685,7 @@ class DataResource(BaseModel):
         except InvalidDescriptorStructure as exc:
             if not isinstance(source, str):
                 raise
-            raise DescriptorReferenceInvalid(
+            raise_with_cause(DescriptorReferenceInvalid(
                 f"resolved schema has an invalid structure: {exc}",
                 descriptor_kind=DescriptorKind.SCHEMA.value,
                 descriptor_path=source_location.descriptor_path + exc.descriptor_path[1:],
@@ -694,7 +694,7 @@ class DataResource(BaseModel):
                 expected_kind=DescriptorKind.SCHEMA.value,
                 rejected_value=exc.rejected_value,
                 required_form=exc.required_form,
-            ) from clean_cause(exc)
+            ), exc)
         except TypeSpecError:
             # Typed structural errors (field/type/key shape, field-match) pass
             # through unchanged — never wrapped as descriptor errors.
@@ -707,14 +707,14 @@ class DataResource(BaseModel):
                 if isinstance(source, str)
                 else InvalidDescriptorStructure
             )
-            raise error_type(
+            raise_with_cause(error_type(
                 "schema mapping could not be converted",
                 descriptor_kind=DescriptorKind.SCHEMA.value,
                 descriptor_path=source_location.descriptor_path,
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Schema mapping",
-            ) from clean_cause(exc)
+            ), exc)
 
     def to_dialect(self) -> TableDialect | None:
         if self.dialect is None:
@@ -745,14 +745,14 @@ class DataResource(BaseModel):
                 if isinstance(source, str)
                 else InvalidDescriptorStructure
             )
-            raise error_type(
+            raise_with_cause(error_type(
                 "dialect mapping could not be converted",
                 descriptor_kind=DescriptorKind.DIALECT.value,
                 descriptor_path=source_location.descriptor_path,
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Dialect mapping",
-            ) from clean_cause(exc)
+            ), exc)
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
         schema = self.to_table_schema()
@@ -947,13 +947,13 @@ def _validate_package_metadata(raw: Mapping[str, object]) -> None:
         try:
             _CREATED_ADAPTER.validate_python(created)
         except ValidationError as exc:
-            raise _structure_at(
+            raise_with_cause(_structure_at(
                 InvariantLocation("$"),
                 ".created",
                 created,
                 "RFC 3339 date-time string",
                 descriptor_kind="package",
-            ) from clean_cause(exc)
+            ), exc)
     if "keywords" in raw:
         keywords = raw["keywords"]
         if (
@@ -1253,7 +1253,7 @@ class DataPackage(BaseModel):
         try:
             super().__init__(**prepared)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from clean_cause(exc)
+            raise_with_cause(_package_validation_error(exc), exc)
         self._descriptor_context = context
 
     def __eq__(self, other: object) -> bool:
@@ -1282,7 +1282,7 @@ class DataPackage(BaseModel):
         try:
             result = super().model_validate(prepared, **kwargs)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from clean_cause(exc)
+            raise_with_cause(_package_validation_error(exc), exc)
         result._descriptor_context = context
         _rebind_package_resources(result, context)
         return result
@@ -1303,7 +1303,7 @@ class DataPackage(BaseModel):
         try:
             result = super().model_validate(prepared, **kwargs)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from clean_cause(exc)
+            raise_with_cause(_package_validation_error(exc), exc)
         result._descriptor_context = context
         _rebind_package_resources(result, context)
         return result
@@ -1329,7 +1329,7 @@ class DataPackage(BaseModel):
         try:
             BaseModel.__init__(package, **prepared)
         except ValidationError as exc:
-            raise _package_validation_error(exc) from clean_cause(exc)
+            raise_with_cause(_package_validation_error(exc), exc)
         package._descriptor_context = final_context
         return package
 
