@@ -4,14 +4,14 @@ title: Building expressions
 
 # Building expressions
 
-A mountainash expression describes a column computation without running it. `ma.col()`, `ma.lit()` and `ma.when()` start one; Python operators and named methods such as `.cast()`, `.fill_null()` and `.alias()` extend it. The finished expression is a backend-free tree that becomes a Polars, Narwhals or Ibis expression only when it is compiled against a dataframe, either directly with `.compile(df)` or by a [relation](../07-relations/index.md) that uses it.
+A mountainash expression is a backend-free description of a column computation. `ma.col()`, `ma.lit()` and `ma.when()` start one; Python operators and named methods such as `.cast()`, `.fill_null()` and `.alias()` extend it. Compiling the finished tree against a dataframe turns it into a Polars, Narwhals or Ibis expression, either directly with `.compile(df)` or through a [relation](../07-relations/index.md) that uses it.
 
 Assumes: [What mountainash does](../01-what-mountainash-does/index.md), [Installation and the package surface](../02-installation-and-package-surface/index.md) and [Data types](../03-dtypes/index.md).
 
 ## Expression objects
 
 <!-- concept:320 -->
-Every expression entry point returns an expression object, an instance of `ma.BaseExpressionAPI` (concretely `BooleanExpressionAPI`). The object holds one node of the [abstract syntax tree](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast) and nothing else: no dataframe, no backend, no data.
+Every expression entry point returns an expression object, an instance of `ma.BaseExpressionAPI` (concretely `BooleanExpressionAPI`). The object holds one node of the [abstract syntax tree](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast). Data and backend arrive at compile time.
 
 ```python
 import mountainash as ma
@@ -26,7 +26,7 @@ True
 BooleanExpressionAPI(ScalarFunctionNode(function_key=<FKEY_SUBSTRAIT_SCALAR_COMPARISON.GTE: 5>, arguments=[FieldReferenceNode(function_key=None, field='age', unknown_values=None), LiteralNode(function_key=None, value=18, dtype=None, is_native=False)], options={}, diagnostic_context={}))
 ```
 
-The `>=` produced a function node keyed by a Substrait comparison, with the column reference and the literal `18` as its arguments. That is the [build-then-compile](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast) model at work: building records intent as a tree, and a backend is chosen only later.
+The `>=` produced a function node keyed by a Substrait comparison, with the column reference and the literal `18` as its arguments. That is the [build-then-compile](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast) model at work: building records intent as a tree, and compilation chooses the backend later.
 
 Expressions are immutable. Each method or operator returns a new expression whose tree contains the old one, so a partial expression can be reused safely as the base of several others:
 
@@ -40,7 +40,7 @@ print(base)
 BooleanExpressionAPI(FieldReferenceNode(function_key=None, field='price', unknown_values=None))
 ```
 
-Because nothing about the tree depends on a backend, one expression runs unchanged on any supported dataframe. Here the same `total` runs on a Polars frame and on a pandas frame (reached through Narwhals):
+The tree is backend-independent, so one expression runs unchanged on any supported dataframe. Here the same `total` runs on a Polars frame and on a pandas frame (reached through Narwhals):
 
 ```python
 import pandas as pd
@@ -58,7 +58,7 @@ print(ma.relation(orders_pd).select(total).to_dict())
 {'total': [7.5, 8.0]}
 ```
 
-`ma.relation(...).select(...)` and `.to_dict()` are covered in [Relations](../07-relations/index.md) and [Collecting results](../08-collecting-results/index.md); the examples below use them only to run expressions.
+`ma.relation(...).select(...)` and `.to_dict()` are covered in [Relations](../07-relations/index.md) and [Collecting results](../08-collecting-results/index.md); on this page they serve only to run expressions.
 
 ```mermaid
 flowchart LR
@@ -71,16 +71,16 @@ flowchart LR
 
 Methods reach an expression in two ways. Most operations are flat methods directly on the object (`.gt()`, `.cast()`, `.fill_null()`). Domain-specific operations sit in namespaces: `.str`, `.dt`, `.name`, `.list`, `.struct`, `.cat` and `.geo`, described in [Namespaces](../05-namespaces-aggregates-and-windows/index.md#namespaces). Method names and parameters follow Polars conventions, while the tree underneath stays aligned with Substrait. Where the two vocabularies differ, both spellings exist and build the same node: `.ge()` and `.gte()`, `.ne()` and `.not_equal()`, `.modulo()` and `.modulus()`, `.sub()` and `.subtract()`. How the methods are assembled from separate builder classes is described in [API builders and expression systems](../17-architecture/index.md#api-builders-and-expression-systems).
 
-One consequence of operator support: `==` builds an expression instead of returning a `bool`, so expression objects are unhashable and cannot be used as dictionary keys or set members.
+Operator support has one side effect: `==` builds an expression and returns no `bool`, so expression objects are unhashable and cannot be dictionary keys or set members.
 
 ## Columns, literals and conditions
 
 <!-- concept:321 -->
-`ma.col(name)` references one column by name. It takes exactly one string; `ma.col("a", "b")` raises `TypeError`, and there is no dtype-based column selection. For a ternary-aware column reference with sentinel values, see [`ma.t_col()`](../06-ternary-logic/index.md#ternary-columns-and-sentinels).
+`ma.col(name)` references one column by name. It takes exactly one string; `ma.col("a", "b")` raises `TypeError`, and column selection works by name only, with no dtype-based form. For a ternary-aware column reference with sentinel values, see [`ma.t_col()`](../06-ternary-logic/index.md#ternary-columns-and-sentinels).
 
-The name is not checked when the expression is built. A misspelled column fails when the expression is compiled or run against data that lacks it, because only then is a schema available.
+Building an expression leaves the name unchecked. A misspelled column fails when the expression is compiled or run against data that lacks it, because a schema exists only at that point.
 
-Two string forms are passed through to the backend as selectors rather than names: `"*"` (all columns) and a regular expression wrapped in `^...$`. Polars expands them; other backends treat them as literal column names.
+Two string forms pass through to the backend as selectors: `"*"` (all columns) and a regular expression wrapped in `^...$`. Polars expands them; other backends treat them as literal column names.
 
 ```python
 import ibis
@@ -101,10 +101,10 @@ IbisTypeError Column '^p.*$' is not found in table. Existing columns: 'price', '
 ```
 
 !!! warning "Backend limit"
-    `"*"` and `"^...$"` selector strings are Polars selector lowering, not a portable selector API. They work on Polars frames and fail on Ibis tables. Use explicit column names in expressions meant to run on more than one backend (source: `tests/relations/cross_backend/test_rel_projection_names.py`). See [Backend support and known limits](../16-backend-support-and-limits/index.md).
+    `"*"` and `"^...$"` selector strings come from Polars selector lowering and are specific to Polars. They work on Polars frames and fail on Ibis tables. Use explicit column names in expressions meant to run on more than one backend (source: `tests/relations/cross_backend/test_rel_projection_names.py`). See [Backend support and known limits](../16-backend-support-and-limits/index.md).
 
 <!-- concept:322 -->
-`ma.lit(value)` wraps a constant. Plain Python values on the other side of an operator or method are wrapped automatically, so `ma.col("qty") + 1` needs no `lit`. Use `lit` when the constant comes first, when a constant column is wanted on its own, or to fix its type with `dtype=`, which accepts any canonical form from [Parsing dtypes](../03-dtypes/index.md#parsing-dtypes) but not a native dtype. `ma.lit(None)` is a null literal.
+`ma.lit(value)` wraps a constant. Plain Python values on the other side of an operator or method are wrapped automatically, so `ma.col("qty") + 1` needs no `lit`. Use `lit` when the constant comes first, when a constant column is wanted on its own, or to fix its type with `dtype=`, which accepts any canonical form from [Parsing dtypes](../03-dtypes/index.md#parsing-dtypes) and rejects a native dtype. `ma.lit(None)` is a null literal.
 
 ```python
 print(
@@ -127,7 +127,7 @@ shape: (2, 3)
 ```
 
 <!-- concept:323 -->
-`ma.when(condition).then(value)` starts a conditional; further `.when(...).then(...)` pairs add branches, tested in order, and `.otherwise(value)` closes it. Plain values in `then` and `otherwise` are literals, so `then("A")` produces the string `"A"`, not a reference to a column named `A` (this differs from Polars). A row whose condition is null takes the next branch, which is why the null score below falls through to `"F"`.
+`ma.when(condition).then(value)` starts a conditional; further `.when(...).then(...)` pairs add branches, tested in order, and `.otherwise(value)` closes it. Plain values in `then` and `otherwise` are literals, so `then("A")` produces the string `"A"`, where Polars would read it as a reference to a column named `A`. A row whose condition is null takes the next branch, which is why the null score below falls through to `"F"`.
 
 ```python
 scores = pl.DataFrame({"score": [95, 72, None, 40]})
@@ -144,7 +144,7 @@ print(ma.relation(scores).with_columns(grade).to_dict())
 {'score': [95, 72, None, 40], 'grade': ['A', 'B', 'F', 'F']}
 ```
 
-Until `.otherwise()` is called the chain is an incomplete builder, not an expression, and it has no expression methods:
+Until `.otherwise()` closes it, the chain is an incomplete builder with no expression methods:
 
 ```python
 try:
@@ -170,7 +170,7 @@ Schema({'run_date': Date, 'run_at': Datetime(time_unit='us', time_zone=None)})
 ```
 
 !!! warning "Backend limit"
-    The value is taken when the expression is compiled, not per row. `today()` reads the Python process's local date on every backend. `now()` reads the Python process's clock on Polars and Narwhals, but on Ibis it compiles to the database's own current-time function, so the timestamp comes from the database server's clock (source: `src/mountainash/expressions/backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_scalar_datetime.py`).
+    The value is fixed once, when the expression is compiled, and every row gets that value. `today()` reads the Python process's local date on every backend. `now()` reads the Python process's clock on Polars and Narwhals, but on Ibis it compiles to the database's own current-time function, so the timestamp comes from the database server's clock (source: `src/mountainash/expressions/backends/expression_systems/ibis/extensions_mountainash/expsys_ib_ext_ma_scalar_datetime.py`).
 
 ## Operators
 
@@ -240,7 +240,7 @@ print(
 {'div': [3.5, -2.3333333333333335, inf], 'floordiv': [3, -3, None], 'in_range': [False, False, True]}
 ```
 
-The named methods accept Substrait options that operators cannot express: `overflow=` on `add`, `subtract`, `multiply` and `power`, and `on_division_by_zero=` and `on_domain_error=` on `divide`. A backend that cannot honour a requested option refuses it with a capability error instead of silently using its own behaviour ([Capability errors](../09-execution-targets-and-capabilities/index.md#capability-errors-and-capability_policy)).
+The named methods accept Substrait options that have no operator form: `overflow=` on `add`, `subtract`, `multiply` and `power`, and `on_division_by_zero=` and `on_domain_error=` on `divide`. A backend that cannot honour a requested option raises a capability error and never silently substitutes its own behaviour ([Capability errors](../09-execution-targets-and-capabilities/index.md#capability-errors-and-capability_policy)).
 
 ```python
 try:
@@ -327,7 +327,7 @@ shape: (3, 5)
 ## Casting, cast safety and nulls
 
 <!-- concept:345 -->
-`.cast(dtype, failure_behavior="throw", rounding=None)` converts an expression to another type. `dtype` is anything [`parse_cast_target()`](../03-dtypes/index.md#parsing-dtypes) accepts: a canonical name, a `MountainashDtype` member, a Python type, a parameterized descriptor such as `ma.DecimalDtype(6, 1)`, or a native dtype object. `failure_behavior="null"` turns values that cannot be converted into nulls instead of raising; `ma.CaseFailureBehaviour` holds the two values. A `DecimalDtype` target requires `rounding=` (`"half_to_even"`, `"half_away_from_zero"` or `"to_zero"`) and accepts precision up to 16; other targets reject `rounding=`.
+`.cast(dtype, failure_behavior="throw", rounding=None)` converts an expression to another type. `dtype` is anything [`parse_cast_target()`](../03-dtypes/index.md#parsing-dtypes) accepts: a canonical name, a `MountainashDtype` member, a Python type, a parameterized descriptor such as `ma.DecimalDtype(6, 1)`, or a native dtype object. `failure_behavior="null"` turns unconvertible values into nulls; `ma.CaseFailureBehaviour` holds the two values. A `DecimalDtype` target requires `rounding=` (`"half_to_even"`, `"half_away_from_zero"` or `"to_zero"`) and accepts precision up to 16; other targets reject `rounding=`.
 
 ```python
 raw = pl.DataFrame({"code": ["1", "2", "x"], "amount": [1.25, 2.5, -3.75]})
@@ -355,7 +355,7 @@ shape: (3, 3)
 └──────┴────────────┴──────────────┘
 ```
 
-With the default `failure_behavior="throw"` the backend raises its own error at run time. A missing `rounding=` is caught when the expression is built:
+With the default `failure_behavior="throw"` the backend raises its own error at run time. Building the expression catches a missing `rounding=`:
 
 ```python
 try:
@@ -402,7 +402,7 @@ DtypeMappingError Native refinement targets polars, not ibis
     {'amount': [1, 2, -4]}
     ```
 
-    On pandas through Narwhals, integer casts of NumPy `float64` columns that contain missing values raise, because NumPy integers cannot hold them (source: `src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/substrait/cast.py`). Decimal casts are refused with a capability error on the Narwhals pandas, Polars, PyArrow, DuckDB and lazy dialects and on the Ibis SQLite, MySQL, Exasol and SingleStoreDB dialects, and Ibis PostgreSQL refuses `failure_behavior="null"` for them (source: the `extensions_mountainash/value.py` declarations under `src/mountainash/expressions/backends/capabilities/`). Decimal casts run on Polars and on Ibis DuckDB.
+    On pandas through Narwhals, integer casts of NumPy `float64` columns that contain missing values raise, because NumPy integers cannot hold them (source: `src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/substrait/cast.py`). The Narwhals pandas, Polars, PyArrow, DuckDB and lazy dialects and the Ibis SQLite, MySQL, Exasol and SingleStoreDB dialects refuse decimal casts with a capability error, and Ibis PostgreSQL refuses `failure_behavior="null"` for them (source: the `extensions_mountainash/value.py` declarations under `src/mountainash/expressions/backends/capabilities/`). Decimal casts run on the native Polars backend and on Ibis DuckDB.
 
 <!-- concept:398 -->
 Cast safety is a separate question from whether a cast succeeds: it asks whether converting one canonical type to another can lose information. `mountainash.core.dtypes` answers it from a fixed table. `is_safe_cast(from_type, to_type)` returns a `bool`, `classify_cast()` returns `CastSafety.SAFE` or `CastSafety.UNSAFE`, and the pairs themselves are in `SAFE_CASTS`.
@@ -420,7 +420,7 @@ True False
 CastSafety.UNSAFE CastSafety.SAFE
 ```
 
-Safe casts are: identity; widening within the signed or the unsigned integer family; any scalar type to `string`; `fp32` to `fp64`; any integer to `fp64`, and 8- and 16-bit integers to `fp32`; `date` to and from `timestamp`; and `bool` to a signed integer. Every other pair is unsafe by default. `.cast()` does not consult the table; it casts whatever it is asked to. The table is used where the package decides on its own whether a type change is acceptable, chiefly when [conform](../11-conforming-data/index.md#drift-reporting) reconciles data with a declared schema and reports type drift.
+Safe casts are: identity; widening within the signed or the unsigned integer family; any scalar type to `string`; `fp32` to `fp64`; any integer to `fp64`, and 8- and 16-bit integers to `fp32`; `date` to and from `timestamp`; and `bool` to a signed integer. Every other pair is unsafe by default. `.cast()` casts whatever it is asked to, independent of the table. The package uses the table where it decides on its own whether a type change is acceptable, chiefly when [conform](../11-conforming-data/index.md#drift-reporting) reconciles data with a declared schema and reports type drift.
 
 <!-- concept:346 -->
 Nulls and NaN are different: null is a missing value in any type, and NaN is a floating-point value. `is_null()` and `is_not_null()` test for null; `is_nan()`, `is_finite()` and `is_infinite()` test floats. `fill_null(value)` replaces nulls, `fill_nan(value)` replaces NaN, and `null_if(value)` (Substrait spelling `nullif`) turns matching values into nulls.
@@ -456,7 +456,7 @@ shape: (3, 5)
 ## Combining columns
 
 <!-- concept:327 -->
-`ma.coalesce(*exprs)` returns the first non-null value across its arguments, row by row. `ma.greatest(*exprs)` and `ma.least(*exprs)` return the largest and smallest value, ignoring nulls. Each takes two or more expressions or plain values and raises `ValueError` with fewer. The arguments are peers, so these are free functions rather than methods; `ma.max_horizontal()` and `ma.min_horizontal()` are Polars-named aliases of `greatest` and `least`, alongside the other [horizontal functions](../05-namespaces-aggregates-and-windows/index.md#horizontal-functions).
+`ma.coalesce(*exprs)` returns the first non-null value across its arguments, row by row. `ma.greatest(*exprs)` and `ma.least(*exprs)` return the largest and smallest value, ignoring nulls. Each takes two or more expressions or plain values and raises `ValueError` with fewer. The arguments are peers, so these are free functions; `ma.max_horizontal()` and `ma.min_horizontal()` are Polars-named aliases of `greatest` and `least`, alongside the other [horizontal functions](../05-namespaces-aggregates-and-windows/index.md#horizontal-functions).
 
 ```python
 contacts = {"mobile": [None, "555-1", None], "home": ["555-9", None, None], "a": [5, 2, 7], "b": [3, 9, None]}
@@ -488,7 +488,7 @@ coalesce requires at least 2 arguments
 ## Escaping to native expressions
 
 <!-- concept:326 -->
-`ma.native(expr)` wraps a backend-native expression (a `pl.Expr`, a Narwhals expression or a concrete Ibis value) so it can be used where a mountainash expression is expected, alongside portable operations. It is passed through to the backend unchanged.
+`ma.native(expr)` wraps a backend-native expression (a `pl.Expr`, a Narwhals expression or a concrete Ibis value) so it can be used where a mountainash expression is expected, alongside portable operations. Compilation passes it through to the backend unchanged.
 
 ```python
 people = pl.DataFrame({"name": ["ann", "bob"], "age": [30, 17]})
@@ -500,7 +500,7 @@ print(ma.relation(people).select(title, (ma.col("age") >= 18).alias("adult")).to
 {'title': ['Ann', 'Bob'], 'adult': [True, False]}
 ```
 
-The price is portability. An expression containing a native piece runs only on that piece's backend; on any other it fails at compile time. For Ibis, the wrapped value must already be bound to the table:
+A native piece ties the expression to one backend: the expression runs on that piece's backend and fails at compile time on any other. For Ibis, the wrapped value must already be bound to the table:
 
 ```python
 people_ib = con.create_table("people", people.to_arrow())
@@ -516,12 +516,12 @@ Backend mismatch: polars expression cannot be used with ibis backend
 {'title': ['Ann', 'Bob']}
 ```
 
-Mountainash cannot see inside a native expression, so it cannot infer the expression's output name. Give native pieces an explicit `.alias()`, and prefer a portable operation whenever one exists.
+A native expression is opaque to mountainash, so its output name has to come from you. Give native pieces an explicit `.alias()`, and prefer a portable operation whenever one exists.
 
 ## Compiling an expression
 
 <!-- concept:325 -->
-`expr.compile(df)` turns an expression into the native expression of the dataframe's backend. The backend is found by [backend detection](../02-installation-and-package-surface/index.md#backend-detection) from the type of `df`, which also tells the compiler which dialect to target. The result is used with the library's own methods.
+`expr.compile(df)` turns an expression into the native expression of the dataframe's backend. [Backend detection](../02-installation-and-package-surface/index.md#backend-detection) finds the backend from the type of `df`, and that type also tells the compiler which dialect to target. The result is used with the library's own methods.
 
 ```python
 amount = (ma.col("price") + 1) * ma.col("qty")
@@ -561,7 +561,7 @@ Deferred ((_['price'] + <scalar[int8]>) * _['qty'])
 narwhals.expr
 ```
 
-`compile()` also takes `booleanizer=`, which decides how a ternary result becomes a boolean; see [Booleanization](../06-ternary-logic/index.md#booleanization). Relations call `compile()` for every expression they contain, so most code never calls it directly. Direct compilation is useful for mixing mountainash logic into existing native code. The steps inside `compile()` (operation lookup, the visitor, capability gating) are described in [How expressions compile](../18-expression-compilation/index.md).
+`compile()` also takes `booleanizer=`, which decides how a ternary result becomes a boolean; see [Booleanization](../06-ternary-logic/index.md#booleanization). Relations call `compile()` for every expression they contain, so most code leaves the call to them. Direct compilation mixes mountainash logic into existing native code. The steps inside `compile()` (operation lookup, the visitor, capability gating) are described in [How expressions compile](../18-expression-compilation/index.md).
 
 ## Output names
 
@@ -593,7 +593,7 @@ for source in (orders_pl, orders_ib):
 ['price', 'literal', 'qty', 'qty_f', 'units']
 ```
 
-Two expressions in one projection that resolve to the same name are rejected when the relation is built, before any data is touched:
+Building the relation rejects two expressions in one projection that resolve to the same name, before any data is touched:
 
 ```python
 try:
@@ -606,12 +606,12 @@ except ValueError as exc:
 PROJECT_SELECT expression 1: duplicate output 'qty'
 ```
 
-A standalone `compile()` does not apply these rules; the native library names the result. Polars named the compiled expression above `price`, while Ibis named it `Multiply(Add(price, 1), qty)`. Alias any expression whose name matters before compiling it directly.
+A standalone `compile()` leaves naming to the native library. Polars named the compiled expression above `price`, while Ibis named it `Multiply(Add(price, 1), qty)`. Alias any expression whose name matters before compiling it directly.
 
 ## Inspecting an expression
 
 <!-- concept:332 -->
-`mountainash.expressions` provides three functions for reading an expression tree, modelled on Python's `ast` module. They are not re-exported at the top level.
+`mountainash.expressions` provides three functions for reading an expression tree, modelled on Python's `ast` module. Import them from there; the top level does not re-export them.
 
 - `collect_field_references(expr)` returns the set of column names the expression reads.
 - `walk(expr, order="depth_first")` yields every node, root first; `order="breadth_first"` gives level order.
@@ -636,4 +636,4 @@ print(label.node.function_key)
 FKEY_MOUNTAINASH_NAME.ALIAS
 ```
 
-The root is the alias, a function node; under it are the conditional, its comparison, and the column and literal leaves. `collect_field_references` finds only columns that appear as nodes, so column names given as plain strings inside window ordering are not included. The node types are described in [Expression AST nodes](../18-expression-compilation/index.md#expression-ast-nodes).
+The root is the alias, a function node; under it are the conditional, its comparison, and the column and literal leaves. `collect_field_references` finds columns that appear as nodes, so it omits column names given as plain strings inside window ordering. The node types are described in [Expression AST nodes](../18-expression-compilation/index.md#expression-ast-nodes).

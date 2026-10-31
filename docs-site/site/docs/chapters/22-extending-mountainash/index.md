@@ -4,7 +4,7 @@ title: Extending mountainash
 
 # Extending mountainash
 
-mountainash is extended in two ways. Some extension points accept your own objects at run time: a relation node with its visit handler, an optimisation pass, a schema codec, a custom semantic type, pipeline units, sinks and checkpoint stores, and rules and validation checks. The others are changes to the package itself, made in a source checkout: a new expression or relation operation, a backend, capability declarations, a type or schema adapter for a new target, a Python ingress handler and a new value validator. The table lists every extension point and where its mechanism is explained.
+mountainash has two kinds of extension point. Some accept your own objects at run time: a relation node with its visit handler, an optimisation pass, a schema codec, a custom semantic type, pipeline units, sinks and checkpoint stores, and rules and validation checks. The others are changes to the package itself, made in a source checkout: a new expression or relation operation, a backend, capability declarations, a type or schema adapter for a new target, a Python ingress handler and a new value validator. The table lists every extension point and where its mechanism is explained.
 
 Assumes: [Architecture](../17-architecture/index.md), [How expressions compile](../18-expression-compilation/index.md), [How relations compile](../19-relation-compilation/index.md) and [The capability spine](../20-capability-spine/index.md).
 
@@ -25,23 +25,23 @@ Assumes: [Architecture](../17-architecture/index.md), [How expressions compile](
 | Row, scalar and relation checks | Your own object | [Check IR and rule kinds](../13-validation/index.md#check-ir-and-rule-kinds) |
 | Value validator | Package change | [Ingress handlers, units and rules](#ingress-handlers-units-and-rules) |
 
-Run-time registries are process-wide: a registration lasts for the life of the interpreter, and registering a key twice raises `ValueError`. Package changes are checked by tests that discover what exists (protocols, keys, nodes, adapters) and fail when a new item is neither wired nor listed as a known gap; [Contributing and testing](../23-contributing-and-testing/index.md) describes those tests and how to run them.
+Run-time registries are process-wide: a registration lasts for the life of the interpreter, and registering a key twice raises `ValueError`. Tests that discover what exists (protocols, keys, nodes, adapters) check package changes, and fail for any new item that is unwired and absent from the known-gap lists; [Contributing and testing](../23-contributing-and-testing/index.md) describes those tests and how to run them.
 
 ## Adding an expression operation
 
 <!-- concept:540 -->
-An expression operation is added in six steps, the same for a Substrait-standard function and a mountainash extension. Each step adds the operation to one layer of the [three-layer separation](../17-architecture/index.md#three-layer-separation), and a missing step shows up as a failing alignment test or a dispatch error rather than a silent gap. The operation's origin decides the directory at every layer: Substrait functions live under `substrait/` with `FKEY_SUBSTRAIT_*` keys, mountainash extensions under `extensions_mountainash/` with `FKEY_MOUNTAINASH_*` keys and an `ext_ma_` file infix (see [Function keys](../18-expression-compilation/index.md#function-keys)).
+An expression operation is added in six steps, the same for a Substrait-standard function and a mountainash extension. Each step adds the operation to one layer of the [three-layer separation](../17-architecture/index.md#three-layer-separation), and a missing step surfaces as a failing alignment test or a dispatch error. The operation's origin decides the directory at every layer: Substrait functions live under `substrait/` with `FKEY_SUBSTRAIT_*` keys, mountainash extensions under `extensions_mountainash/` with `FKEY_MOUNTAINASH_*` keys and an `ext_ma_` file infix (see [Function keys](../18-expression-compilation/index.md#function-keys)).
 
 `fill_nan`, which replaces NaN with a value, is a compact extension operation to follow. Paths below are relative to `src/mountainash/expressions/`:
 
 1. Function key. Add the enum member in `core/expression_system/function_keys/enums.py` (`FKEY_MOUNTAINASH_NULL.FILL_NAN`).
 2. Protocols. Declare the backend method on the expression-system protocol (`MountainAshNullExpressionSystemProtocol.fill_nan` in `core/expression_protocols/expression_systems/extensions_mountainash/prtcl_expsys_ext_ma_null.py`), with `ExpressionT` parameters for arguments and keyword parameters for literal-only options, following the rule in [Expression AST nodes](../18-expression-compilation/index.md#expression-ast-nodes). Declare the user-facing method on the API builder protocol in `core/expression_protocols/api_builders/extensions_mountainash/prtcl_api_bldr_ext_ma_null.py`.
 3. API builder. Implement the user-facing method that builds a `ScalarFunctionNode` carrying the new key (`MountainAshNullAPIBuilder.fill_nan` in `core/expression_api/api_builders/extensions_mountainash/api_bldr_ext_ma_null.py`).
-4. Every backend. Implement the protocol method in the matching category class of each backend: `expsys_pl_ext_ma_null.py`, `expsys_nw_ext_ma_null.py` and `expsys_ib_ext_ma_null.py` under `backends/expression_systems/{polars,narwhals,ibis}/extensions_mountainash/`. A new category class is also added to each backend's composition class, whose body stays empty (see [Composition and registration](../21-backends/index.md#composition-and-registration)).
-5. Function mapping. Register an `ExpressionFunctionDef` in `core/expression_system/function_mapping/definitions.py` that binds the key to the protocol method, the extension URI and name, and the output-naming rule. Without it the key exists but the [function registry](../18-expression-compilation/index.md#the-function-registry) cannot dispatch it.
+4. Every backend. Implement the protocol method in the matching category class of each backend: `expsys_pl_ext_ma_null.py`, `expsys_nw_ext_ma_null.py` and `expsys_ib_ext_ma_null.py` under `backends/expression_systems/{polars,narwhals,ibis}/extensions_mountainash/`. A new category class also goes into each backend's composition class, whose body stays empty (see [Composition and registration](../21-backends/index.md#composition-and-registration)).
+5. Function mapping. Register an `ExpressionFunctionDef` in `core/expression_system/function_mapping/definitions.py` that binds the key to the protocol method, the extension URI and name, and the output-naming rule. The [function registry](../18-expression-compilation/index.md#the-function-registry) dispatches the key only through this definition.
 6. Tests. Add a cross-backend test (`tests/expressions/cross_backend/test_null_nan_clip.py`), an argument-channel case for every expression parameter (`tests/expressions/argument_types/test_arg_types_null.py`) and an AST test (`tests/expressions/ast/test_ast_null.py`).
 
-The finished wiring can be observed from outside: the key on the built node, the registry entry, and the category class in the Polars composition.
+The finished wiring is visible from outside: the key on the built node, the registry entry, and the category class in the Polars composition.
 
 ```python
 import mountainash as ma
@@ -66,9 +66,9 @@ file://extensions/functions_null.yaml fill_nan
 ['MountainAshPolarsNullExpressionSystem']
 ```
 
-A backend that cannot honour an operation keeps its implementation and test case; the limit is recorded as a [capability declaration](#declaring-capability-segments) or, for a wrong result such as `fill_nan` on Ibis DuckDB (SQL engines store NaN as null), as a per-backend expected failure in the test (see [Known divergences and per-backend xfail](../23-contributing-and-testing/index.md#known-divergences-and-per-backend-xfail)). The wiring audit in `tests/core/test_protocol_alignment.py` fails for a protocol method missing from a backend, a backend method with no protocol, or a key with no mapping. Methods that are declared on a protocol but deliberately not wired yet are listed there in `KNOWN_ASPIRATIONAL`, each with a reason and a date.
+A backend that cannot honour an operation keeps its implementation and test case. A [capability declaration](#declaring-capability-segments) records the limit; for a wrong result such as `fill_nan` on Ibis DuckDB (SQL engines store NaN as null), a per-backend expected failure in the test records it instead (see [Known divergences and per-backend xfail](../23-contributing-and-testing/index.md#known-divergences-and-per-backend-xfail)). The wiring audit in `tests/core/test_protocol_alignment.py` fails for a protocol method missing from a backend, a backend method with no protocol, or a key with no mapping. `KNOWN_ASPIRATIONAL` in the same file lists protocol methods that are deliberately left unwired for now, each with a reason and a date.
 
-An alias is not a new operation. Short and Polars-style names (`eq`, `strip_chars`, `sub`) live only in the extension builders (`api_bldr_ext_ma_*`) and build the same node as the Substrait-canonical method in the Substrait builder (`equal`, `trim`, `subtract`), so an alias needs no key, mapping or backend work:
+An alias reuses an existing operation. Short and Polars-style names (`eq`, `strip_chars`, `sub`) live only in the extension builders (`api_bldr_ext_ma_*`) and build the same node as the Substrait-canonical method in the Substrait builder (`equal`, `trim`, `subtract`), so an alias skips the key, mapping and backend steps:
 
 ```python
 for expr in (ma.col("a").eq(1), ma.col("a").equal(1),
@@ -95,7 +95,7 @@ A relation operation follows the same pattern through the relation layers descri
 5. Every backend. Implement the method in `relsys_pl_ext_ma_util.py`, `relsys_nw_ext_ma_util.py` and `relsys_ib_ext_ma_util.py` under `backends/relation_systems/{polars,narwhals,ibis}/extensions_mountainash/`.
 6. Operation mapping. Register a `RelationOperationDef` in `core/relation_system/relation_mapping/definitions.py` (for `drop_nulls`, an `_ext(...)` entry in `MOUNTAINASH_OPERATIONS`).
 
-Relations need two more decisions than expressions. Output names and schema must be inferable without running the plan, so a new key is added to the name-preserving or name-changing cases in `schema_inference.py` and `schema_resolution.py`, and to the structured-lineage table in `core/structured_lineage.py`. Tests go in `tests/relations/cross_backend/` (results), `tests/relations/protocol_alignment/` and `tests/relations/test_rel_wiring_audit.py`, which fails for any node type that is neither keyed nor handled.
+Relations need two more decisions than expressions. Output names and schema must be inferable from the plan alone, so a new key also goes into the name-preserving or name-changing cases in `schema_inference.py` and `schema_resolution.py`, and to the structured-lineage table in `core/structured_lineage.py`. Tests go in `tests/relations/cross_backend/` (results), `tests/relations/protocol_alignment/` and `tests/relations/test_rel_wiring_audit.py`, which fails for any node type that has neither a key nor a handler.
 
 ```python
 import polars as pl
@@ -122,7 +122,7 @@ FROM
 ## Custom relation nodes
 
 <!-- concept:542 -->
-A package outside mountainash can add a relation node without changing the package: subclass `RelationNode`, register a visit handler for the class in `RelationVisitRegistry`, and wrap the node in a `Relation`. The [unified relation visitor](../19-relation-compilation/index.md#the-unified-relation-visitor) checks the registry before it looks up an operation key, so a registered handler is called with the node and the visitor. The handler visits its child, which returns the child's native result, and returns a native result of its own. Using the visitor's relation system (`visitor.backend`) and `visitor.compile_expression()` keeps the handler backend-agnostic:
+A package outside mountainash can add a relation node at run time: subclass `RelationNode`, register a visit handler for the class in `RelationVisitRegistry`, and wrap the node in a `Relation`. The [unified relation visitor](../19-relation-compilation/index.md#the-unified-relation-visitor) checks the registry before it looks up an operation key, so it calls a registered handler with the node and the visitor. The handler visits its child, which returns the child's native result, and returns a native result of its own. Using the visitor's relation system (`visitor.backend`) and `visitor.compile_expression()` keeps the handler backend-agnostic:
 
 ```python
 import ibis
@@ -164,7 +164,7 @@ The result is an ordinary `Relation`, so later operations chain onto it. The rul
 - A node with neither a handler nor an operation key raises `UnregisteredRelationNodeError` (from `mountainash.relations.core.errors`) when the plan compiles.
 - A handler may visit only the children the node declares (`input`, `left`, `right` or `inputs`); the plan is prepared before visiting, so building new nodes inside a handler and visiting them fails.
 
-A third-party handler has no schema-phase contract, so names and types cannot be inferred through it without running the plan:
+A third-party handler has no schema-phase contract, so inferring names and types through it requires running the plan:
 
 ```python
 rel = every_nth(ma.relation(pl.DataFrame(data)), 2)
@@ -182,12 +182,12 @@ IncompleteSchemaError Incomplete schema (output names/order): Third-party visito
 {'x': <MountainashDtype.I64: 'i64'>}
 ```
 
-`columns` and `schema` return empty results for such a plan rather than raising, so code that needs the schema should call `collect_schema(allow_execution=True)`. A rewrite of the tree around your node type (for example, pushing a filter below it) is a separate extension, registered with `register_optimisation`; see [Optimisation passes](../19-relation-compilation/index.md#optimisation-passes).
+`columns` and `schema` return empty results for such a plan, and `collect_schema()` raises, so code that needs the schema should call `collect_schema(allow_execution=True)`. A rewrite of the tree around your node type (for example, pushing a filter below it) is a separate extension, registered with `register_optimisation`; see [Optimisation passes](../19-relation-compilation/index.md#optimisation-passes).
 
 ## Declaring capability segments
 
 <!-- concept:543 -->
-What a backend family or dialect cannot do, or does differently, is declared as data in a capability segment, never as backend-detection code in an API builder. A segment is a module-level `SEGMENT = CapabilitySegment(...)` in a module whose path encodes everything else: `src/mountainash/{expressions,relations}/backends/capabilities/<backend>/family/<origin>/<domain>.py` for a family-wide declaration or `.../<backend>/dialects/<dialect>/<origin>/<domain>.py` for one dialect, where `<origin>` is `substrait` or `extensions_mountainash` and `<domain>` matches the operation's key family. The enclosing `_scope.py` supplies the scope. Bootstrap discovers these modules by walking the package, so there is no registration call, and a segment outside the capability roots is refused. Executable policies (gates) are allowed only in dialect scopes; family-wide segments carry information only.
+A capability segment declares, as data, what a backend family or dialect cannot do or does differently. API builders stay free of backend-detection code. A segment is a module-level `SEGMENT = CapabilitySegment(...)` in a module whose path encodes everything else: `src/mountainash/{expressions,relations}/backends/capabilities/<backend>/family/<origin>/<domain>.py` for a family-wide declaration or `.../<backend>/dialects/<dialect>/<origin>/<domain>.py` for one dialect, where `<origin>` is `substrait` or `extensions_mountainash` and `<domain>` matches the operation's key family. The enclosing `_scope.py` supplies the scope. Bootstrap discovers these modules by walking the package, so the module path alone registers a segment. A segment outside the capability roots is refused. Executable policies (gates) are allowed only in dialect scopes; family-wide segments carry information only.
 
 The model, the validation rules and a worked declaration are in [Declaring a new segment](../20-capability-spine/index.md#declaring-a-new-segment). After adding one, regenerate the support matrix as described in [Backend support and known limits](../16-backend-support-and-limits/index.md#support-matrix), and remove any test expectation the declaration now makes redundant.
 
@@ -257,7 +257,7 @@ A registered codec is reached through `get_schema_codec(name)`; `TableSchema`'s 
 4. If `ma.relation()` should accept the shape directly, extend `_is_python_data` in `relations/core/relation_api/relation.py`. It routes only lists, dicts, dataclass instances and Pydantic models to ingress; other shapes the factory knows (tuples, sets) reach it only through `ma.PydataIngress.convert`.
 5. Add cases to `tests/pydata/test_ingress_factory.py` and `tests/pydata/test_ingress_handlers.py`.
 
-Until a handler is registered, the same class works when called directly, and its Polars frame goes into `ma.relation`:
+Before registration, the same class works when called directly, and `ma.relation` accepts its Polars frame:
 
 ```python
 from mountainash.pydata.ingress import BasePydataIngressHandler, PydataIngressFactory
@@ -291,7 +291,7 @@ DataframeFromDefault
 ```
 
 <!-- concept:547 -->
-Pipelines need no registration. A unit is any object satisfying the `Unit` protocol, usually a subclass of `BaseUnit`, `PythonUnit` or `SourceUnit`; a new destination is a `SinkUnit` subclass with `destination()`, `write(value)` and `reference_exists(ref)`; a new checkpoint store implements the `Checkpoint` protocol in `mountainash.pipelines.runtime.checkpoint`. Each is passed straight to `Pipeline.add()` or the `Runner`. [Pipelines and units](../15-pipelines/index.md#pipelines-and-units) gives the contracts and lifecycle rules, and [Values, identity and checkpoints](../15-pipelines/index.md#values-identity-and-checkpoints) the checkpoint store.
+Pipeline extensions are plain objects with no registration step. A unit is any object satisfying the `Unit` protocol, usually a subclass of `BaseUnit`, `PythonUnit` or `SourceUnit`; a new destination is a `SinkUnit` subclass with `destination()`, `write(value)` and `reference_exists(ref)`; a new checkpoint store implements the `Checkpoint` protocol in `mountainash.pipelines.runtime.checkpoint`. Each is passed straight to `Pipeline.add()` or the `Runner`. [Pipelines and units](../15-pipelines/index.md#pipelines-and-units) gives the contracts and lifecycle rules, and [Values, identity and checkpoints](../15-pipelines/index.md#values-identity-and-checkpoints) the checkpoint store.
 
 <!-- concept:548 -->
 Checks come from three sources, and each extends differently. Data-contract rules are expressions, written as `Rule` or, when they need run-time values, `ContextualRule` ([Writing custom rules](../12-data-contracts/index.md#writing-custom-rules)). Direct checks for the validation runner (`RowRule`, `ScalarRule`, `RelationRule`) are your own objects too, so a reusable check is a function that returns one ([Check IR and rule kinds](../13-validation/index.md#check-ir-and-rule-kinds)). A `RelationRule` covers anything the relation API can express and runs on every backend:

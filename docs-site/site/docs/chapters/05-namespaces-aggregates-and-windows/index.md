@@ -11,7 +11,7 @@ Assumes: [Building expressions](../04-building-expressions/index.md), in particu
 ## Namespaces
 
 <!-- concept:335 -->
-A namespace is an attribute on an expression that groups the operations for one kind of data. Reading `ma.col("name").str` returns a builder bound to that expression; each method on it returns a new expression, so calls chain across namespaces exactly as they chain across ordinary methods. Nothing runs until the expression is compiled against a dataframe (see [Compiling an expression](../04-building-expressions/index.md#compiling-an-expression)).
+A namespace is an attribute on an expression that groups the operations for one kind of data. Reading `ma.col("name").str` returns a builder bound to that expression; each method on it returns a new expression, so calls chain across namespaces exactly as they chain across ordinary methods. The expression runs when you compile it against a dataframe (see [Compiling an expression](../04-building-expressions/index.md#compiling-an-expression)).
 
 | Namespace | Operates on | Typical methods |
 |---|---|---|
@@ -23,7 +23,7 @@ A namespace is an attribute on an expression that groups the operations for one 
 | `.cat` | Categorical field values | `cast` |
 | `.geo` | Geopoint and GeoJSON field values | `parse_geopoint`, `parse_geojson`, `serialize_geojson` |
 
-Operations that apply to any value (arithmetic, comparison, null handling, aggregates, window functions) are called directly on the expression without a namespace.
+Operations that apply to any value (arithmetic, comparison, null handling, aggregates, window functions) are methods directly on the expression.
 
 ```python
 import polars as pl
@@ -105,13 +105,13 @@ shape: (3, 2)
 ```
 
 !!! warning "Backend limit"
-    Some text and date operations have no correct native implementation on every backend, and mountainash refuses them with a `BackendCapabilityError` rather than return different results:
+    Some text and date operations lack a correct native implementation on some backends. There mountainash raises a `BackendCapabilityError`, so wherever an operation runs it returns the same result:
 
-    - `str.title()`, `str.initcap()` and `str.swapcase()` are refused on every Ibis dialect; `str.capitalize()` and `str.swapcase()` are refused on every Narwhals backend.
+    - Every Ibis dialect refuses `str.title()`, `str.initcap()` and `str.swapcase()`; every Narwhals backend refuses `str.capitalize()` and `str.swapcase()`.
     - `str.to_time()`, `dt.parse_default()` and `dt.parse_temporal_any()` run on Polars only.
-    - Case-insensitive and flag-bearing regex options, and some `dt.truncate`/`dt.round` units (sub-day units on SQLite, week units through Narwhals), are refused where the engine cannot honour them.
+    - mountainash refuses case-insensitive and flag-bearing regex options, and some `dt.truncate`/`dt.round` units (sub-day units on SQLite, week units through Narwhals), on engines that cannot honour them.
 
-    These come from the capability declarations under `src/mountainash/expressions/backends/capabilities/` (for example `ibis/family/substrait/string.py`, `narwhals/family/substrait/string.py` and the `extensions_mountainash/datetime.py` files). See [Backend support and known limits](../16-backend-support-and-limits/index.md).
+    The capability declarations under `src/mountainash/expressions/backends/capabilities/` (for example `ibis/family/substrait/string.py`, `narwhals/family/substrait/string.py` and the `extensions_mountainash/datetime.py` files) define these limits. See [Backend support and known limits](../16-backend-support-and-limits/index.md).
 
 ```python
 import ibis
@@ -131,10 +131,10 @@ BackendCapabilityError [ibis] The Mountainash Ibis backend does not implement ti
 ## Names, structs and lists
 
 <!-- concept:338 -->
-The `.name` namespace changes the output column name without touching values. `name.alias(...)` is the same operation as the flat `.alias(...)` described in [Output names](../04-building-expressions/index.md#output-names); `name.prefix(...)` and `name.suffix(...)` derive the new name from the existing one, and `name.to_uppercase()` / `name.to_lowercase()` change its case (`name_to_upper` and `name_to_lower` are the canonical spellings).
+The `.name` namespace renames the output column and leaves its values as they are. `name.alias(...)` is the same operation as the flat `.alias(...)` described in [Output names](../04-building-expressions/index.md#output-names); `name.prefix(...)` and `name.suffix(...)` derive the new name from the existing one, and `name.to_uppercase()` / `name.to_lowercase()` change its case (`name_to_upper` and `name_to_lower` are the canonical spellings).
 
 <!-- concept:339 -->
-The `.struct` namespace reads named fields from struct columns. `struct.field("country")` returns the field's values, and the output column takes the field name. `struct.cast(...)` converts a whole struct to a target struct dtype and is mostly used by [conforming data](../11-conforming-data/index.md).
+The `.struct` namespace reads named fields from struct columns. `struct.field("country")` returns the field's values, and the output column takes the field name. `struct.cast(...)` converts a whole struct to a target struct dtype and its main user is [conforming data](../11-conforming-data/index.md).
 
 <!-- concept:340 -->
 The `.list` namespace works on list columns row by row: size (`len`), element access (`get`, `first`, `last`, `slice`), per-list statistics (`sum`, `mean`, `max`, `n_unique`), set operations between lists, sorting, joining into a string and membership (`contains`, plus the ternary `t_contains`, see [Ternary logic](../06-ternary-logic/index.md)). `list.filter(...)` and `list.agg(...)` take an expression evaluated once per element; inside it, `ma.element()` refers to the current element.
@@ -175,15 +175,15 @@ shape: (3, 7)
 ```
 
 !!! warning "Backend limit"
-    `list.contains()` and `list.t_contains()` are refused on pandas through Narwhals, because the pandas list accessor only works on Arrow-backed lists and Narwhals does not implement `contains` there (`narwhals/dialects/narwhals_pandas/extensions_mountainash/list.py`). `list.get()` with some index forms is refused on Narwhals over Polars, and `list.cast_items()` with `failure_behavior=NULL` is refused on the Ibis and Narwhals dialects listed in the capability declarations.
+    mountainash refuses `list.contains()` and `list.t_contains()` on pandas through Narwhals: the pandas list accessor works only on Arrow-backed lists, and Narwhals lacks a `contains` implementation there (`narwhals/dialects/narwhals_pandas/extensions_mountainash/list.py`). It also refuses `list.get()` with some index forms on Narwhals over Polars, and `list.cast_items()` with `failure_behavior=NULL` on the Ibis and Narwhals dialects listed in the capability declarations.
 
 ## Categoricals and geometry
 
 <!-- concept:341 -->
-The `.cat` namespace has one method, `cat.cast(...)`, which converts values to the base scalar type of a categorical field: `value_type="string"` or `"integer"`. It also records the declared `categories` and whether they are `ordered`, and a `field_name` used in error messages. The cast does not check membership in `categories`: in the example below, 9 is kept. Checking that values belong to the category list is a [validation](../13-validation/index.md) concern. With the default `failure_behavior=ma.CaseFailureBehaviour.THROW` a value that cannot be converted raises; with `NULL` it becomes null.
+The `.cat` namespace has one method, `cat.cast(...)`, which converts values to the base scalar type of a categorical field: `value_type="string"` or `"integer"`. It also records the declared `categories` and whether they are `ordered`, and a `field_name` used in error messages. The cast keeps values outside `categories`: in the example below, 9 passes through. [Validation](../13-validation/index.md) checks that values belong to the category list. With the default `failure_behavior=ma.CaseFailureBehaviour.THROW` a value that fails to convert raises; with `NULL` it becomes null.
 
 <!-- concept:342 -->
-The `.geo` namespace parses and checks the geographic field formats from Frictionless Table Schema. `geo.parse_geopoint(...)` accepts the `default` (`"lon, lat"` text), `array` and `object` formats, with `source_representation` saying whether the input is text (`lexical`) or already a native list or struct (`native`). `geo.parse_geojson(...)` and `geo.serialize_geojson(...)` read and write GeoJSON (`format="default"`) or TopoJSON. These methods are mainly used when [conforming data](../11-conforming-data/index.md) to a schema with geographic fields.
+The `.geo` namespace parses and checks the geographic field formats from Frictionless Table Schema. `geo.parse_geopoint(...)` accepts the `default` (`"lon, lat"` text), `array` and `object` formats, with `source_representation` saying whether the input is text (`lexical`) or already a native list or struct (`native`). `geo.parse_geojson(...)` and `geo.serialize_geojson(...)` read and write GeoJSON (`format="default"`) or TopoJSON. Their main use is [conforming data](../11-conforming-data/index.md) to a schema with geographic fields.
 
 ```python
 survey = pl.DataFrame({
@@ -223,14 +223,14 @@ shape: (4, 2)
 ```
 
 !!! warning "Backend limit"
-    `geo.parse_geojson()` and `geo.serialize_geojson()` run on Polars only; Narwhals and Ibis refuse them. `geo.parse_geopoint()` runs on every backend in `default` lexical form with `failure_behavior=NULL`, but several format, representation and failure-behaviour combinations are refused on Narwhals and Ibis, and SQLite also refuses `default` with `THROW`. `cat.cast()` with integer values is refused on Ibis over SQLite, and with integer values plus `failure_behavior=NULL` on pandas, Polars and lazy frames through Narwhals. Evidence: `narwhals/family/extensions_mountainash/geospatial.py`, `ibis/family/extensions_mountainash/geospatial.py`, `ibis/dialects/ibis_sqlite/extensions_mountainash/geospatial.py` and the categorical declarations under the same tree.
+    `geo.parse_geojson()` and `geo.serialize_geojson()` run on Polars only; Narwhals and Ibis refuse them. `geo.parse_geopoint()` runs on every backend in `default` lexical form with `failure_behavior=NULL`; Narwhals and Ibis refuse several other format, representation and failure-behaviour combinations, and SQLite also refuses `default` with `THROW`. Ibis over SQLite refuses `cat.cast()` with integer values, and Narwhals refuses it with integer values plus `failure_behavior=NULL` on pandas, Polars and lazy frames. The declarations are in `narwhals/family/extensions_mountainash/geospatial.py`, `ibis/family/extensions_mountainash/geospatial.py`, `ibis/dialects/ibis_sqlite/extensions_mountainash/geospatial.py` and the categorical declarations under the same tree.
 
 ## Membership
 
 <!-- concept:333 -->
-`is_in` tests whether each value appears in a fixed set of members, and `is_not_in` is its complement. Members can be passed as one list, tuple or set, or as separate arguments; members may also be expressions such as other columns, in which case the test compares against each one per row. Membership never coerces types: members are used as given.
+`is_in` tests whether each value appears in a fixed set of members, and `is_not_in` is its complement. Members can be passed as one list, tuple or set, or as separate arguments; members may also be expressions such as other columns, in which case the test compares against each one per row. Members keep the types they are given; membership applies no coercion.
 
-Nulls follow the ternary rules in [Ternary logic](../06-ternary-logic/index.md), then reduce to a plain boolean. A null value is neither in nor not in the set, so both `is_in` and `is_not_in` return `false` for it rather than null. A null member makes every non-match uncertain, so `is_not_in` returns `false` for values that are not found. The ternary forms `t_is_in` and `t_is_not_in` expose that uncertainty as UNKNOWN.
+Nulls follow the ternary rules in [Ternary logic](../06-ternary-logic/index.md), then reduce to a plain boolean. A null value has unknown membership, which reduces to `false`: both `is_in` and `is_not_in` return `false` for it. A null member makes every non-match uncertain, so `is_not_in` returns `false` for every unmatched value. The ternary forms `t_is_in` and `t_is_not_in` expose that uncertainty as UNKNOWN.
 
 ```python
 countries = pl.DataFrame({"country": ["GB", "US", None, "FR"]})
@@ -257,7 +257,7 @@ shape: (4, 5)
 └─────────┴─────────┴──────────┴────────┴────────────────────┘
 ```
 
-The same table is asserted on every backend by the membership acceptance tests (`tests/expressions/membership/test_acceptance.py`). Ambiguous arguments are rejected when the expression is built, with a subclass of `ma.MountainashError`: a nested collection, a backend-native expression as a member, an unsupported collection type such as a NumPy array or a mapping, or a single bare expression as the whole collection. For a list column, use `list.contains` instead:
+The same table is asserted on every backend by the membership acceptance tests (`tests/expressions/membership/test_acceptance.py`). Building the expression raises a subclass of `ma.MountainashError` for ambiguous arguments: a nested collection, a backend-native expression as a member, an unsupported collection type such as a NumPy array or a mapping, or a single bare expression as the whole collection. To test against a list column, use `list.contains`:
 
 ```python
 try:
@@ -273,7 +273,7 @@ BareExpressionCollectionError A bare expression was passed as the membership-tes
 ## Horizontal functions
 
 <!-- concept:328 -->
-Horizontal functions combine several expressions within each row. They are free functions on `ma`, follow Polars naming, and need at least two arguments.
+Horizontal functions combine several expressions within each row. They are free functions on `ma`, follow Polars naming, and take two or more arguments.
 
 | Function | Result per row | Nulls |
 |---|---|---|
@@ -309,12 +309,12 @@ shape: (3, 4)
 └─────┴─────┴──────────────┴──────────┘
 ```
 
-`ma.sum_horizontal(a, b, c)` builds the same expression as `a + b + c`, so unlike Polars' own `sum_horizontal` it does not skip nulls. Its result keeps the first input's column name, and in this release it does not offer `.alias()`; write `(ma.col("a") + ma.col("b") + ma.col("c")).alias("total")` when the sum needs a new name.
+`ma.sum_horizontal(a, b, c)` builds the same expression as `a + b + c`, so a null input makes that row's sum null, where Polars' own `sum_horizontal` skips nulls. Its result keeps the first input's column name. In this release it has no `.alias()`; write `(ma.col("a") + ma.col("b") + ma.col("c")).alias("total")` when the sum needs a new name.
 
 ## Aggregates
 
 <!-- concept:329 -->
-An aggregate expression reduces many rows to one value: `sum`, `mean` (alias of `avg`), `min`, `max`, `count` (non-null values), `n_unique`, `std_dev`, `variance`, `product`, `mode`, `any_value`, and the boolean `all` and `any`. Free functions cover aggregates that are not tied to one column: `ma.count_records()` (also `ma.len()`) counts all rows including nulls, and `ma.corr`, `ma.median` and `ma.quantile` take their arguments explicitly.
+An aggregate expression reduces many rows to one value: `sum`, `mean` (alias of `avg`), `min`, `max`, `count` (non-null values), `n_unique`, `std_dev`, `variance`, `product`, `mode`, `any_value`, and the boolean `all` and `any`. Free functions cover aggregates independent of any single column: `ma.count_records()` (also `ma.len()`) counts all rows including nulls, and `ma.corr`, `ma.median` and `ma.quantile` take their arguments explicitly.
 
 Aggregates are evaluated per group inside `group_by(...).agg(...)` on a [relation](../07-relations/index.md#grouping-and-reshaping). Each aggregate needs an output name, usually set with `.alias()`.
 
@@ -365,10 +365,10 @@ print(summarise(sales_db).to_polars().equals(summarise(sales).to_polars()))
 True
 ```
 
-Without a `group_by`, a relation's scalar terminals such as `relation.sum("units")` compute one aggregate over the whole relation and return a Python value; they are built from these aggregate expressions (see [Scalar terminals](../08-collecting-results/index.md#scalar-terminals)).
+For a whole-relation result, scalar terminals such as `relation.sum("units")` compute one aggregate over the whole relation and return a Python value; they are built from these aggregate expressions (see [Scalar terminals](../08-collecting-results/index.md#scalar-terminals)).
 
 !!! warning "Backend limit"
-    `product()` is refused on every Ibis dialect and every Narwhals backend, because neither offers a product aggregate (`ibis/family/substrait/aggregate.py`, `narwhals/family/substrait/aggregate.py`). It runs on Polars.
+    `product()` runs on Polars. mountainash refuses it on every Ibis dialect and every Narwhals backend, because neither offers a product aggregate (`ibis/family/substrait/aggregate.py`, `narwhals/family/substrait/aggregate.py`).
 
 ## Windows with over
 
@@ -420,7 +420,7 @@ True
 ```
 
 !!! warning "Backend limit"
-    Narwhals windows have no sort direction, so order-dependent window functions with a descending `order_by` are refused on every Narwhals backend (`narwhals/family/substrait/window.py`, `narwhals/family/extensions_mountainash/window.py`). On pandas through Narwhals, windows ordered by several keys are refused because pandas-like frames order by the last key only, and ranking by several sort keys is refused on pandas, PyArrow and DuckDB through Narwhals.
+    Narwhals windows carry no sort direction, so mountainash refuses order-dependent window functions with a descending `order_by` on every Narwhals backend (`narwhals/family/substrait/window.py`, `narwhals/family/extensions_mountainash/window.py`). Pandas-like frames order by the last key only, so it also refuses windows ordered by several keys on pandas through Narwhals, and ranking by several sort keys on pandas, PyArrow and DuckDB through Narwhals.
 
 ```python
 try:

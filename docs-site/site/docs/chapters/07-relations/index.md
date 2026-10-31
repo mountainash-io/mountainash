@@ -4,7 +4,7 @@ title: Relations
 
 # Relations
 
-A relation is a lazy table plan. `ma.relation(data)` wraps a dataframe, a database table or plain Python data, and methods such as `filter`, `with_columns`, `join` and `group_by` add steps to the plan without reading any rows. A terminal such as `.to_polars()` or `.to_dicts()` compiles the plan for the engine that owns the data and runs it there.
+A relation is a lazy table plan. `ma.relation(data)` wraps a dataframe, a database table or plain Python data, and methods such as `filter`, `with_columns`, `join` and `group_by` add steps to the plan. A terminal such as `.to_polars()` or `.to_dicts()` compiles the plan for the engine that owns the data and runs it there, and that is when rows are read.
 
 Assumes: [What mountainash does](../01-what-mountainash-does/index.md), [Backend detection](../02-installation-and-package-surface/index.md#backend-detection), [Building expressions](../04-building-expressions/index.md) and [Aggregates](../05-namespaces-aggregates-and-windows/index.md#aggregates).
 
@@ -12,7 +12,7 @@ Assumes: [What mountainash does](../01-what-mountainash-does/index.md), [Backend
 
 <!-- concept:360 -->
 
-A `Relation` holds a tree of relational operations. Each chainable method returns a new `Relation` whose tree has one more operation on top, and leaves the relation it was called on unchanged. Building reads nothing and compiles nothing, so a base relation can be reused as the start of several plans.
+A `Relation` holds a tree of relational operations. Each chainable method returns a new `Relation` whose tree has one more operation on top; the relation it was called on keeps its own tree. Building a plan only records operations, so one base relation can start several plans.
 
 ```python
 import ibis
@@ -48,7 +48,7 @@ print(plan.columns)
 ['region', 'gross']
 ```
 
-`base` still has its three columns after five operations were chained from it. `plan` is a separate object whose output columns are already known from the plan alone. Its tree reads from the bottom up:
+`base` keeps its three columns after five operations were chained from it. `plan` is a separate object, and the plan alone gives its output columns. Its tree reads from the bottom up:
 
 ```mermaid
 flowchart BT
@@ -59,7 +59,7 @@ flowchart BT
     J --> A["aggregate: group_by region"]
 ```
 
-Each step is a node. The node kinds follow the Substrait relation types introduced in [Lazy plans and the AST](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast): read, filter, project (`select`, `with_columns`, `drop`, `rename`), join, aggregate (`group_by`, `unique`), sort, fetch (`head`, `tail`, `slice`) and set (`concat`). Operations Substrait does not define, such as `drop_nulls`, `explode`, `pivot` and `sample`, are mountainash extension nodes. `explain()` prints the tree with the engine each node will run on, without running it:
+Each step is a node. The node kinds follow the Substrait relation types introduced in [Lazy plans and the AST](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast): read, filter, project (`select`, `with_columns`, `drop`, `rename`), join, aggregate (`group_by`, `unique`), sort, fetch (`head`, `tail`, `slice`) and set (`concat`). Operations outside Substrait's set, such as `drop_nulls`, `explode`, `pivot` and `sample`, are mountainash extension nodes. `explain()` prints the tree, with the engine each node will run on, before anything executes:
 
 ```python
 print(plan.explain())
@@ -75,7 +75,7 @@ root/input/right: ReadRelNode on narwhals-pandas (bound)
 transfer root/input/right: narwhals-pandas (bound) -> polars (bound)
 ```
 
-The last line shows a decision made at preparation time: the pandas `customers` frame is converted to Polars so the join can run where the left side lives. [Cross-type joins](#joins) below covers that rule, and [Explain, fingerprint and snapshots](../08-collecting-results/index.md#explain-fingerprint-and-snapshots) covers `explain()`.
+The last line records a preparation-time decision: preparation converts the pandas `customers` frame to Polars so the join runs where the left side lives. [Cross-type joins](#joins) below covers that rule, and [Explain, fingerprint and snapshots](../08-collecting-results/index.md#explain-fingerprint-and-snapshots) covers `explain()`.
 
 A terminal compiles and runs the plan:
 
@@ -95,7 +95,7 @@ shape: (2, 2)
 └────────┴───────┘
 ```
 
-Method names and parameters follow the Polars `LazyFrame` API. Where mountainash differs from Polars (for example `with_columns` takes positional expressions only), the difference is stated in the section for that method. How the tree is compiled is documented for maintainers in [How relations compile](../19-relation-compilation/index.md#relation-ast-nodes).
+Method names and parameters follow the Polars `LazyFrame` API. Where mountainash differs from Polars (for example `with_columns` takes positional expressions only), the section for that method states the difference. How the tree is compiled is documented for maintainers in [How relations compile](../19-relation-compilation/index.md#relation-ast-nodes).
 
 <!-- concept:361 -->
 
@@ -109,9 +109,9 @@ Method names and parameters follow the Polars `LazyFrame` API. Where mountainash
 | `list`, `dict`, dataclass instance, Pydantic model instance | Polars, after conversion (see [Relations from Python data](#relations-from-python-data)) |
 
 !!! warning "Backend limit"
-    A bare Dask frame or DuckDB relation is detected as a Narwhals source but fails at the terminal with Narwhals' `TypeError: Cannot only use series_only=True or eager_only=False with DuckDBPyRelation`. Wrap it first: `ma.relation(narwhals.from_native(duckdb_relation))`. See [Narwhals and its providers](../21-backends/index.md#narwhals-and-its-providers).
+    mountainash detects a bare Dask frame or DuckDB relation as a Narwhals source, and the terminal then fails with Narwhals' `TypeError: Cannot only use series_only=True or eager_only=False with DuckDBPyRelation`. Wrap it first: `ma.relation(narwhals.from_native(duckdb_relation))`. See [Narwhals and its providers](../21-backends/index.md#narwhals-and-its-providers).
 
-The backend is detected from the object's type as described in [Backend detection](../02-installation-and-package-surface/index.md#backend-detection). `collect()` returns the engine's own result type, so the result stays in the library you started with:
+Detection reads the backend from the object's type, as described in [Backend detection](../02-installation-and-package-surface/index.md#backend-detection). `collect()` returns the engine's own result type, so the result stays in the library you started with:
 
 ```python
 for label, source in {
@@ -129,7 +129,7 @@ pandas DataFrame 2
 pyarrow Table 2
 ```
 
-The argument is checked when the plan runs, not when the relation is built. A string is not a file path, and an Ibis table must be bound to a connection:
+The plan checks its argument when it runs. A string goes to backend-identifier lookup, so a file path fails there, and an Ibis table must be bound to a connection:
 
 ```python
 for source in ("orders.csv", ibis.memtable(orders.to_arrow())):
@@ -144,13 +144,13 @@ ValueError Unknown backend identifier: 'orders.csv'. Valid options: ['polars', '
 UnresolvedExecutionLocationError Selected execution location at root has unresolved Ibis binding: ibis (unresolved binding)
 ```
 
-`UnresolvedExecutionLocationError` is importable from `mountainash.relations.core.errors`. Create Ibis tables through a connection, as in `con.create_table(...)` below. Files and DataPackage resources are read through a `RelationDAG`, described in [Resources and DataPackage](../14-relationdag/index.md#resources-and-datapackage).
+`UnresolvedExecutionLocationError` is importable from `mountainash.relations.core.errors`. Create Ibis tables through a connection, as in `con.create_table(...)` below. A `RelationDAG` reads files and DataPackage resources, as described in [Resources and DataPackage](../14-relationdag/index.md#resources-and-datapackage).
 
 ## Relations from Python data
 
 <!-- concept:480 -->
 
-When `ma.relation` receives a list, a dict, a dataclass instance or a Pydantic model instance, it records the data and its detected shape. Conversion to a Polars `DataFrame` happens when the plan compiles, and from then on the relation runs on Polars like any other Polars source. Column types come from the type annotations of dataclasses and Pydantic models where there are any, and are inferred from the values otherwise:
+When `ma.relation` receives a list, a dict, a dataclass instance or a Pydantic model instance, it records the data and its detected shape. Compiling the plan converts the data to a Polars `DataFrame`, and from then on the relation runs on Polars like any other Polars source. Column types come from the type annotations of dataclasses and Pydantic models where there are any, and are inferred from the values otherwise:
 
 ```python
 import datetime as dt
@@ -185,9 +185,9 @@ shape: (2, 3)
 └────────┴───────┴────────────┘
 ```
 
-The `value` field holds Python integers but is annotated `float`, so the column is `f64`. With a dict or list of dicts there are no annotations and the dtypes come from the values.
+The `value` field holds Python integers but is annotated `float`, so the column is `f64`. A dict or list of dicts carries no annotations, so the dtypes come from the values.
 
-The conversion is done by `ma.PydataIngress`. Calling `ma.PydataIngress.convert(data)` directly returns the Polars `DataFrame` without building a relation. Both accept a target schema that renames and casts columns during conversion; that is covered in [Typed Python data ingress](../10-table-schemas-and-datapackage/index.md#typed-python-data-ingress). The reverse direction, relation rows back to Python objects, is [Python data egress](../08-collecting-results/index.md#egress-formats).
+`ma.PydataIngress` does the conversion. Calling `ma.PydataIngress.convert(data)` directly returns the Polars `DataFrame` itself. Both accept a target schema that renames and casts columns during conversion, covered in [Typed Python data ingress](../10-table-schemas-and-datapackage/index.md#typed-python-data-ingress). The reverse direction, relation rows back to Python objects, is [Python data egress](../08-collecting-results/index.md#egress-formats).
 
 <!-- concept:481 -->
 
@@ -232,7 +232,7 @@ for data in (
 [{'value': 1}, {'value': 2}]
 ```
 
-Records must be in a list or dict. A top-level tuple of tuples is not recognised as Python data and fails when the plan runs with `TypeError: Cannot coerce tuple to Polars: expected mappings`. Adding a handler for another shape is covered in [Ingress handlers, units and rules](../22-extending-mountainash/index.md#ingress-handlers-units-and-rules).
+Records go in a list or dict. A top-level tuple of tuples falls outside the recognised Python data shapes and fails when the plan runs with `TypeError: Cannot coerce tuple to Polars: expected mappings`. To add a handler for another shape, see [Ingress handlers, units and rules](../22-extending-mountainash/index.md#ingress-handlers-units-and-rules).
 
 ## Relations from Arrow
 
@@ -268,7 +268,7 @@ The difference from `ma.relation(arrow_table)` is when and where the data moves.
 
 <!-- concept:362 -->
 
-`filter(*predicates)` keeps the rows where every predicate is true. Several predicates are combined with AND. A predicate is a boolean expression from [Operators](../04-building-expressions/index.md#operators); rows where it is null are dropped:
+`filter(*predicates)` keeps the rows where every predicate is true. Several predicates are combined with AND. A predicate is a boolean expression from [Operators](../04-building-expressions/index.md#operators); `filter` drops rows where it is null:
 
 ```python
 print(base.filter(ma.col("amount") > 20, ma.col("customer_id") == 20).to_dicts())
@@ -278,9 +278,9 @@ print(base.filter(ma.col("amount") > 20, ma.col("customer_id") == 20).to_dicts()
 [{'order_id': 2, 'customer_id': 20, 'amount': 40.0}]
 ```
 
-A ternary expression must be booleanized before it is used as a filter, for example `ma.t_col("amount").t_gt(20).t_is_true()`. Relations do not booleanize automatically; see [Booleanization](../06-ternary-logic/index.md#booleanization).
+Booleanize a ternary expression before using it as a filter, for example `ma.t_col("amount").t_gt(20).t_is_true()`, because relations pass ternary results through as integers; see [Booleanization](../06-ternary-logic/index.md#booleanization).
 
-`remove(predicate)` is the inverse of `filter`. Unlike Polars `remove`, which keeps rows where the predicate is null, mountainash drops them as well, because it filters on the negated predicate and the negation of null is null:
+`remove(predicate)` is the inverse of `filter`. mountainash filters on the negated predicate, and the negation of null is null, so `remove` also drops rows where the predicate is null. Polars `remove` keeps those rows:
 
 ```python
 print(base.remove(ma.col("amount") > 20).to_dicts())
@@ -292,7 +292,7 @@ print(base.remove(ma.col("amount") > 20).to_dicts())
 
 <!-- concept:363 -->
 
-`select` returns only the listed columns and expressions. `with_columns` keeps every existing column and adds or replaces the listed ones. Both accept column names and expressions; each expression's output name comes from its alias or its source column, as described in [Output names](../04-building-expressions/index.md#output-names). Unlike Polars, `with_columns` takes positional expressions only; name a new column with `.alias()`, not a keyword argument. `drop` removes columns and `rename` takes a mapping of old to new names:
+`select` returns only the listed columns and expressions. `with_columns` keeps every existing column and adds or replaces the listed ones. Both accept column names and expressions; each expression's output name comes from its alias or its source column, as described in [Output names](../04-building-expressions/index.md#output-names). `with_columns` takes positional expressions only, where Polars also accepts keyword arguments; name a new column with `.alias()`. `drop` removes columns and `rename` takes a mapping of old to new names:
 
 ```python
 print(base.select("order_id", (ma.col("amount") * 2).alias("double")).columns)
@@ -325,9 +325,9 @@ print(base.slice(1, 2).to_dicts())
 ```
 
 !!! warning "Backend limit"
-    Null placement in `sort` is not consistent across backends. Polars and Ibis sources put nulls last in both directions (Polars itself puts them first by default), while pandas sources put them first. There is no `nulls_last` parameter. Filter or fill nulls before sorting when their position matters.
+    Null placement in `sort` varies by backend. Polars and Ibis sources put nulls last in both directions (Polars itself puts them first by default), while pandas sources put them first. `sort` has no `nulls_last` parameter, so filter or fill nulls before sorting when their position matters.
 
-    `slice` with a positive offset is refused on Dask (`narwhals/dialects/narwhals_dask/substrait/relation.py`), because building the offset would evaluate source rows before the terminal.
+    mountainash refuses `slice` with a positive offset on Dask (`narwhals/dialects/narwhals_dask/substrait/relation.py`), because building the offset would evaluate source rows before the terminal.
 
 ## Joins
 
@@ -335,7 +335,7 @@ print(base.slice(1, 2).to_dicts())
 
 `join(other, *, on=None, left_on=None, right_on=None, how="inner", suffix="_right", coalesce=None)` combines two relations. `how` is one of `inner`, `left`, `right`, `outer`, `semi`, `anti` and `cross`; `cross_join(other)` is the alias for the last. Use `on` when the key has the same name on both sides, or `left_on` and `right_on` when it does not.
 
-The output is every left column followed by every right column. A right column whose name is already taken gets `suffix`, and if that name is taken too, `_1`, `_2` and so on are appended with a `UserWarning`. `coalesce` controls the keys: with `on`, the key pair is merged into one column by default; with `left_on`/`right_on` both keys are kept unless `coalesce=True`. Join output order is not guaranteed, so sort when order matters:
+The output is every left column followed by every right column. A right column whose name is already taken gets `suffix`, and if that name is taken too, `_1`, `_2` and so on are appended with a `UserWarning`. `coalesce` controls the keys: with `on`, the key pair is merged into one column by default; with `left_on`/`right_on` both keys are kept unless `coalesce=True`. Join output order is arbitrary, so sort when order matters:
 
 ```python
 left = pl.DataFrame({"id": [1, 2], "v": [1, 2]})
@@ -354,7 +354,7 @@ print(merged.sort("id").to_dicts())
 
 <!-- concept:366 -->
 
-The right side of a join does not have to come from the same library as the left. `other` can be another relation, a native frame from any supported library, a dict or a list of dicts. The left side decides where the join runs, and the right side is converted to that location when the plan executes. A Polars relation can join a pandas lookup, and a DuckDB table can join the same lookup inside DuckDB:
+The right side of a join can come from any supported library. `other` can be another relation, a native frame from any supported library, a dict or a list of dicts. The left side decides where the join runs, and execution converts the right side to that location. A Polars relation can join a pandas lookup, and a DuckDB table can join the same lookup inside DuckDB:
 
 ```python
 orders_db = con.create_table("orders", orders.to_arrow())
@@ -373,11 +373,11 @@ root/right: ReadRelNode on narwhals-pandas (bound)
 transfer root/right: narwhals-pandas (bound) -> ibis-duckdb (bound)
 ```
 
-The `transfer` line in the explain output is the conversion: the pandas frame is moved into the DuckDB connection before the join. Conversion is decided at execution time from the left operand, so the call site never converts by hand. A list of scalars is not a table and is rejected with `TypeError: Cannot coerce list to Polars: expected mappings`. To run a join on the right operand's engine instead, pass `execute_on="right"`; that and the transfer rules for databases are described in [Operand transfer and owned copies](../09-execution-targets-and-capabilities/index.md#operand-transfer-and-owned-copies).
+The `transfer` line in the explain output is the conversion: it moves the pandas frame into the DuckDB connection before the join. Execution decides the conversion from the left operand, so the call site passes the native frame as it is. A list of scalars fails as a table operand with `TypeError: Cannot coerce list to Polars: expected mappings`. To run the join on the right operand's engine, pass `execute_on="right"`; that and the transfer rules for databases are described in [Operand transfer and owned copies](../09-execution-targets-and-capabilities/index.md#operand-transfer-and-owned-copies).
 
 <!-- concept:367 -->
 
-`join_asof(other, *, on, by=None, strategy="backward", tolerance=None)` matches each left row to the nearest right row on an ordered key instead of an equal one. `strategy="backward"` takes the last right row whose key is less than or equal to the left key, `"forward"` the first one greater than or equal, and `"nearest"` the closest. `by` restricts matches to rows with equal values in those columns, and `tolerance` limits how far apart the keys may be. The output keeps all left columns in order followed by the right payload columns; shared `on` and `by` keys appear once.
+`join_asof(other, *, on, by=None, strategy="backward", tolerance=None)` matches each left row to the nearest right row on an ordered key, where an ordinary join matches equal keys. `strategy="backward"` takes the last right row whose key is less than or equal to the left key, `"forward"` the first one greater than or equal, and `"nearest"` the closest. `by` restricts matches to rows with equal values in those columns, and `tolerance` limits how far apart the keys may be. The output keeps all left columns in order followed by the right payload columns; shared `on` and `by` keys appear once.
 
 ```python
 trades = pl.DataFrame({
@@ -407,7 +407,7 @@ print([row["price"] for row in ma.relation(trades).join_asof(
 Both sides should be sorted by `on`. With `by` on a Polars source, Polars emits a `UserWarning` that it cannot check sortedness.
 
 !!! warning "Backend limit"
-    `tolerance` is refused on Narwhals backends, including pandas sources, with a `BackendCapabilityError` (`narwhals/family/extensions_mountainash/relation.py`); omit it or use Polars. The `forward` and `nearest` strategies are refused on the Ibis Polars backend (`ibis/dialects/ibis_polars/extensions_mountainash/relation.py`). On DuckDB through Ibis, a backward join may pick any right row tied at the nearest key; deduplicate right-side keys when the choice matters.
+    Narwhals backends, including pandas sources, refuse `tolerance` with a `BackendCapabilityError` (`narwhals/family/extensions_mountainash/relation.py`); use Polars or leave it out. The Ibis Polars backend refuses the `forward` and `nearest` strategies (`ibis/dialects/ibis_polars/extensions_mountainash/relation.py`). On DuckDB through Ibis, a backward join may pick any right row tied at the nearest key; deduplicate right-side keys when the choice matters.
 
 ## Grouping and reshaping
 
@@ -436,7 +436,7 @@ shape: (3, 3)
 └─────────────┴───────┴────────┘
 ```
 
-Group order in the result is not defined, so sort afterwards when order matters. To aggregate the whole relation to a single Python value, use a scalar terminal such as `base.sum("amount")` (see [Scalar terminals](../08-collecting-results/index.md#scalar-terminals)).
+Group order in the result is arbitrary, so sort afterwards when order matters. To aggregate the whole relation to a single Python value, use a scalar terminal such as `base.sum("amount")` (see [Scalar terminals](../08-collecting-results/index.md#scalar-terminals)).
 
 <!-- concept:370 -->
 
@@ -466,10 +466,10 @@ shape: (2, 3)
 [{'id': 1, 'variable': 'x', 'value': 10}, {'id': 1, 'variable': 'y', 'value': 20}, {'id': 2, 'variable': 'x', 'value': 30}, {'id': 2, 'variable': 'y', 'value': 40}]
 ```
 
-The columns a pivot produces depend on the data, so they are not known until the plan runs; see [Schema and columns](#schema-and-columns).
+The columns a pivot produces depend on the data, so they are known only once the plan runs; see [Schema and columns](#schema-and-columns).
 
 !!! warning "Backend limit"
-    `pivot` runs on Polars and eager Narwhals sources. It fails on every Ibis backend with a `TypeError` from Ibis and on lazy Narwhals frames with an `AttributeError`. `unpivot` and `melt` fail on SQLite through Ibis with `OperationNotDefinedError`. These limits are not yet declared as capabilities; the evidence is the expected-failure cases in `tests/relations/cross_backend/test_rel_extension_ops_results.py`.
+    `pivot` runs on Polars and eager Narwhals sources. It fails on every Ibis backend with a `TypeError` from Ibis and on lazy Narwhals frames with an `AttributeError`. `unpivot` and `melt` fail on SQLite through Ibis with `OperationNotDefinedError`. The expected-failure cases in `tests/relations/cross_backend/test_rel_extension_ops_results.py` record these limits; capability declarations for them are still to come.
 
 ## Row operations
 
@@ -488,7 +488,7 @@ print(base.drop_nulls().count_rows(), base.drop_nulls(subset=["customer_id"]).co
 ```
 
 !!! warning "Backend limit"
-    `unique("col", ...)` with columns is not portable. Polars and pandas sources return whole rows, one per distinct key, while Ibis sources return only the key columns. The `keep` argument is accepted and ignored. Select the key columns first and call `unique()` on them, which gives the same result everywhere. `drop_nans` fails on SQLite through Ibis (`tests/relations/cross_backend/test_rel_extension_ops_results.py`).
+    `unique("col", ...)` with columns gives backend-specific results. Polars and pandas sources return whole rows, one per distinct key, while Ibis sources return only the key columns. The `keep` argument is accepted and has no effect. Select the key columns first and call `unique()` on them, which gives the same result everywhere. `drop_nans` fails on SQLite through Ibis (`tests/relations/cross_backend/test_rel_extension_ops_results.py`).
 
 <!-- concept:371 -->
 
@@ -511,14 +511,14 @@ print(base.with_row_index(name="row").head(2).to_dicts())
 [{'row': 0, 'order_id': 1, 'customer_id': 10, 'amount': 25.0}, {'row': 1, 'order_id': 2, 'customer_id': 20, 'amount': 40.0}]
 ```
 
-The row index is a native position, not a stable identity. On SQL backends it is a window row number, and neither its order nor which row gets which number is guaranteed to repeat between runs, even after a `sort`.
+The row index records a native position and is unsuitable as a stable identity. On SQL backends it is a window row number whose order and row assignment can change between runs, even after a `sort`.
 
 !!! warning "Backend limit"
-    `unnest` is refused on every Narwhals backend (`narwhals/family/extensions_mountainash/relation.py`); use a Polars source. `explode` and `unnest` need a native list or struct type, which pandas does not have; they are tested on Polars, Narwhals over Polars and DuckDB through Ibis. `with_row_index` is refused on the Ibis Polars backend (`ibis/dialects/ibis_polars/extensions_mountainash/relation.py`) and fails on lazy Narwhals frames.
+    Every Narwhals backend refuses `unnest` (`narwhals/family/extensions_mountainash/relation.py`); use a Polars source. `explode` and `unnest` need a native list or struct type, which pandas lacks; they are tested on Polars, Narwhals over Polars and DuckDB through Ibis. The Ibis Polars backend refuses `with_row_index` (`ibis/dialects/ibis_polars/extensions_mountainash/relation.py`), and it fails on lazy Narwhals frames.
 
 <!-- concept:372 -->
 
-`sample(*, n=None, fraction=None, seed=None)` returns a random subset of rows: exactly `n` rows, or about `fraction` of them. Exactly one of `n` and `fraction` must be given, and the arguments are checked when the relation is built, raising `InvalidSampleArgumentsError` (in `mountainash.exceptions`). A `seed` makes the sample repeatable on the same backend. `top_k(k, *, by, descending=True)` returns the `k` rows with the largest values in `by`, and `bottom_k(k, *, by)` the smallest.
+`sample(*, n=None, fraction=None, seed=None)` returns a random subset of rows: exactly `n` rows, or about `fraction` of them. Exactly one of `n` and `fraction` must be given, and building the relation checks the arguments, raising `InvalidSampleArgumentsError` (in `mountainash.exceptions`). A `seed` makes the sample repeatable on the same backend. `top_k(k, *, by, descending=True)` returns the `k` rows with the largest values in `by`, and `bottom_k(k, *, by)` the smallest.
 
 ```python
 print(base.sample(n=2, seed=1).count_rows())
@@ -536,7 +536,7 @@ InvalidSampleArgumentsError sample() requires exactly one of n or fraction (got 
 ```
 
 !!! warning "Backend limit"
-    `sample(n=..., seed=...)` is declared unsupported for Ibis (`ibis/family/extensions_mountainash/relation.py`). The SQL dialects refuse it with a `BackendCapabilityError`, and the Ibis Polars backend fails with an Ibis `OperationNotDefinedError`. Omit the seed or sample by fraction. A seeded fractional sample fails on SQLite.
+    The Ibis capability declarations mark `sample(n=..., seed=...)` unsupported (`ibis/family/extensions_mountainash/relation.py`). The SQL dialects refuse it with a `BackendCapabilityError`, and the Ibis Polars backend fails with an Ibis `OperationNotDefinedError`. Omit the seed or sample by fraction. A seeded fractional sample fails on SQLite.
 
     `top_k` and `bottom_k` treat nulls differently by backend. On Polars and pandas sources a null in `by` sorts ahead of every value in both directions, so the row with `order_id` 5 (a null amount) appears in the result above; Ibis sources skip it, as Polars' own `top_k` does. Drop nulls in `by` first for a portable result.
 
@@ -544,7 +544,7 @@ InvalidSampleArgumentsError sample() requires exactly one of n or fraction (got 
 
 <!-- concept:373 -->
 
-`ma.concat(relations, *, distinct=False, timezone=None)` stacks relations with the same columns, as a SQL `UNION ALL`. `distinct=True` removes duplicate rows, as `UNION`. As with joins, the inputs may come from different libraries: the first relation decides where the result runs, and the others are converted to it.
+`ma.concat(relations, *, distinct=False, timezone=None)` stacks relations with the same columns, as a SQL `UNION ALL`. `distinct=True` removes duplicate rows, as `UNION`. As with joins, the inputs may come from different libraries: the first relation decides where the result runs, and the rest convert to that location.
 
 ```python
 late = pd.DataFrame({"order_id": [6], "customer_id": [40], "amount": [12.0]})
@@ -558,13 +558,13 @@ print(ma.concat([base.select("customer_id"), base.select("customer_id")], distin
 3
 ```
 
-Timestamp columns whose precision differs across inputs are widened to a common precision without changing time zones. Passing an IANA zone name as `timezone` converts timezone-aware timestamp columns to that zone, keeping the instants; naive columns are not localised. SQLite does not support the explicit `timezone` conversion.
+`concat` widens timestamp columns whose precision differs across inputs to a common precision and keeps their time zones. Passing an IANA zone name as `timezone` converts timezone-aware timestamp columns to that zone, keeping the instants; naive columns stay naive. SQLite does not support the explicit `timezone` conversion.
 
 ## Schema and columns
 
 <!-- concept:375 -->
 
-A relation reports its output shape without running the plan. `columns` lists output names, `schema` maps names to [canonical dtypes](../03-dtypes/index.md#canonical-dtypes), `dtypes` and `width` follow from those, and `output_schema` gives the same information as a Frictionless schema dictionary. Names and types come from the plan itself and from metadata the source can supply cheaply; no rows are transferred.
+A relation reports its output shape from the plan, before it runs. `columns` lists output names, `schema` maps names to [canonical dtypes](../03-dtypes/index.md#canonical-dtypes), `dtypes` and `width` follow from those, and `output_schema` gives the same information as a Frictionless schema dictionary. Names and types come from the plan itself and from metadata the source can supply cheaply, and the rows stay where they are.
 
 ```python
 print(per_customer.columns)
@@ -578,7 +578,7 @@ print(per_customer.output_schema)
 {'fields': [{'name': 'customer_id', 'type': 'integer'}, {'name': 'total', 'type': 'number'}, {'name': 'orders', 'type': 'integer'}]}
 ```
 
-Some plans cannot be described in advance. A pivot's column names depend on the data, so its `schema` is empty and `columns` is an empty list. `collect_schema()` requires a complete answer and raises `IncompleteSchemaError` (in `mountainash.exceptions`) when it cannot get one; `collect_schema(allow_execution=True)` runs the plan when metadata is not enough:
+Some plans have a data-dependent shape. A pivot's column names depend on the data, so its `schema` is empty and `columns` is an empty list. `collect_schema()` requires a complete answer and raises `IncompleteSchemaError` (in `mountainash.exceptions`) when the answer is incomplete; `collect_schema(allow_execution=True)` runs the plan when metadata falls short:
 
 ```python
 pivoted = ma.relation(long).pivot(on="metric", index="id", values="value")
@@ -596,4 +596,4 @@ IncompleteSchemaError Incomplete schema (output names/order): Pivot output names
 {'id': <MountainashDtype.I64: 'i64'>, 'x': <MountainashDtype.I64: 'i64'>, 'y': <MountainashDtype.I64: 'i64'>}
 ```
 
-Treat an empty `columns` list as "unknown", not "no columns". How the package infers and resolves schemas, including which sources it probes, is described in [Schema inference and resolution](../09-execution-targets-and-capabilities/index.md#schema-inference-and-resolution).
+Read an empty `columns` list as "unknown". How the package infers and resolves schemas, including which sources it probes, is described in [Schema inference and resolution](../09-execution-targets-and-capabilities/index.md#schema-inference-and-resolution).

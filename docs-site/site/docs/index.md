@@ -9,9 +9,9 @@ description: 'Write tabular data logic once with a Polars-style API and run it o
 
 **Tabular data logic written once with a Polars-style API, compiled to Polars, to the libraries Narwhals reaches and to SQL engines through Ibis.**
 
-Data logic rarely stays on one engine. A filter and an aggregate get written against Polars for a notebook, then again in pandas for a service that already uses it, then as SQL when the same table moves into DuckDB or PostgreSQL. The cleaning rules and quality checks follow, each copy drifting a little from the others, and no one can say which version is the reference.
+Data logic often moves between engines. A filter and an aggregate get written against Polars for a notebook, then again in pandas for a service that already uses it, then as SQL when the same table moves into DuckDB or PostgreSQL. The cleaning rules and quality checks follow, each copy drifting a little from the others until the reference version is hard to identify.
 
-mountainash keeps that logic in one place. You describe expressions and relational plans with Polars method names, and the package compiles them for whichever engine holds the data when you ask for a result. Table schemas follow the Frictionless Table Schema shape, and conforming data to a schema, data contracts and validation are built on the same plans, so they run wherever the data does. What each backend and SQL dialect can do is recorded in a capability registry, and a call that a dialect's declarations forbid is refused before it runs.
+mountainash keeps that logic in one place. You describe expressions and relational plans with Polars method names, and when you ask for a result the package compiles them for whichever engine holds the data. Table schemas follow the Frictionless Table Schema shape. Conforming data to a schema, data contracts and validation build on the same plans, so they run wherever the data does. A capability registry records what each backend and SQL dialect can do, and mountainash stops a call that a dialect's declarations forbid before the call runs.
 
 ## Who it's for
 
@@ -37,7 +37,7 @@ mountainash keeps that logic in one place. You describe expressions and relation
 
     ---
 
-    Combine named relations into a graph, collect it in dependency order, and round-trip it through a Frictionless DataPackage, with foreign keys kept as checks rather than build steps.
+    Combine named relations into a graph, collect it in dependency order, and round-trip it through a Frictionless DataPackage, with foreign keys kept as checks, separate from build order.
 
     [RelationDAG](chapters/14-relationdag/index.md)
 
@@ -61,7 +61,7 @@ mountainash keeps that logic in one place. You describe expressions and relation
 
 ## See it work
 
-One function describes a plan. It runs on a Polars frame and on a DuckDB table opened through Ibis, without changes:
+One function describes a plan. The same function runs on a Polars frame and on a DuckDB table opened through Ibis:
 
 ```python
 import ibis
@@ -99,7 +99,7 @@ print(revenue_by_region(duck_orders).to_dicts())
 [{'region': 'north', 'revenue': 120.0}, {'region': 'south', 'revenue': 280.0}]
 ```
 
-The first call ran on Polars and the second ran as SQL inside DuckDB; the plan code was the same and so was the result.
+The first call ran on Polars and the second ran as SQL inside DuckDB, with the same plan code and the same result.
 
 ## Where to go next
 

@@ -20,7 +20,7 @@ Assumes: [What mountainash does](../01-what-mountainash-does/index.md) and [Buil
 | API builder | `expressions/core/expression_api/` | Turns a Polars-style call into AST nodes | Nodes and function keys only |
 | Backend | `expressions/backends/expression_systems/` | Turns nodes into native expressions | One backend's native types |
 
-The AST, the function keys, the function registry and the visitor live in `expressions/core/` beside the builders. They belong to no backend: the keys and registry are in `expression_system/`, the node classes in `expression_nodes/`, the visitor in `unified_visitor/`. [How expressions compile](../18-expression-compilation/index.md) covers each of them.
+The AST, the function keys, the function registry and the visitor live in `expressions/core/` beside the builders. All backends share them: the keys and registry are in `expression_system/`, the node classes in `expression_nodes/`, the visitor in `unified_visitor/`. [How expressions compile](../18-expression-compilation/index.md) covers each of them.
 
 ```mermaid
 flowchart TB
@@ -65,9 +65,9 @@ narwhals  NarwhalsExpressionSystem -> SubstraitNarwhalsScalarComparisonExpressio
 ibis      IbisExpressionSystem -> SubstraitIbisScalarComparisonExpressionSystem
 ```
 
-The dependencies run one way. Builders never import Polars, Ibis or Narwhals and never produce native objects; they only build nodes. Protocols never name a backend type. Backends never call a builder, and never see the Polars-style call the user made: they read the Substrait-aligned node. That last rule is what lets the public surface follow Polars while the AST follows [Substrait](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast). The API builder is the single place where one vocabulary is translated into the other, so `.ge()` and `.gte()` reach the backend as the same comparison node, and Polars-style parameters such as `.rank(method="dense", descending=True)` arrive as a Substrait-aligned window function node with a window specification.
+The dependencies run one way. Builders build nodes and nothing else: they import none of Polars, Ibis or Narwhals and produce no native objects. Protocols refer only to the generic `ExpressionT` type. Backends read the Substrait-aligned node; they never call a builder or see the Polars-style call the user made. That last rule lets the public surface follow Polars while the AST follows [Substrait](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast). The API builder alone translates one vocabulary into the other, so `.ge()` and `.gte()` reach the backend as the same comparison node, and Polars-style parameters such as `.rank(method="dense", descending=True)` arrive as a Substrait-aligned window function node with a window specification.
 
-The layering explains where a change goes. A new backend implements the backend layer and touches nothing above it. A new operation touches every layer, in a fixed order: function key, protocol method, builder method, registry entry, then one implementation per backend, with tests. Each link is checked by the contract tests described in [Protocols as contracts](#protocols-as-contracts), and [Adding an expression operation](../22-extending-mountainash/index.md#adding-an-expression-operation) walks through it.
+The layering explains where a change goes. A new backend implements the backend layer and leaves the layers above it as they are. A new operation touches every layer, in a fixed order: function key, protocol method, builder method, registry entry, then one implementation per backend, with tests. Each link is checked by the contract tests described in [Protocols as contracts](#protocols-as-contracts), and [Adding an expression operation](../22-extending-mountainash/index.md#adding-an-expression-operation) walks through it.
 
 ### Where the code lives
 
@@ -103,7 +103,7 @@ File and class prefixes (`prtcl_`, `api_bldr_`, `expsys_`, `exn_`, `ext_ma_`, th
 
 <!-- concept:491 -->
 
-A protocol is a `typing.Protocol` class that lists the methods one operation domain requires, with their exact signatures. It is the source of truth for what a backend must implement: a method in the protocol must exist on every backend, and a backend must not add operations the protocol does not declare. There are two families of protocols, one per consuming layer:
+A protocol is a `typing.Protocol` class that lists the methods one operation domain requires, with their exact signatures. It is the source of truth for what a backend must implement: a method in the protocol must exist on every backend, and a backend adds only the operations the protocol declares. There are two families of protocols, one per consuming layer:
 
 - `expression_protocols/expression_systems/` declares what each backend expression system implements, one protocol per domain (`SubstraitScalarComparisonExpressionSystemProtocol`, `MountainAshNullExpressionSystemProtocol` and so on).
 - `expression_protocols/api_builders/` declares what each fluent builder provides to users.
@@ -132,7 +132,7 @@ ibis (self, x: 'IbisValueExpr', y: 'IbisValueExpr', /) -> 'IbisValueExpr'
 
 Parameter types also carry meaning. A parameter typed `ExpressionT` is an argument that may be any expression; a parameter with a concrete Python type is an option that is always a raw value. [Arguments and options](../18-expression-compilation/index.md#expression-ast-nodes) explains the two channels.
 
-The contract is checked mechanically. The same check the test suite performs can be run by hand: every method of the protocol must be implemented by a class other than the protocol itself in each composed backend.
+The test suite checks the contract mechanically, and you can run the same check by hand: in each composed backend, a class other than the protocol itself must implement every method of the protocol.
 
 ```python
 required = [name for name, value in vars(Comparison).items()
@@ -159,11 +159,11 @@ ibis True []
 ['is_not_distinct_from', 'is_distinct_from']
 ```
 
-Every backend inherits the comparison protocol and implements all of it. The last line shows the other half of the wiring: two protocol methods have no function key and no registry entry, so no builder can reach them. They are aspirational: declared because Substrait defines them, implemented in the backends, but not yet dispatched.
+Every backend inherits the comparison protocol and implements all of it. The last line shows the other half of the wiring: two protocol methods lack both a function key and a registry entry, which puts them out of every builder's reach. They are aspirational: declared because Substrait defines them and implemented in the backends, with dispatch still to come.
 
 ### The wiring matrix
 
-An operation is complete only when it is wired through every layer: a function key, a protocol method, a builder method, a registry entry, and an implementation in each of the three backends. A gap at any point fails quietly or late. A key without a registry entry cannot be compiled; a protocol method missing from one backend raises `AttributeError` on that backend only. The tests in `tests/core/` close these gaps:
+A complete operation is wired through every layer: a function key, a protocol method, a builder method, a registry entry, and an implementation in each of the three backends. A gap at any point fails quietly or late. Compiling a key that lacks a registry entry fails; a protocol method missing from one backend raises `AttributeError` on that backend only. The tests in `tests/core/` close these gaps:
 
 | Test module | What it checks |
 |---|---|
@@ -172,7 +172,7 @@ An operation is complete only when it is wired through every layer: a function k
 | `test_signature_conformance.py` | Backend signatures match protocol signatures, and registered options exist on the protocol and can be passed by keyword. |
 | `test_mro_method_collisions.py` | No method name that the registry dispatches is declared on two different protocols. The visitor finds backend methods by bare name, so such a collision would send one operation to another's implementation. |
 
-Aspirational methods are listed in `KNOWN_ASPIRATIONAL` in `test_protocol_alignment.py`, each with a reason and a date, and are tested with strict expected-failure markers. Wiring one fully makes its marker pass unexpectedly, which fails the run until the entry is removed. A contributor runs the module directly:
+`KNOWN_ASPIRATIONAL` in `test_protocol_alignment.py` lists the aspirational methods, each with a reason and a date, and the tests run them under strict expected-failure markers. Wiring one fully makes its marker pass unexpectedly, which fails the run until the entry is removed. A contributor runs the module directly:
 
 ```bash
 hatch run test:test-target-quick tests/core/test_protocol_alignment.py
@@ -182,7 +182,7 @@ hatch run test:test-target-quick tests/core/test_protocol_alignment.py
 
 <!-- concept:492 -->
 
-An API builder is a small class that holds the methods for one operation category and builds nodes for them. The expression object a user holds, `BooleanExpressionAPI` (see [Expression objects](../04-building-expressions/index.md#expression-objects)), defines operator overloads and little else. Its flat methods come from the builder classes listed in its `_FLAT_NAMESPACES` tuple, which `__getattr__` searches in order; its namespaces (`.str`, `.dt`, `.name`, `.struct`, `.list`, `.cat`, `.geo`) are `NamespaceDescriptor` attributes that bind a builder class to the expression on access. Every builder method returns a new expression wrapping a new node, so chains never mutate.
+An API builder is a small class that holds the methods for one operation category and builds nodes for them. The expression object a user holds, `BooleanExpressionAPI` (see [Expression objects](../04-building-expressions/index.md#expression-objects)), mainly defines operator overloads. Its flat methods come from the builder classes listed in its `_FLAT_NAMESPACES` tuple, which `__getattr__` searches in order; its namespaces (`.str`, `.dt`, `.name`, `.struct`, `.list`, `.cat`, `.geo`) are `NamespaceDescriptor` attributes that bind a builder class to the expression on access. Every builder method returns a new expression wrapping a new node, so chaining leaves earlier expressions unchanged.
 
 ```python
 for method in ("gt", "ge", "fill_null", "t_gt", "is_in", "round", "alias"):
@@ -202,13 +202,13 @@ alias      MountainAshNameAPIBuilder
 StringAPIBuilder ['MountainAshScalarStringAPIBuilder', 'SubstraitScalarStringAPIBuilder']
 ```
 
-Substrait builders carry only the canonical Substrait names (`gt`, `gte`). Short and Polars-style aliases such as `ge` live in the matching extension builder and build the same node. A namespace that draws on both domains, such as `.str`, is a combined class inheriting the extension and Substrait builders. Builders also validate options at call time: `round(decimals=...)` raises `TypeError` for anything other than a literal `int`, because an option can never be an expression.
+Substrait builders carry only the canonical Substrait names (`gt`, `gte`). Short and Polars-style aliases such as `ge` live in the matching extension builder and build the same node. A namespace that draws on both domains, such as `.str`, is a combined class inheriting the extension and Substrait builders. Builders also validate options at call time: `round(decimals=...)` accepts a literal `int` and raises `TypeError` for anything else, because an option is always a raw value.
 
 <!-- concept:493 -->
 
 An expression system is a backend's implementation of every expression system protocol, composed into one class. Each backend directory holds one mixin class per category, for example `SubstraitPolarsScalarComparisonExpressionSystem` in `polars/substrait/expsys_pl_scalar_comparison.py` and `MountainAshPolarsNullExpressionSystem` in `polars/extensions_mountainash/expsys_pl_ext_ma_null.py`. The backend's `__init__.py` composes the mixins by multiple inheritance into `PolarsExpressionSystem`, `NarwhalsExpressionSystem` or `IbisExpressionSystem` and registers the result with `@register_expression_system(CONST_BACKEND.<FAMILY>)`. All three derive from `BaseExpressionSystem` (`expressions/backends/expression_systems/base.py`), which fixes the constructor, the `backend_type` and `is_native_expression` contract, and the hooks the visitor uses for argument preparation and operand metadata.
 
-There is one expression system per backend family, not per engine. When an expression compiles, [backend detection](../02-installation-and-package-surface/index.md#backend-detection) returns the family and the dialect; the family selects the registered class, and the dialect is passed to the instance:
+Each backend family has one expression system, shared by all of its engines. When an expression compiles, [backend detection](../02-installation-and-package-surface/index.md#backend-detection) returns the family and the dialect; the family selects the registered class, and the dialect is passed to the instance:
 
 ```python
 import ibis
@@ -230,6 +230,6 @@ narwhals narwhals-pandas NarwhalsExpressionSystem
 ibis ibis-duckdb IbisExpressionSystem
 ```
 
-`expr.compile(df)` instantiates the class for each compilation with that dialect and a prepared execution context, then hands it to the visitor. The instance is where engine differences are handled: a method can branch on `self.dialect` (pandas through Narwhals behaves differently from PyArrow through Narwhals), and capability declarations are looked up by family and dialect. Methods return native expressions and nothing else; they never build nodes or call builders.
+`expr.compile(df)` instantiates the class for each compilation with that dialect and a prepared execution context, then hands it to the visitor. The instance is where engine differences are handled: a method can branch on `self.dialect` (pandas through Narwhals behaves differently from PyArrow through Narwhals), and capability declarations are looked up by family and dialect. Methods return native expressions; building nodes and calling builders stay in the builder layer.
 
-`expsys_base.py` also defines an abstract `ExpressionSystem` class that inherits the core Substrait protocols. The registry is typed against it, but the three concrete systems derive from `BaseExpressionSystem` and their protocol mixins, not from `ExpressionSystem`. Composition order, registration and per-backend details are in [Composition and registration](../21-backends/index.md#composition-and-registration).
+`expsys_base.py` also defines an abstract `ExpressionSystem` class that inherits the core Substrait protocols. The registry is typed against it, while the three concrete systems derive from `BaseExpressionSystem` and their protocol mixins, outside the `ExpressionSystem` hierarchy. Composition order, registration and per-backend details are in [Composition and registration](../21-backends/index.md#composition-and-registration).

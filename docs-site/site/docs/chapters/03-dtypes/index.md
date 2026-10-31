@@ -11,7 +11,7 @@ Assumes: [What mountainash does](../01-what-mountainash-does/index.md) and [Inst
 ## Canonical dtypes
 
 <!-- concept:395 -->
-`ma.MountainashDtype` is a string enum with one member per type family. Its values are short Substrait-style names: `bool`; signed integers `i8` to `i64`; unsigned integers `u8` to `u64`; `fp32` and `fp64`; `string` and `binary`; `date`, `time`, `timestamp` and `duration`; the containers `list` and `struct`; and `json`. Three more members, `xsd_duration`, `xsd_year` and `xsd_yearmonth`, carry Frictionless lexical types that are stored as strings rather than as native durations or integers.
+`ma.MountainashDtype` is a string enum with one member per type family. Its values are short Substrait-style names: `bool`; signed integers `i8` to `i64`; unsigned integers `u8` to `u64`; `fp32` and `fp64`; `string` and `binary`; `date`, `time`, `timestamp` and `duration`; the containers `list` and `struct`; and `json`. Three more members, `xsd_duration`, `xsd_year` and `xsd_yearmonth`, carry Frictionless lexical types and store them as strings, in place of native durations or integers.
 
 Because the enum subclasses `str`, a member compares equal to its value:
 
@@ -29,7 +29,7 @@ True
 ['u8', 'u16', 'u32', 'u64']
 ```
 
-The canon exists so that every part of the package that talks about types talks about the same thing. A field declared in a [table schema](../10-table-schemas-and-datapackage/index.md#tableschema-and-fields), the target of a [cast](../04-building-expressions/index.md#casting-cast-safety-and-nulls), the declared type that [conform](../11-conforming-data/index.md) reconciles data against, and the type recovered when a schema is extracted from a dataframe are all canonical values, not Polars or Ibis dtypes. A native dtype enters only when one is passed explicitly, and it is then wrapped so that its owning library is recorded (see [Parsing dtypes](#parsing-dtypes)). A schema written once can therefore be lowered to any target, and a type comparison between a declared schema and observed data happens in one vocabulary instead of pairwise between libraries.
+The canon gives every part of the package one shared type vocabulary. A field declared in a [table schema](../10-table-schemas-and-datapackage/index.md#tableschema-and-fields), the target of a [cast](../04-building-expressions/index.md#casting-cast-safety-and-nulls), the declared type that [conform](../11-conforming-data/index.md) reconciles data against, and the type recovered when a schema is extracted from a dataframe are all canonical values, independent of Polars or Ibis dtypes. A native dtype enters only when you pass one explicitly, and the package then wraps it to record its owning library (see [Parsing dtypes](#parsing-dtypes)). A schema written once can therefore be lowered to any target, and a type comparison between a declared schema and observed data happens once, in one shared vocabulary.
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ price: decimal128(10, 2)
 
 The same `price` object is accepted by `.cast()` on an expression. The canon is aligned with Substrait's type names, as the expression AST is aligned with Substrait functions (see [Lazy plans and the AST](../01-what-mountainash-does/index.md#lazy-plans-and-the-ast)).
 
-The canon is not the Frictionless type list. Frictionless Table Schema types such as `integer`, `number` and `year` form a separate boundary vocabulary that maps onto the canon when a descriptor is read or written; [Frictionless descriptors](../10-table-schemas-and-datapackage/index.md#frictionless-descriptors) covers that mapping.
+Frictionless Table Schema types such as `integer`, `number` and `year` form a separate boundary vocabulary, distinct from the canon, that maps onto it when a descriptor is read or written; [Frictionless descriptors](../10-table-schemas-and-datapackage/index.md#frictionless-descriptors) covers that mapping.
 
 <!-- concept:396 -->
 Some types are incomplete without parameters. `mountainash.core.dtypes` provides frozen descriptor classes for them, and `ma.DecimalDtype` is also exported at the top level:
@@ -152,7 +152,7 @@ for spec in ["i64", "Int64", "int64", "integer", int, datetime.datetime, D.FP32]
 <MountainashDtype.FP32: 'fp32'> -> MountainashDtype.FP32
 ```
 
-Anything else raises `UnknownDtypeError`, a subclass of both `MountainashError` and `ValueError`. There is no string syntax for parameters, and a native dtype object is refused with a pointer to the right entry point:
+Anything else raises `UnknownDtypeError`, a subclass of both `MountainashError` and `ValueError`. Parameters have no string syntax, and `parse_dtype()` refuses a native dtype object with a pointer to the right entry point:
 
 ```python
 import polars as pl
@@ -171,7 +171,7 @@ Int64 is a native backend dtype, not a canonical dtype. Use parse_cast_target() 
 Cannot interpret 3.5 (type float) as a dtype.
 ```
 
-`parse_cast_target()` is what `.cast()` uses. It accepts everything `parse_dtype()` does, returns parameterized descriptors unchanged, and wraps a native dtype object in a `NativeDtype` that records its owning target without converting it, so its parameters survive until compilation:
+`parse_cast_target()` is what `.cast()` uses. It accepts everything `parse_dtype()` does, returns parameterized descriptors unchanged, and wraps a native dtype object, unconverted, in a `NativeDtype` that records its owning target, so its parameters survive until compilation:
 
 ```python
 from mountainash.core.dtypes import parse_cast_target
@@ -190,9 +190,9 @@ value=Datetime(time_unit='ms', time_zone='UTC') target=<TypeTarget.POLARS: 'pola
 ## Native type targets
 
 <!-- concept:399 -->
-A `TypeTarget` names a library whose types the canon maps to and from: `polars`, `pandas`, `pyarrow`, `ibis`, `narwhals` and `python`. Type targets are not the same thing as execution backends. pandas, PyArrow and Python are targets because schemas are converted to them, data is extracted from them and results are returned in them, even though plans run on Polars, Narwhals or Ibis. Which backend a dataframe belongs to is decided by [backend detection](../02-installation-and-package-surface/index.md#backend-detection); the matching type target follows from it.
+A `TypeTarget` names a library whose types the canon maps to and from: `polars`, `pandas`, `pyarrow`, `ibis`, `narwhals` and `python`. Type targets and execution backends are separate sets. pandas, PyArrow and Python are targets because schemas are converted to them, data is extracted from them and results are returned in them, while plans run on Polars, Narwhals or Ibis. [Backend detection](../02-installation-and-package-surface/index.md#backend-detection) decides which backend a dataframe belongs to, and the matching type target follows from it.
 
-The module-level `registry` (a `DtypeRegistry`) performs every translation. Its main methods are `to_native_schema()` for schema construction, `to_native_cast()` for cast targets, `from_native()` to decode a native type back to the canon, `parse_type_string()` for native type spellings, and `types_equal()` to compare two native types with their parameters. Each target's module is imported the first time it is used, so importing mountainash never imports pandas, PyArrow or Ibis, and a missing optional library raises only when its target is requested.
+The module-level `registry` (a `DtypeRegistry`) performs every translation. Its main methods are `to_native_schema()` for schema construction, `to_native_cast()` for cast targets, `from_native()` to decode a native type back to the canon, `parse_type_string()` for native type spellings, and `types_equal()` to compare two native types with their parameters. Each target's module loads the first time you use it, so importing mountainash stays light and leaves pandas, PyArrow and Ibis unloaded. A missing optional library raises an error only when you request its target.
 
 ```python
 print(list(TypeTarget))
@@ -213,7 +213,7 @@ narwhals Datetime(time_unit='us', time_zone='Europe/Paris')
 python DtypeMappingError Python datetime type hints cannot encode timestamp precision
 ```
 
-A target that cannot represent a requested type raises `DtypeMappingError` instead of silently dropping a parameter. Decoding goes the other way and keeps parameters; the target is detected from the native object when it is not passed:
+A target that cannot represent a requested type raises `DtypeMappingError`, so every parameter is either honoured or reported. Decoding goes the other way and keeps parameters; when you omit the target, the registry detects it from the native object:
 
 ```python
 print(registry.from_native(pl.Datetime("ms", "UTC")))
@@ -225,7 +225,7 @@ TimestampDtype(precision=3, timezone_aware=True, timezone='UTC', native=None)
 ListDtype(element=<MountainashDtype.I32: 'i32'>, native=None)
 ```
 
-A `NativeDtype` lowers only on its own target. Casting is stricter than schema construction in one more way: a bare container is a valid schema placeholder but not a cast target, because a cast needs the element type.
+A `NativeDtype` lowers only on its own target. Casting is stricter than schema construction in one more way: a bare container is a valid schema placeholder, but a cast target needs the element type.
 
 ```python
 native = parse_cast_target(pl.Datetime("ms", "UTC"))
@@ -265,7 +265,7 @@ List(Int32)
     timestamp(0)
     ```
 
-The table below gives the native type for each bare canonical dtype on every target, with the Frictionless type it exports to. It was generated by calling `registry.to_native_schema()` and the Frictionless boundary map for every `MountainashDtype` member at source revision `0a625ad`. Container rows show the bare placeholder; a parameterized descriptor lowers to the full native type, as in the examples above.
+The table below gives the native type for each bare canonical dtype on every target, with the Frictionless type it exports to. Calling `registry.to_native_schema()` and the Frictionless boundary map for every `MountainashDtype` member at source revision `0a625ad` generated it. Container rows show the bare placeholder; a parameterized descriptor lowers to the full native type, as in the examples above.
 
 | Canonical | Polars | Narwhals | Ibis | PyArrow | pandas | Python | Frictionless export |
 |---|---|---|---|---|---|---|---|
@@ -293,4 +293,4 @@ The table below gives the native type for each bare canonical dtype on every tar
 | `xsd_year` | `String` | `String` | `string` | `string` | `string` | `str` | `year` |
 | `xsd_yearmonth` | `String` | `String` | `string` | `string` | `string` | `str` | `yearmonth` |
 
-For extension authors and backend maintainers: the registry holds no mapping tables itself. Each target is one stateless adapter class that implements the `NativeTypeAdapter` protocol in `mountainash.core.dtypes.protocols` (`from_native`, `to_native_schema`, `to_native_cast`, `parse_type_string`, `types_equal`) and the `NativeArrowTransportAdapter` protocol for Arrow transport. A new target means a `TypeTarget` member, an adapter module, and a registry entry naming both; every canonical dtype must be mapped, and `tests/core/dtypes/test_completeness.py` fails when one is missing. [Type and schema adapters](../22-extending-mountainash/index.md#type-and-schema-adapters) walks through adding one.
+For extension authors and backend maintainers: the mapping tables live in the adapters, outside the registry. Each target is one stateless adapter class that implements the `NativeTypeAdapter` protocol in `mountainash.core.dtypes.protocols` (`from_native`, `to_native_schema`, `to_native_cast`, `parse_type_string`, `types_equal`) and the `NativeArrowTransportAdapter` protocol for Arrow transport. A new target means a `TypeTarget` member, an adapter module, and a registry entry naming both; every canonical dtype must be mapped, and `tests/core/dtypes/test_completeness.py` fails when one is missing. [Type and schema adapters](../22-extending-mountainash/index.md#type-and-schema-adapters) walks through adding one.

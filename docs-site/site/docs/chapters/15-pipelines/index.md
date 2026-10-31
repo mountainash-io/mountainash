@@ -4,11 +4,11 @@ title: Pipelines
 
 # Pipelines
 
-A pipeline runs a named graph of units, each of which produces one value from the values of the units it depends on. Typical units fetch data incrementally from a source, run a [RelationDAG](../14-relationdag/index.md) over upstream data, call a Python function, or write a result to Parquet or a database table. A `Runner` plans the run, executes the units in dependency order, and records each result in a checkpoint keyed by the unit's identity, so a later run skips work whose inputs have not changed and resumes incremental sources where they stopped.
+A pipeline runs a named graph of units, each of which produces one value from the values of the units it depends on. Typical units fetch data incrementally from a source, run a [RelationDAG](../14-relationdag/index.md) over upstream data, call a Python function, or write a result to Parquet or a database table. A `Runner` plans the run, executes the units in dependency order, and records each result in a checkpoint keyed by the unit's identity, so a later run reuses results whose inputs are unchanged and resumes incremental sources where they stopped.
 
 Assumes: [Installation and the package surface](../02-installation-and-package-surface/index.md) and [RelationDAG](../14-relationdag/index.md).
 
-The pipelines API is evolving. It was rebuilt recently, replacing an earlier runner and storage API, and the package profile marks it as evolving. `Runner.run()` is the main entry point; `Runner.plan()` and `Runner.execute()` are public but lightly specified, and names may change between releases. Everything lives in `mountainash.pipelines`; nothing is exported from the `mountainash` top level.
+The pipelines API is evolving: it is a recent rebuild that replaced an earlier runner and storage API, and the package profile marks it as evolving. `Runner.run()` is the main entry point; `Runner.plan()` and `Runner.execute()` are public but lightly specified, and names may change between releases. Everything lives in `mountainash.pipelines` and is imported from there; the `mountainash` top level exports none of it.
 
 ## Pipelines and units
 
@@ -55,7 +55,7 @@ shape: (2, 2)
 └─────────────┴───────┘
 ```
 
-`Runner(pipeline).run()` returns a `RunResult`. `statuses` maps each unit to `complete`, `partial`, `failed`, `skipped` or `reused`, `values` maps each unit to the `Value` it produced, `executed` lists the units that actually ran, and `run_id` identifies the run. The status enum, `Status`, is not re-exported; import it from `mountainash.pipelines.core.values` if you need to compare members rather than their `.value` strings.
+`Runner(pipeline).run()` returns a `RunResult`. `statuses` maps each unit to `complete`, `partial`, `failed`, `skipped` or `reused`, `values` maps each unit to the `Value` it produced, `executed` lists the units that ran, and `run_id` identifies the run. The status enum, `Status`, lives in `mountainash.pipelines.core.values`; import it from there to compare members instead of their `.value` strings.
 
 <!-- concept:466 -->
 A unit is any object that satisfies the `Unit` protocol: a `name`, a `version`, the names of its inputs, an `identity()` computed from its inputs and parameters, a `run(upstream, ctx)` method, and a `lifecycle` class that tells the runner how to plan, run and commit it. Three settings shape how a unit runs:
@@ -64,9 +64,9 @@ A unit is any object that satisfies the `Unit` protocol: a `name`, a `version`, 
 - `affinity` is `Affinity.WORKER` by default. `Affinity.MAIN` keeps the unit on the main thread when the runner uses worker threads.
 - `partitions_preserved` says the unit keeps its single input's partitions, so [coverage](#values-identity-and-checkpoints) passes through it.
 
-A unit never runs concurrently with itself.
+At most one run of a given unit is in progress at a time.
 
-The ready-made units cover the usual cases, so writing a unit class is an extension point rather than a routine step. The base class `BaseUnit` (in `mountainash.pipelines.units.base`) supplies everything except `run()`. It has no lifecycle of its own, so a direct subclass must set `lifecycle = UnitLifecycle` from `mountainash.pipelines.runtime.lifecycle`; without it, planning fails with `AttributeError: ... has no attribute 'lifecycle'`. Subclasses of `PythonUnit`, `SourceUnit` and `SinkUnit` inherit theirs.
+The ready-made units cover the usual cases, so writing a unit class is an extension point for less common needs. The base class `BaseUnit` (in `mountainash.pipelines.units.base`) supplies everything except `run()`. It leaves `lifecycle` unset, so a direct subclass must set `lifecycle = UnitLifecycle` from `mountainash.pipelines.runtime.lifecycle`; otherwise planning fails with `AttributeError: ... has no attribute 'lifecycle'`. Subclasses of `PythonUnit`, `SourceUnit` and `SinkUnit` inherit theirs.
 
 ```python
 from mountainash.pipelines import PythonUnit
@@ -91,7 +91,7 @@ print(result.values["count"].kind, result.values["count"].payload)
 ValueKind.OPAQUE 2
 ```
 
-`run()` receives `upstream`, a mapping from input name to `Value`, and `ctx`, a run context carrying `params`, the source `state`, `pipeline_name`, `unit_name` and `run_id`. The default identity covers the unit's class name, version, parameters and upstream identities, not its code or constructor arguments. A unit whose output depends on its configuration must include that configuration by overriding `identity()`, or bump `version` when the configuration changes.
+`run()` receives `upstream`, a mapping from input name to `Value`, and `ctx`, a run context carrying `params`, the source `state`, `pipeline_name`, `unit_name` and `run_id`. The default identity covers the unit's class name, version, parameters and upstream identities. Code and constructor arguments fall outside it, so a unit whose output depends on its configuration must include that configuration by overriding `identity()`, or bump `version` when the configuration changes.
 
 <!-- concept:467 -->
 A source unit fetches data from outside the pipeline, possibly in increments. `CallableSource(fetch, name=...)` wraps a function `fetch(upstream, params, state)` that returns a `SourceResult`: the fetched `Value`, with a `Coverage` of the partitions it attempted, and the cursor to resume from next time. The runner keeps a `SourceState` per source (cursor, outstanding failed partitions, partitions already succeeded) in the checkpoint and hands it to the next fetch. For a custom source, subclass `SourceUnit` and implement `fetch()`.
@@ -123,7 +123,7 @@ print(ingest.run().values["events"].payload, checkpoint.progress("events").curso
 [{'id': 4}] 2026-10-03
 ```
 
-A sink writes its single upstream value somewhere and returns a `LocatorReference` (a locator string and a record count) instead of the data. `ParquetDirectorySink(path, ...)` writes Parquet files into a directory. `IbisTableSink(connection, table, ...)` writes to a table on an Ibis connection inside a transaction. Every sink takes `name`, `depends_on` (exactly one unit) and a `WriteMode`:
+A sink writes its single upstream value somewhere and returns a `LocatorReference` (a locator string and a record count) as its value. `ParquetDirectorySink(path, ...)` writes Parquet files into a directory. `IbisTableSink(connection, table, ...)` writes to a table on an Ibis connection inside a transaction. Every sink takes `name`, `depends_on` (exactly one unit) and a `WriteMode`:
 
 | Mode | Effect | Requires |
 |---|---|---|
@@ -151,7 +151,7 @@ print(con.table("customer_totals").to_polars().sort("customer_id").to_dicts())
 [{'customer_id': 1, 'total': 40.5}, {'customer_id': 2, 'total': 40.0}]
 ```
 
-Sinks accept tabular or records values and refuse others with `UnsupportedValueKind`. `REPLACE` refuses a value with incomplete coverage (`IncompleteCoverage`), since writing it would delete rows that succeeded earlier. Writing to a new destination is an extension point: subclass `SinkUnit` and implement `destination()`, a stable string naming where the data goes, and `write(value)`. Override `reference_exists(ref)` so the runner can tell whether an earlier write is still there.
+Sinks accept tabular or records values and raise `UnsupportedValueKind` for any other kind. `REPLACE` raises `IncompleteCoverage` for a value with incomplete coverage, since writing it would delete rows that succeeded earlier. Writing to a new destination is an extension point: subclass `SinkUnit` and implement `destination()`, a stable string naming where the data goes, and `write(value)`. Override `reference_exists(ref)` so the runner can tell whether an earlier write is still there.
 
 ```python
 from mountainash.pipelines import LocatorReference, SinkUnit, ValueKind
@@ -184,7 +184,7 @@ print(kept)
 <!-- concept:468 -->
 `PythonUnit(fn, name=..., depends_on=...)` is the class behind `@unit`; both accept `version`, `empty`, `affinity` and `partitions_preserved`. Whatever the function returns becomes the unit's value. A `Value` returned directly keeps its kind, but its identity is replaced by the unit's and its coverage by any coverage propagated from the inputs.
 
-`DagUnit(template, target_name, name=..., inputs={unit: source})` runs a [RelationDAG](../14-relationdag/index.md#building-a-dag) inside a pipeline. The template refers to its inputs by name with `ref()`, and `inputs` maps each upstream unit to the template name it fills. On each run the unit [binds](../14-relationdag/index.md#building-a-dag) the upstream values into a fresh copy of the template and collects `target_name`, optionally on `target=`. Tabular values are bound as they are, without conversion, and records become Arrow tables.
+`DagUnit(template, target_name, name=..., inputs={unit: source})` runs a [RelationDAG](../14-relationdag/index.md#building-a-dag) inside a pipeline. The template refers to its inputs by name with `ref()`, and `inputs` maps each upstream unit to the template name it fills. On each run the unit [binds](../14-relationdag/index.md#building-a-dag) the upstream values into a fresh copy of the template and collects `target_name`, optionally on `target=`. Tabular values are bound as they are, and records become Arrow tables.
 
 ```python
 from mountainash.pipelines import DagUnit
@@ -201,7 +201,7 @@ print(ma.relation(result.values["big_orders"].payload).to_dicts())
 [{'customer_id': 1, 'amount': 25.0}, {'customer_id': 2, 'amount': 40.0}]
 ```
 
-A `DagUnit`'s identity includes a structural digest of the template, the target name and the target backend, so editing the template's logic is enough to invalidate earlier results. A reference value cannot be bound (`UnsupportedValueKind`); read it back with a source unit. A template that embeds a dataframe directly instead of receiving it through `inputs` cannot be digested and raises `UnhashableIdentityInput`.
+A `DagUnit`'s identity includes a structural digest of the template, the target name and the target backend, so editing the template's logic is enough to invalidate earlier results. Binding a reference value raises `UnsupportedValueKind`; read it back with a source unit. A template receives its dataframes through `inputs`; one that embeds a dataframe directly cannot be digested and raises `UnhashableIdentityInput`.
 
 `PipelineUnit(pipeline, target, name=..., depends_on=...)` nests one pipeline in another and produces the inner pipeline's `target` value. The inner pipeline declares its external inputs with `Pipeline(name, inputs=...)`, named after the outer units it consumes:
 
@@ -254,7 +254,7 @@ flowchart LR
     C -.- C1["advance source cursors"]
 ```
 
-`plan()` orders the units, restricted to `target` and its ancestors when a target is given, and computes every unit's identity from its parameters and upstream identities without running anything. It groups the units into layers that can run in parallel and returns a `Plan` with `order`, `layers` and `identity_of(name)`. `execute(plan)` walks the layers. For each unit it decides whether a checkpointed result can be reused, otherwise runs the unit and records the result. With `workers` above 1, each layer's units run on a thread pool, except units with `Affinity.MAIN`. `commit(plan, result)` advances source cursors. Call it after `execute()` when you drive the phases yourself, or source progress is not saved.
+`plan()` orders the units, restricted to `target` and its ancestors when a target is given, and computes every unit's identity from its parameters and upstream identities before any unit runs. It groups the units into layers that can run in parallel and returns a `Plan` with `order`, `layers` and `identity_of(name)`. `execute(plan)` walks the layers. For each unit it reuses a checkpointed result when one applies, and otherwise runs the unit and records the result. With `workers` above 1, each layer's units run on a thread pool, except units with `Affinity.MAIN`. `commit(plan, result)` advances source cursors. When you drive the phases yourself, call it after `execute()` to save source progress.
 
 ```python
 runner = Runner(Pipeline("daily").add(orders).add(totals).add(big))
@@ -272,10 +272,10 @@ print(result.executed)
 ('orders', 'big_orders', 'totals')
 ```
 
-`resume=False` ignores earlier results and `force=True` reruns everything, including discarding a source's unfinished attempt. A unit that raises is recorded as `failed`, the runner logs the exception with its traceback (logger `mountainash.pipelines.runtime.runner`), and every unit downstream of it is `skipped`; independent units still run. The exception itself is not stored on the `RunResult`. `runner.invalidate_descendants(name)` drops the checkpointed results of everything downstream of `name`, including inside nested pipelines.
+`resume=False` ignores earlier results and `force=True` reruns everything, including discarding a source's unfinished attempt. A unit that raises is recorded as `failed`, the runner logs the exception with its traceback (logger `mountainash.pipelines.runtime.runner`), and every unit downstream of it is `skipped`; independent units still run. The exception goes to the log, and the `RunResult` records only the status. `runner.invalidate_descendants(name)` drops the checkpointed results of everything downstream of `name`, including inside nested pipelines.
 
 <!-- concept:472 -->
-`retry=RetryConfig(max_attempts=3, backoff_rate=2.0, initial_delay_seconds=1.0)` retries a failing unit run, waiting `initial_delay_seconds` and multiplying the wait by `backoff_rate` after each attempt. Without it each unit gets one attempt. An exception derived from `NonRetryable` is never retried. A unit's `empty` policy decides what an empty result means: `EmptyPolicy.WARN` (the default) logs a warning, `EmptyPolicy.FAIL` raises `EmptyUnitOutput` so the unit fails, and `EmptyPolicy.SILENT` skips the check. Checking emptiness counts rows, which runs a lazy result, so use `SILENT` where that cost matters.
+`retry=RetryConfig(max_attempts=3, backoff_rate=2.0, initial_delay_seconds=1.0)` retries a failing unit run, waiting `initial_delay_seconds` and multiplying the wait by `backoff_rate` after each attempt. By default each unit gets one attempt. An exception derived from `NonRetryable` ends the retries at once. A unit's `empty` policy decides what an empty result means: `EmptyPolicy.WARN` (the default) logs a warning, `EmptyPolicy.FAIL` raises `EmptyUnitOutput` so the unit fails, and `EmptyPolicy.SILENT` skips the check. Checking emptiness counts rows, which runs a lazy result, so use `SILENT` where that cost matters.
 
 ```python
 from mountainash.pipelines import EmptyPolicy, RetryConfig
@@ -312,7 +312,7 @@ The `nothing` failure also appears in the log as `EmptyUnitOutput: nothing retur
 <!-- concept:470 -->
 Everything that passes between units is a `Value`: a payload, the producing unit's `Identity`, a `ValueKind`, the payload's backend location when it is a frame, and an optional `Coverage`. `Value.of(payload, identity)` classifies the payload. A list of mappings or a dict of lists is `RECORDS`. A dataframe of any supported backend, or an Arrow table, is `TABULAR`. An object with `locator` and `record_count` (such as `LocatorReference`) is `REFERENCE`. Anything else is `OPAQUE`.
 
-An `Identity` is a digest of everything that determines a unit's output. `Identity.of(*parts)` builds one from plain data (strings, numbers, dates, mappings with string keys, sequences, sets, enums, dataclasses), and raises `UnhashableIdentityInput` for anything else. A `Coverage` records which partitions a value `attempted`, which `succeeded` and which `failed`; `Coverage.source(...)` sets `complete` when nothing failed. A source with failed partitions finishes as `partial`, and its next fetch receives them in `state.outstanding` so it can try them again. Downstream units mark their output partial when any input is partial. A unit with `partitions_preserved=True` and one input passes its input's coverage through unchanged, which `REPLACE_PARTITION` sinks rely on.
+An `Identity` is a digest of everything that determines a unit's output. `Identity.of(*parts)` builds one from plain data (strings, numbers, dates, mappings with string keys, sequences, sets, enums, dataclasses), and raises `UnhashableIdentityInput` for anything else. A `Coverage` records which partitions a value `attempted`, which `succeeded` and which `failed`; `Coverage.source(...)` sets `complete` when the failed set is empty. A source with failed partitions finishes as `partial`, and its next fetch receives them in `state.outstanding` so it can try them again. Downstream units mark their output partial when any input is partial. A unit with `partitions_preserved=True` and one input passes its input's coverage through unchanged, which `REPLACE_PARTITION` sinks rely on.
 
 ```python
 print(Value.of([{"id": 1}], Identity.of("x")).kind)
@@ -333,9 +333,9 @@ False
 ```
 
 <!-- concept:471 -->
-A checkpoint stores, per unit, the results recorded under each identity, plus each source's progress and any unfinished source attempt. `MemoryCheckpoint` (the default) keeps them for the life of the object. `FileCheckpoint(root)` writes one JSON file per entry under `root` and reloads them, so a new process resumes where the last stopped. JSON cannot hold a dataframe, so `FileCheckpoint` retains references, and records or other payloads that survive JSON unchanged, while a `TABULAR` value is noted as not retained.
+A checkpoint stores, per unit, the results recorded under each identity, plus each source's progress and any unfinished source attempt. `MemoryCheckpoint` (the default) keeps them for the life of the object. `FileCheckpoint(root)` writes one JSON file per entry under `root` and reloads them, so a new process resumes where the last stopped. JSON holds no dataframes, so `FileCheckpoint` retains references, records and other payloads that survive JSON unchanged, and marks a `TABULAR` value as not retained.
 
-On each run, a unit whose identity matches a completed, retained record is `reused` instead of run. For a reference, reuse also requires the producing unit's `reference_exists()` to confirm the destination is still there. A sink's identity includes its destination, mode, keys and partition columns. Here the second process recomputes `orders` and `totals`, whose frames were not retained, and reuses the export because nothing that determines it has changed:
+On each run, a unit whose identity matches a completed, retained record is `reused` and skips running. For a reference, reuse also requires the producing unit's `reference_exists()` to confirm the destination is still there. A sink's identity includes its destination, mode, keys and partition columns. Here the second process recomputes `orders` and `totals`, whose frames the checkpoint did not retain, and reuses the export because everything that determines it is unchanged:
 
 ```python
 import shutil
@@ -361,14 +361,14 @@ print(Runner(daily, checkpoint=FileCheckpoint("run-state")).run(force=True).exec
 ('orders', 'totals', 'export')
 ```
 
-Sources resume differently. A source's fetch is held as a pending attempt and its cursor advances only at commit, after every unit downstream of it has succeeded. If a downstream unit fails, the next run replays the pending attempt's retained value instead of fetching again. If the value was not retained, the next run fetches again from the same starting state and invalidates the downstream results. If the source's inputs, parameters or version changed in between, planning raises `IncompatibleResume` before anything runs. Finish the attempt with the original inputs, or pass `force=True` to discard it.
+Sources resume differently. A source's fetch is held as a pending attempt and its cursor advances only at commit, after every unit downstream of it has succeeded. If a downstream unit fails, the next run replays the pending attempt's retained value and skips the fetch. If the value was not retained, the next run fetches again from the same starting state and invalidates the downstream results. If the source's inputs, parameters or version changed in between, planning raises `IncompatibleResume` before anything runs. Finish the attempt with the original inputs, or pass `force=True` to discard it.
 
 A new store, such as a database table of records, is an extension point: implement the `Checkpoint` protocol in `mountainash.pipelines.runtime.checkpoint`. It covers records (`lookup`, `record`, `last_status`), source progress (`progress`, `set_progress`), pending attempts (`pending`, `pending_all`, `set_pending`, `clear_pending`), `invalidate`, and `scoped(name)`, which returns the child store used by a nested pipeline.
 
 ## Pipeline errors
 
 <!-- concept:474 -->
-Pipeline errors derive from `PipelineError`, a subclass of [`ma.MountainashError`](../02-installation-and-package-surface/index.md#errors). `mountainash.exceptions` does not re-export them; import them from `mountainash.pipelines` or `mountainash.pipelines.errors`.
+Pipeline errors derive from `PipelineError`, a subclass of [`ma.MountainashError`](../02-installation-and-package-surface/index.md#errors). Import them from `mountainash.pipelines` or `mountainash.pipelines.errors`; `mountainash.exceptions` leaves them out.
 
 | Error | Raised when |
 |---|---|
@@ -381,7 +381,7 @@ Pipeline errors derive from `PipelineError`, a subclass of [`ma.MountainashError
 | `UnhashableIdentityInput` (also `TypeError`) | an identity input cannot be digested |
 | `IncompatibleResume` | a source's pending attempt does not match its current inputs |
 
-Errors raised while a unit runs are caught by the runner and reported as a `failed` status plus a log entry. Errors raised while planning, such as `IncompatibleResume` and `UnhashableIdentityInput`, propagate from `run()` or `plan()` before any unit runs, as do construction errors such as an unknown dependency in `Pipeline.add()`:
+The runner catches errors raised while a unit runs and reports each as a `failed` status plus a log entry. Errors raised while planning, such as `IncompatibleResume` and `UnhashableIdentityInput`, propagate from `run()` or `plan()` before any unit runs, as do construction errors such as an unknown dependency in `Pipeline.add()`:
 
 ```python
 from mountainash.pipelines import PipelineError
