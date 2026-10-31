@@ -8,6 +8,7 @@ from mountainash_transport.location import LocationNotAllowed
 
 from mountainash.typespec.descriptor_context import DescriptorContext, DescriptorKind
 from mountainash.typespec.errors import (
+    clean_cause,
     DescriptorError,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
@@ -117,7 +118,7 @@ def resolve_descriptor_mapping(
                 reference=exc.reference,
                 rejected_value=value,
                 required_form="absolute URI or relative reference with base URI",
-            ) from exc
+            ) from clean_cause(exc)
         except DescriptorReferenceNotFound as exc:
             raise DescriptorReferenceNotFound(
                 str(exc),
@@ -129,7 +130,7 @@ def resolve_descriptor_mapping(
                 expected_kind=exc.expected_kind,
                 rejected_value=value,
                 required_form="existing descriptor document",
-            ) from exc
+            ) from clean_cause(exc)
         except LocationNotAllowed:
             raise
         except DescriptorError:
@@ -144,7 +145,7 @@ def resolve_descriptor_mapping(
                 expected_kind=expected_kind.value,
                 rejected_value=value,
                 required_form=f"resolvable {expected_kind.value} JSON reference",
-            ) from exc
+            ) from clean_cause(exc)
         reference = value
     else:
         raw = value
@@ -180,7 +181,7 @@ def resolve_descriptor_mapping(
             expected_kind=expected_kind.value,
             rejected_value=exc.rejected_value,
             required_form=exc.required_form,
-        ) from exc
+        ) from clean_cause(exc)
     return raw
 
 
