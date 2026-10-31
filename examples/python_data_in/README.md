@@ -5,7 +5,7 @@ How do I start a relation from Python records?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/python_data_in/example.py
+hatch run test:python examples/python_data_in/example.py
 ```
 
 Expected output:

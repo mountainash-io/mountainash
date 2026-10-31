@@ -5,7 +5,7 @@ How do I compute, branch, cast and handle nulls in a column expression?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/expressions/example.py
+hatch run test:python examples/expressions/example.py
 ```
 
 Expected output:
@@ -19,6 +19,6 @@ Expected output:
 {'order_id': 6, 'with_tax': 104.5, 'size': 'small', 'whole': 95, 'mid_open': True}
 ```
 
-Operators, `ma.when(...).then(...).otherwise(...)`, `is_between`, `fill_null` and `cast` build expressions that `select` evaluates on every row. The missing amount on order 3 stays missing through the tax arithmetic and the range test, falls to `small` in the condition, and becomes 0 after `fill_null` and the cast. `alias` names each output column.
+Operators, `ma.when(...).then(...).otherwise(...)`, `is_between`, `fill_null` and `cast` build expressions that `select` evaluates on every row. The missing amount on order 3 stays missing through the tax arithmetic and the range test, falls to `small` in the condition, and becomes 0 after `fill_null` and the cast. The `&` in `mid_open` combines the range test with the status test, so a cancelled order is false even when its amount is in range. `alias` names each output column.
 
 Book: [Operators](https://docs.mountainash.io/mountainash/chapters/04-building-expressions/#operators) and [Casting, cast safety and nulls](https://docs.mountainash.io/mountainash/chapters/04-building-expressions/#casting-cast-safety-and-nulls). Next: [namespaces](../namespaces/).

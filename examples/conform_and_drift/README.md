@@ -5,7 +5,7 @@ How do I conform messy input to a schema and see what changed?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/conform_and_drift/example.py
+hatch run test:python examples/conform_and_drift/example.py
 ```
 
 Expected output:

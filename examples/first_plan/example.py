@@ -32,7 +32,7 @@ def main() -> None:
     assert [row["order_id"] for row in rows] == [1, 3, 5]
     assert rows[1]["amount_with_tax"] is None
     for row in rows:
-        print({key: None if value is None else round(value, 2) if isinstance(value, float) else value
+        print({key: round(value, 2) if isinstance(value, float) else value
                for key, value in row.items()})
 
 

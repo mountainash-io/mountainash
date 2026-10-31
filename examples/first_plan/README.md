@@ -5,7 +5,7 @@ How do I build a plan and collect the result?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/first_plan/example.py
+hatch run test:python examples/first_plan/example.py
 ```
 
 Expected output:

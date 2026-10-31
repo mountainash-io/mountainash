@@ -11,6 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
 RECIPES = sorted((ROOT / "examples").glob("*/example.py"))
+assert RECIPES, "no recipes found"
 
 
 def _documented_output(recipe: Path) -> str:
@@ -20,8 +21,11 @@ def _documented_output(recipe: Path) -> str:
     return match.group(1).strip()
 
 
-def _tree(work: Path) -> list[Path]:
-    return sorted(p.relative_to(work) for p in work.rglob("*"))
+def _tree(work: Path) -> list[tuple[Path, bytes | None]]:
+    return sorted(
+        (p.relative_to(work), p.read_bytes() if p.is_file() else None)
+        for p in work.rglob("*")
+    )
 
 
 @pytest.mark.parametrize("recipe", RECIPES, ids=lambda path: path.parent.name)

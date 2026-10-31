@@ -53,6 +53,9 @@ def main() -> None:
     result = Validator(name="orders_check", contract=Orders, rules=rules).validate(orders)
 
     summaries = result.check_summaries.sort("check_id")
+    type_format = summaries.filter(pl.col("check_id").str.ends_with("_type_format"))
+    assert type_format.height > 0
+    assert type_format["status"].to_list() == ["passed"] * type_format.height
     shown = summaries.filter(~pl.col("check_id").str.ends_with("_type_format"))
     for row in shown.select("check_id", "status", "pass_count", "fail_count", "unknown_count").to_dicts():
         print(row)

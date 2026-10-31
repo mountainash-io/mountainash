@@ -12,7 +12,7 @@ def main() -> None:
             "order_id": [1, 2, 3, 4, 5, 6, 7],
             "customer_id": [10, 11, 10, 12, 11, 12, 99],  # order 7: unknown customer
             "amount": [120.0, 80.0, None, 200.0, 50.0, 95.0, 30.0],
-            "status": ["shipped", "pending", "shipped", "cancelled", "shipped", "pending", "pending"],
+            "status": ["shipped", "pending", "shipped", "cancelled", "shipped", "pending", "shipped"],
             "ordered_at": [
                 date(2026, 1, 5), date(2026, 1, 9), date(2026, 2, 2),
                 date(2026, 2, 14), date(2026, 3, 1), date(2026, 3, 20), date(2026, 3, 25),
@@ -21,9 +21,9 @@ def main() -> None:
     )
     customers = pl.DataFrame(
         {
-            "customer_id": [10, 11, 12, 13],  # customer 13 has no orders
-            "name": ["Avery", "Blake", "Casey", "Drew"],
-            "region": ["north", "south", "east", "west"],
+            "customer_id": [10, 11, 12],
+            "name": ["Avery", "Blake", "Casey"],
+            "region": ["north", "south", "east"],
         }
     )
 

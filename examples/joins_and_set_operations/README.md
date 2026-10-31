@@ -5,7 +5,7 @@ How do I join two relations, find unmatched rows and stack relations?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/joins_and_set_operations/example.py
+hatch run test:python examples/joins_and_set_operations/example.py
 ```
 
 Expected output:

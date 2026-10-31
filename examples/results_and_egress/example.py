@@ -22,12 +22,12 @@ class OrderModel(pydantic.BaseModel):
 def main() -> None:
     orders = pl.DataFrame(
         {
-            "order_id": [1, 2, 3],
-            "customer_id": [10, 11, 10],
+            "order_id": [1, 2, 5],
+            "customer_id": [10, 11, 11],
             "amount": [120.0, 80.0, 50.0],
         }
     )
-    plan = ma.relation(orders).select("order_id", "amount").sort("order_id")
+    plan = ma.relation(orders).select("order_id", "customer_id", "amount").sort("order_id")
 
     dicts = plan.to_dicts()
     tuples = plan.to_tuples()
@@ -43,11 +43,15 @@ def main() -> None:
     print("dataclass with defaults:", plain[0])
     print("pydantic:", models[0])
 
-    assert dicts == [{"order_id": 1, "amount": 120.0}, {"order_id": 2, "amount": 80.0}, {"order_id": 3, "amount": 50.0}]
-    assert [tuple(t) for t in tuples][0] == (1, 120.0)
+    assert dicts == [
+        {"order_id": 1, "customer_id": 10, "amount": 120.0},
+        {"order_id": 2, "customer_id": 11, "amount": 80.0},
+        {"order_id": 5, "customer_id": 11, "amount": 50.0},
+    ]
+    assert tuples[0] == (1, 10, 120.0)
     assert all(isinstance(item, Order) for item in dataclasses_)
-    assert [item.order_id for item in models] == ["1", "2", "3"]
-
+    assert not any(hasattr(item, "customer_id") for item in dataclasses_ + models)
+    assert [item.order_id for item in models] == ["1", "2", "5"]
 
 if __name__ == "__main__":
     main()

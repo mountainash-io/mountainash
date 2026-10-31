@@ -5,7 +5,7 @@ How do I inspect a plan, compare data across engines and freeze a result?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/explain_and_snapshots/example.py
+hatch run test:python examples/explain_and_snapshots/example.py
 ```
 
 Expected output:

@@ -5,7 +5,7 @@ How do I declare a schema, extract one from data and write it as a Frictionless 
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/table_schemas/example.py
+hatch run test:python examples/table_schemas/example.py
 ```
 
 Expected output:

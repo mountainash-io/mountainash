@@ -5,7 +5,7 @@ How do I run row, scalar and relation rules and check a foreign key?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/validation_rules/example.py
+hatch run test:python examples/validation_rules/example.py
 ```
 
 Expected output:

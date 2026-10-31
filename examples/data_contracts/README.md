@@ -5,7 +5,7 @@ How do I declare a contract on a table and read the result for each check?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/data_contracts/example.py
+hatch run test:python examples/data_contracts/example.py
 ```
 
 Expected output:

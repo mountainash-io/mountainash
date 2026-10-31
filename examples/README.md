@@ -6,15 +6,21 @@ mountainash 0.1.0 is experimental and not yet ready for production use. Its APIs
 
 ## Setup
 
-Use Python 3.12 or later. From the repository root:
+Use Python 3.12 or later. mountainash and its sibling packages (`mountainash-transport`, `mountainash-data`, `mountainash-files`) are not yet published on public PyPI, so until those releases exist, work from a source checkout and run each recipe in the repository's Hatch test environment. That environment has the Polars, pandas and Ibis DuckDB drivers and resolves the sibling packages from local checkouts. From the repository root:
 
 ```bash
-uv pip install -e ".[pandas,ibis]"
-# or
-python -m pip install -e ".[pandas,ibis]"
+hatch run test:python examples/<name>/example.py
 ```
 
-Run each recipe with `python examples/<name>/example.py`. The scripts assert their results, so run them without `-O`. Nothing contacts the network: SQL recipes use in-process DuckDB or SQLite in temporary directories.
+To use your own environment instead, install the three sibling packages from source checkouts first, then install mountainash with the pandas and Ibis extras and the DuckDB driver:
+
+```bash
+uv pip install -e ".[pandas,ibis]" "ibis-framework[duckdb]"
+# or
+python -m pip install -e ".[pandas,ibis]" "ibis-framework[duckdb]"
+```
+
+The scripts assert their results, so run them without `-O`. Nothing contacts the network: SQL recipes use in-process DuckDB in temporary directories.
 
 ## Shared example data
 

@@ -5,7 +5,7 @@ How do I total per group and attach the group total to every row?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/aggregates_and_windows/example.py
+hatch run test:python examples/aggregates_and_windows/example.py
 ```
 
 Expected output:

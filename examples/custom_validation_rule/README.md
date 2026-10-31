@@ -5,7 +5,7 @@ How do I write a reusable check and run it on more than one backend?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/custom_validation_rule/example.py
+hatch run test:python examples/custom_validation_rule/example.py
 ```
 
 Expected output:

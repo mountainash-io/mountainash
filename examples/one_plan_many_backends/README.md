@@ -5,7 +5,7 @@ How do I run the same plan on Polars, pandas and a SQL engine?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/one_plan_many_backends/example.py
+hatch run test:python examples/one_plan_many_backends/example.py
 ```
 
 Expected output:

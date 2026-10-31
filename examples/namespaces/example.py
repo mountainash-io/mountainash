@@ -2,6 +2,7 @@
 
 from datetime import date
 
+import ibis
 import mountainash as ma
 import polars as pl
 
@@ -24,11 +25,17 @@ def orders_frame() -> pl.DataFrame:
 
 def main() -> None:
     customers = pl.DataFrame({"customer_id": [10, 11, 12], "name": ["Avery", "Blake", "Casey"]})
-    names = ma.relation(customers).select(
-        "customer_id",
-        ma.col("name").str.to_uppercase().alias("shout"),
-        ma.col("name").str.contains("a").alias("has_a"),
-    ).sort("customer_id").to_dicts()
+    def name_columns(relation):
+        return relation.select(
+            "customer_id",
+            ma.col("name").str.to_uppercase().alias("shout"),
+            ma.col("name").str.contains("a").alias("has_a"),
+        ).sort("customer_id").to_dicts()
+
+    names = name_columns(ma.relation(customers))
+    duck = ibis.duckdb.connect()
+    on_duckdb = name_columns(ma.relation(duck.create_table("customers", customers.to_arrow())))
+    assert on_duckdb == names
     dates = ma.relation(orders_frame()).select(
         "order_id",
         ma.col("ordered_at").dt.year().alias("year"),

@@ -5,7 +5,7 @@ How do I test a plan on a small extract and run it on the full table?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/dev_to_prod/example.py
+hatch run test:python examples/dev_to_prod/example.py
 ```
 
 Expected output:

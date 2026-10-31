@@ -5,7 +5,7 @@ How do I load a multi-table package, derive a relation, check its foreign key an
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/datapackage_dag/example.py
+hatch run test:python examples/datapackage_dag/example.py
 ```
 
 Expected output:

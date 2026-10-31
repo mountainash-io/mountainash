@@ -5,7 +5,7 @@ How do I combine a database table, a file and plain Python data?
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/many_sources_one_plan/example.py
+hatch run test:python examples/many_sources_one_plan/example.py
 ```
 
 Expected output:

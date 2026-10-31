@@ -7,7 +7,7 @@ The pipelines API is evolving, so expect names and behaviour to change between v
 [example.py](example.py): run from the repository root, after the [shared setup](../README.md#setup):
 
 ```bash
-python examples/pipelines/example.py
+hatch run test:python examples/pipelines/example.py
 ```
 
 Expected output:
