@@ -188,7 +188,7 @@
   },
   "landing_state": {
     "index.md": {
-      "content_hash": "sha256:ff6825d3701db4cd2168ce35a6b2cbd5c2fa8519b702eb63ce35a1b2577fbc61",
+      "content_hash": "sha256:aa5e73f408f7bb80c1a8bb67424d4278e1d316b67a69ff93a3c25b701bd5f13e",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
@@ -212,7 +212,7 @@
       "last_generated": "2026-10-31"
     },
     "about.md": {
-      "content_hash": "sha256:95b53c925ae14c734368be5d2b703f1789413b08d2f8e9d88363518299f11c23",
+      "content_hash": "sha256:b5b2de97f57f2d1a48828f99daf7062d791aecd8603bc8d2e3e73eb6d8330910",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "LICENSE": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -331,6 +331,21 @@
       "learning_graph_nodes_updated": [],
       "tokens_used": null,
       "note": "Home page uplift for the positioning audience: develop-locally/run-in-production and mixed-source examples (run for real; production engine limited to dialects that run the full cross-backend suite). Source unchanged."
+    },
+    {
+      "date": "2026-10-31",
+      "from_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [],
+      "sections_regenerated": [],
+      "faq_questions_updated": 0,
+      "landing_pages_updated": [
+        "index.md",
+        "about.md"
+      ],
+      "learning_graph_nodes_updated": [],
+      "tokens_used": null,
+      "note": "Ecosystem consistency: experimental (not production-ready) notice on About and Back to Ecosystem link on Home. Source unchanged."
     }
   ]
 }
