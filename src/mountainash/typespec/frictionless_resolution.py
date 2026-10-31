@@ -8,7 +8,7 @@ from mountainash_transport.location import LocationNotAllowed
 
 from mountainash.typespec.descriptor_context import DescriptorContext, DescriptorKind
 from mountainash.typespec.errors import (
-    clean_cause,
+    raise_with_cause,
     DescriptorError,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
@@ -110,7 +110,7 @@ def resolve_descriptor_mapping(
                 **_policy_kwargs(context),
             )
         except MissingDescriptorBase as exc:
-            raise MissingDescriptorBase(
+            raise_with_cause(MissingDescriptorBase(
                 str(exc),
                 descriptor_kind=expected_kind.value,
                 descriptor_path=location.descriptor_path,
@@ -118,9 +118,9 @@ def resolve_descriptor_mapping(
                 reference=exc.reference,
                 rejected_value=value,
                 required_form="absolute URI or relative reference with base URI",
-            ) from clean_cause(exc)
+            ), exc)
         except DescriptorReferenceNotFound as exc:
-            raise DescriptorReferenceNotFound(
+            raise_with_cause(DescriptorReferenceNotFound(
                 str(exc),
                 descriptor_kind=expected_kind.value,
                 descriptor_path=location.descriptor_path,
@@ -130,13 +130,13 @@ def resolve_descriptor_mapping(
                 expected_kind=exc.expected_kind,
                 rejected_value=value,
                 required_form="existing descriptor document",
-            ) from clean_cause(exc)
+            ), exc)
         except LocationNotAllowed:
             raise
         except DescriptorError:
             raise
         except Exception as exc:
-            raise DescriptorReferenceInvalid(
+            raise_with_cause(DescriptorReferenceInvalid(
                 "descriptor reference could not be resolved",
                 descriptor_kind=expected_kind.value,
                 descriptor_path=location.descriptor_path,
@@ -145,7 +145,7 @@ def resolve_descriptor_mapping(
                 expected_kind=expected_kind.value,
                 rejected_value=value,
                 required_form=f"resolvable {expected_kind.value} JSON reference",
-            ) from clean_cause(exc)
+            ), exc)
         reference = value
     else:
         raw = value
@@ -172,7 +172,7 @@ def resolve_descriptor_mapping(
     except InvalidDescriptorStructure as exc:
         if reference is None:
             raise
-        raise DescriptorReferenceInvalid(
+        raise_with_cause(DescriptorReferenceInvalid(
             "resolved descriptor has an invalid structure",
             descriptor_kind=expected_kind.value,
             descriptor_path=location.descriptor_path,
@@ -181,7 +181,7 @@ def resolve_descriptor_mapping(
             expected_kind=expected_kind.value,
             rejected_value=exc.rejected_value,
             required_form=exc.required_form,
-        ) from clean_cause(exc)
+        ), exc)
     return raw
 
 

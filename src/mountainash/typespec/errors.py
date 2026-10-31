@@ -2,27 +2,44 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+import os
 from os import PathLike
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 from mountainash.core.errors import MountainashError
 
 if TYPE_CHECKING:
     from mountainash.typespec.universal_types import UniversalType
 
-# scheme "://" then userinfo (no "/", "?", "#" or whitespace) then "@".
-_USERINFO = re.compile(r"(?P<scheme>[A-Za-z][A-Za-z0-9+.\-]*://)[^/?#\s@]*@")
+# A URL, including the ``scheme:/`` form ``pathlib`` leaves after collapsing ``//``.
+_URL = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:/{1,2}[^\s'\"<>]+")
+_USERINFO = re.compile(r"^(?P<prefix>[^:]+:/+)[^/?#@]*@")
+_QUERY_VALUE = re.compile(r"(?P<key>[?&][^=&#]*=)[^&#]*")
 
 
-def redact_userinfo(text: str) -> str:
-    """Replace the userinfo of every ``scheme://userinfo@`` in *text* with ``***``."""
-    return _USERINFO.sub(lambda m: f"{m.group('scheme')}***@", text)
+def _redact_url(match: re.Match[str]) -> str:
+    url = _USERINFO.sub(r"\g<prefix>***@", match.group(0))
+    return _QUERY_VALUE.sub(r"\g<key>***", url)
+
+
+def redact_url_secrets(text: str) -> str:
+    """Mask URL userinfo and query-string values in *text* with ``***`` (same object if none)."""
+    redacted = _URL.sub(_redact_url, text)
+    return text if redacted == text else redacted
 
 
 def _redact(value: Any) -> Any:
-    """Return *value* with URL userinfo redacted; the same object when nothing changes."""
+    """Return *value* with URL secrets redacted; the same object when nothing changes.
+
+    A path-like value carrying a secret becomes its redacted string.
+    """
     if isinstance(value, str):
-        return redact_userinfo(value)
+        return redact_url_secrets(value)
+    if isinstance(value, PathLike):
+        text = os.fspath(value)
+        if isinstance(text, str) and redact_url_secrets(text) != text:
+            return redact_url_secrets(text)
+        return value
     if isinstance(value, Mapping):
         pairs = [(key, item, _redact(key), _redact(item)) for key, item in value.items()]
         if all(new_key is key and new_item is item for key, item, new_key, new_item in pairs):
@@ -36,30 +53,43 @@ def _redact(value: Any) -> Any:
     return value
 
 
-def clean_cause(exc: BaseException, source: object = None) -> BaseException | None:
-    """Return *exc* for chaining unless it may carry URL userinfo.
-
-    *source* is the caller's input; when it carries userinfo the cause is dropped
-    outright, because native errors may echo it in a form the regex cannot see
-    (``Path`` collapses ``https://`` to ``https:/``).
-    """
-    if isinstance(source, (str, PathLike)) and redact_userinfo(str(source)) != str(source):
+def _clean_cause(exc: BaseException, source: object) -> BaseException | None:
+    """Return *exc* for chaining unless it, its chain, or the caller's input carries a URL secret."""
+    if _redact(source) is not source:
         return None
-    current: BaseException | None = exc
+    pending: list[BaseException | None] = [exc]
     seen: set[int] = set()
-    while current is not None and id(current) not in seen:
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
         seen.add(id(current))
         text = repr(current) + repr(getattr(current, "__dict__", {}))
-        if redact_userinfo(text) != text:
+        if redact_url_secrets(text) != text:
             return None
-        current = current.__cause__ or (None if current.__suppress_context__ else current.__context__)
+        pending += [current.__cause__, current.__context__]
     return exc
+
+
+def raise_with_cause(error: BaseException, cause: BaseException, source: object = None) -> NoReturn:
+    """Raise *error* chained to *cause* only when no link carries a URL secret.
+
+    A dropped cause is removed from ``__context__`` too, so no part of the chain
+    (displayed or suppressed) retains it. *source* is the caller's input: native
+    errors may echo it in forms the redactor cannot see, so a secret-bearing
+    source always drops the cause.
+    """
+    kept = _clean_cause(cause, source)
+    try:
+        raise error from kept
+    finally:
+        error.__context__ = kept
 
 
 class DescriptorError(MountainashError):
     """Base for descriptor decoding, encoding, and reference errors.
 
-    The message and every attribute are stored with URL userinfo redacted.
+    The message and every attribute are stored with URL secrets redacted.
     """
 
     def __init__(
@@ -75,7 +105,7 @@ class DescriptorError(MountainashError):
         rejected_value: Any = None,
         required_form: str | None = None,
     ) -> None:
-        super().__init__(redact_userinfo(message))
+        super().__init__(redact_url_secrets(message))
         self.descriptor_kind = _redact(descriptor_kind)
         self.descriptor_path = _redact(descriptor_path)
         self.resource_name = _redact(resource_name)

@@ -25,8 +25,8 @@ from mountainash_transport.location import (
     require_known_scheme,
 )
 from mountainash.typespec.errors import (
-    clean_cause,
-    redact_userinfo,
+    raise_with_cause,
+    redact_url_secrets,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
     InvalidDescriptorStructure,
@@ -167,7 +167,7 @@ def _normalize_remote_netloc(parts: Any) -> str:
     try:
         port = parts.port
     except ValueError as exc:
-        raise ValueError("URI has an invalid port") from clean_cause(exc)
+        raise_with_cause(ValueError("URI has an invalid port"), exc)
     default_port = (parts.scheme.lower() == "http" and port == 80) or (
         parts.scheme.lower() == "https" and port == 443
     )
@@ -191,11 +191,11 @@ def _file_uri_path(value: str, *, reference: str) -> Path:
     try:
         return Path(local_path(value)).resolve()
     except LocationNotAllowed as exc:
-        raise _invalid_reference(
+        raise_with_cause(_invalid_reference(
             reference,
             normalized_reference=value,
             message=f"invalid file URI: {exc}",
-        ) from clean_cause(exc)
+        ), exc)
 
 
 def normalize_base_uri(value: str | Path | None) -> str | None:
@@ -210,7 +210,7 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
     try:
         parts = urlsplit(value)
     except ValueError as exc:
-        raise _base_error(value, "descriptor base URI is malformed") from clean_cause(exc)
+        raise_with_cause(_base_error(value, "descriptor base URI is malformed"), exc)
     if not parts.scheme:
         path = Path(value)
         if not path.is_absolute():
@@ -224,14 +224,14 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
         try:
             return _file_uri_path(value, reference=value).as_uri() + "/"
         except DescriptorReferenceInvalid as exc:
-            raise _base_error(value, str(exc)) from clean_cause(exc)
+            raise_with_cause(_base_error(value, str(exc)), exc)
 
     if not parts.netloc:
         raise _base_error(value, "descriptor base URI must be hierarchical")
     try:
         return _canonical_remote_uri(value, trailing_slash=True)
     except ValueError as exc:
-        raise _base_error(value, str(exc)) from clean_cause(exc)
+        raise_with_cause(_base_error(value, str(exc)), exc)
 
 
 def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
@@ -239,10 +239,10 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
     try:
         parts = urlsplit(reference)
     except ValueError as exc:
-        raise DescriptorReferenceInvalid(
+        raise_with_cause(DescriptorReferenceInvalid(
             "descriptor reference is malformed",
             reference=reference,
-        ) from clean_cause(exc)
+        ), exc)
     if not parts.scheme:
         path = Path(reference)
         if path.is_absolute():
@@ -262,11 +262,11 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         try:
             return _canonical_remote_uri(joined)
         except ValueError as exc:
-            raise DescriptorReferenceInvalid(
+            raise_with_cause(DescriptorReferenceInvalid(
                 "descriptor reference is not a hierarchical URI",
                 reference=reference,
                 normalized_reference=joined,
-            ) from clean_cause(exc)
+            ), exc)
 
     scheme = parts.scheme.lower()
     if scheme == "file":
@@ -278,10 +278,10 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         # resolver can apply its scheme policy (which denies them by default).
         if parts.scheme and not parts.netloc:
             return urlunsplit((scheme, parts.netloc, parts.path, parts.query, parts.fragment))
-        raise DescriptorReferenceInvalid(
+        raise_with_cause(DescriptorReferenceInvalid(
             "descriptor reference is not a hierarchical URI",
             reference=reference,
-        ) from clean_cause(exc)
+        ), exc)
 
 
 def descriptor_cache_key(
@@ -310,12 +310,12 @@ def _parse_descriptor_bytes(
     try:
         descriptor = json.loads(payload)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise DescriptorReferenceInvalid(
+        raise_with_cause(DescriptorReferenceInvalid(
             "resolved descriptor is not valid JSON",
             reference=reference,
             normalized_reference=normalized_reference,
             expected_kind=_expected_kind_value(expected_kind),
-        ) from clean_cause(exc)
+        ), exc)
     if not isinstance(descriptor, Mapping):
         raise DescriptorReferenceInvalid(
             "resolved descriptor must have a mapping root",
@@ -352,15 +352,15 @@ class DefaultDescriptorResolver:
                 payload = Path(path).read_bytes()
             else:
                 if policy is None:
-                    raise LocationNotAllowed(redact_userinfo(reference), "remote not allowed")
+                    raise LocationNotAllowed(redact_url_secrets(reference), "remote not allowed")
                 payload = facade_read_bytes(normalized, policy)
         except _STORAGE_NOT_FOUND_ERRORS as exc:
-            raise DescriptorReferenceNotFound(
+            raise_with_cause(DescriptorReferenceNotFound(
                 "descriptor reference does not exist",
                 reference=reference,
                 normalized_reference=normalized,
                 expected_kind=_expected_kind_value(expected_kind),
-            ) from clean_cause(exc)
+            ), exc)
         return _parse_descriptor_bytes(
             payload,
             reference=reference,
