@@ -69,6 +69,11 @@ Recipes take these tables, or a subset of them, wherever they need data.
 
 | Recipe | Question |
 |---|---|
+| [Joins and set operations](joins_and_set_operations/) | How do I join two relations, find unmatched rows and stack relations? |
+| [Results and egress](results_and_egress/) | How do I get rows out of a relation as dicts, dataclasses or Pydantic models? |
+| [Python data in](python_data_in/) | How do I start a relation from Python records? |
+| [Explain and snapshots](explain_and_snapshots/) | How do I inspect a plan, compare data across engines and freeze a result? |
+| [Execution targets and limits](execution_targets_and_limits/) | How do I choose where a join runs, and what happens when a backend refuses an operation? |
 
 ## Schemas and data quality
 
