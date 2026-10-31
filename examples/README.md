@@ -52,6 +52,9 @@ Recipes take these tables, or a subset of them, wherever they need data.
 | Recipe | Question |
 |---|---|
 | [First plan](first_plan/) | How do I build a plan and collect the result? |
+| [One plan, many backends](one_plan_many_backends/) | How do I run the same plan on Polars, pandas and a SQL engine? |
+| [Develop locally, run in production](dev_to_prod/) | How do I test a plan on a small extract and run it on the full table? |
+| [Many sources, one plan](many_sources_one_plan/) | How do I combine a database table, a file and plain Python data? |
 
 ## Expressions
 
