@@ -188,7 +188,7 @@
   },
   "landing_state": {
     "index.md": {
-      "content_hash": "sha256:aa5e73f408f7bb80c1a8bb67424d4278e1d316b67a69ff93a3c25b701bd5f13e",
+      "content_hash": "sha256:6dc3eafe00fb9bab3858737187d60c77bce0617f546522575cfc9107eaaf614f",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
@@ -346,6 +346,20 @@
       "learning_graph_nodes_updated": [],
       "tokens_used": null,
       "note": "Ecosystem consistency: experimental (not production-ready) notice on About and Back to Ecosystem link on Home. Source unchanged."
+    },
+    {
+      "date": "2026-10-31",
+      "from_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [],
+      "sections_regenerated": [],
+      "faq_questions_updated": 0,
+      "landing_pages_updated": [
+        "index.md"
+      ],
+      "learning_graph_nodes_updated": [],
+      "tokens_used": null,
+      "note": "Experimental (not production-ready) notice on Home under the lead. Source unchanged."
     }
   ]
 }

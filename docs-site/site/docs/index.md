@@ -9,6 +9,9 @@ description: 'Write tabular data logic once with a Polars-style API and run it o
 
 **One Polars-style plan for every place your data lives: local files, dataframes and databases.**
 
+!!! warning "Experimental"
+    mountainash 0.1.0 is experimental and not yet ready for production use. Its APIs can change between versions, and it is not yet published on PyPI.
+
 Most data work spans several sources and engines. A model starts in a notebook on a Parquet extract, joins a reference CSV that someone keeps by hand, and ends up running against a database table. Each step usually means rewriting the same filters, joins and aggregates in another API, and the copies drift apart.
 
 mountainash lets you write that logic once. You build expressions and relational plans with Polars method names, and the package compiles each plan for the engine that holds the data: native Polars, the libraries Narwhals reaches (pandas, PyArrow and others) or SQL engines through Ibis. Schemas, conformance, data contracts and validation run on the same plans, so the rules travel with the logic.
@@ -23,7 +26,6 @@ import polars as pl
 
 import mountainash as ma
 
-
 def customer_revenue(orders):
     return (
         ma.relation(orders)
@@ -32,7 +34,6 @@ def customer_revenue(orders):
         .agg(ma.col("amount").sum().alias("revenue"))
         .sort("customer_id")
     )
-
 
 # Development: a local Parquet extract, run on Polars.
 dev_orders = pl.read_parquet("orders_extract.parquet")
@@ -156,6 +157,3 @@ A capability registry records what each backend and SQL dialect can do. When a d
 - [Installation and the package surface](chapters/02-installation-and-package-surface/index.md) lists the extras each backend needs.
 - The [chapter list](chapters/index.md) shows everything the documentation covers.
 - [About](about.md) has the design ideas, authorship, the license and the link to the code repository.
-
-!!! warning "Experimental"
-    mountainash 0.1.0 is experimental and not yet ready for production use. Its APIs can change between versions, and it is not yet published on PyPI. Work from a source checkout as described in [Installation and the package surface](chapters/02-installation-and-package-surface/index.md#base-install-and-extras).
