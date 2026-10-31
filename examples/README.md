@@ -60,6 +60,10 @@ Recipes take these tables, or a subset of them, wherever they need data.
 
 | Recipe | Question |
 |---|---|
+| [Expressions](expressions/) | How do I compute, branch, cast and handle nulls in a column expression? |
+| [Namespaces](namespaces/) | How do I use string and date methods on a column? |
+| [Aggregates and windows](aggregates_and_windows/) | How do I total per group and attach the group total to every row? |
+| [Ternary logic](ternary_logic/) | How do I keep rows whose comparison is unknown instead of dropping them silently? |
 
 ## Relations and results
 
