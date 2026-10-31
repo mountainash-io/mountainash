@@ -188,7 +188,7 @@
   },
   "landing_state": {
     "index.md": {
-      "content_hash": "sha256:5e93ce5a93cff7563f628afbb3197ec29051a063c75ae9de8a703f0c18668926",
+      "content_hash": "sha256:ff6825d3701db4cd2168ce35a6b2cbd5c2fa8519b702eb63ce35a1b2577fbc61",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
@@ -317,6 +317,20 @@
       "learning_graph_nodes_updated": [],
       "tokens_used": null,
       "note": "Editorial voice pass (humanizer plus active, positive restatement) over all chapters, FAQ, glossary and site pages. Prose only: code blocks, outputs, headings, concept markers, link targets, admonition headers and generated blocks byte-identical. Source unchanged."
+    },
+    {
+      "date": "2026-10-31",
+      "from_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [],
+      "sections_regenerated": [],
+      "faq_questions_updated": 0,
+      "landing_pages_updated": [
+        "index.md"
+      ],
+      "learning_graph_nodes_updated": [],
+      "tokens_used": null,
+      "note": "Home page uplift for the positioning audience: develop-locally/run-in-production and mixed-source examples (run for real; production engine limited to dialects that run the full cross-backend suite). Source unchanged."
     }
   ]
 }

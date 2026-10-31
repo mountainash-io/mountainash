@@ -1,17 +1,108 @@
 ---
 title: 'mountainash'
-description: 'Write tabular data logic once with a Polars-style API and run it on Polars, on the libraries Narwhals reaches and on SQL engines through Ibis, with Frictionless-aligned schemas, conformance and validation on the same plan.'
+description: 'Write tabular data logic once with a Polars-style API and run it on local files, dataframes and databases: develop on Polars against a local extract and run the same plan in a SQL engine, or mix sources in one plan, with schemas, conformance and validation on the same plans.'
 ---
 
 [← Back to Ecosystem](https://docs.mountainash.io/)
 
 # mountainash
 
-**Tabular data logic written once with a Polars-style API, compiled to Polars, to the libraries Narwhals reaches and to SQL engines through Ibis.**
+**One Polars-style plan for every place your data lives: local files, dataframes and databases.**
 
-Data logic often moves between engines. A filter and an aggregate get written against Polars for a notebook, then again in pandas for a service that already uses it, then as SQL when the same table moves into DuckDB or PostgreSQL. The cleaning rules and quality checks follow, each copy drifting a little from the others until the reference version is hard to identify.
+Most data work spans several sources and engines. A model starts in a notebook on a Parquet extract, joins a reference CSV that someone keeps by hand, and ends up running against a database table. Each step usually means rewriting the same filters, joins and aggregates in another API, and the copies drift apart.
 
-mountainash keeps that logic in one place. You describe expressions and relational plans with Polars method names, and when you ask for a result the package compiles them for whichever engine holds the data. Table schemas follow the Frictionless Table Schema shape. Conforming data to a schema, data contracts and validation build on the same plans, so they run wherever the data does. A capability registry records what each backend and SQL dialect can do, and mountainash stops a call that a dialect's declarations forbid before the call runs.
+mountainash lets you write that logic once. You build expressions and relational plans with Polars method names, and the package compiles each plan for the engine that holds the data: native Polars, the libraries Narwhals reaches (pandas, PyArrow and others) or SQL engines through Ibis. Schemas, conformance, data contracts and validation run on the same plans, so the rules travel with the logic.
+
+## Develop locally, run in production
+
+Build a model against a small local extract on Polars, then point the same function at the full table in the database. The plan code stays the same; only the source changes:
+
+```python
+import ibis
+import polars as pl
+
+import mountainash as ma
+
+
+def customer_revenue(orders):
+    return (
+        ma.relation(orders)
+        .filter(ma.col("amount").is_not_null())
+        .group_by("customer_id")
+        .agg(ma.col("amount").sum().alias("revenue"))
+        .sort("customer_id")
+    )
+
+
+# Development: a local Parquet extract, run on Polars.
+dev_orders = pl.read_parquet("orders_extract.parquet")
+print(customer_revenue(dev_orders).to_dicts())
+
+# Production: the full table in the database, run as SQL.
+warehouse = ibis.duckdb.connect("warehouse.duckdb")
+prod_orders = warehouse.table("orders")
+print(customer_revenue(prod_orders).to_dicts())
+```
+
+```text
+[{'customer_id': 10, 'revenue': 120.0}, {'customer_id': 11, 'revenue': 80.0}, {'customer_id': 12, 'revenue': 200.0}]
+[{'customer_id': 10, 'revenue': 120.0}, {'customer_id': 11, 'revenue': 130.0}, {'customer_id': 12, 'revenue': 295.0}]
+```
+
+The first call ran on Polars over the four orders in the extract. The second compiled the same plan to SQL and ran it inside DuckDB over all six orders. Promoting the model from development to production is a change of input, and the logic you tested is the logic that runs.
+
+Among SQL engines, DuckDB and SQLite run mountainash's full cross-backend test suite, as do native Polars and, through Narwhals, pandas, Polars and lazy frames. PostgreSQL, MySQL, Exasol and SingleStoreDB have capability declarations of their own. [Backend support and known limits](chapters/16-backend-support-and-limits/index.md) lists the support level and known differences for each dialect.
+
+## Mix sources in one plan
+
+A plan can combine a database table, a local file and plain Python data. Here orders live in a DuckDB database, the customer list comes from a CSV file, and the revenue targets are a list of dicts:
+
+```python
+import ibis
+import polars as pl
+
+import mountainash as ma
+
+orders = ibis.duckdb.connect("warehouse.duckdb").table("orders")  # database table
+customers = pl.read_csv("customers.csv")                          # local file
+targets = [                                                       # plain Python data
+    {"region": "north", "target": 100.0},
+    {"region": "south", "target": 150.0},
+    {"region": "east", "target": 250.0},
+]
+
+report = (
+    ma.relation(orders)
+    .join(customers, on="customer_id")
+    .group_by("region")
+    .agg(ma.col("amount").sum().alias("revenue"))
+    .join(targets, on="region")
+    .with_columns((ma.col("revenue") >= ma.col("target")).alias("on_target"))
+    .sort("region")
+)
+print(report.to_polars())
+```
+
+```text
+shape: (3, 4)
+┌────────┬─────────┬────────┬───────────┐
+│ region ┆ revenue ┆ target ┆ on_target │
+│ ---    ┆ ---     ┆ ---    ┆ ---       │
+│ str    ┆ f64     ┆ f64    ┆ bool      │
+╞════════╪═════════╪════════╪═══════════╡
+│ east   ┆ 295.0   ┆ 250.0  ┆ true      │
+│ north  ┆ 120.0   ┆ 100.0  ┆ true      │
+│ south  ┆ 130.0   ┆ 150.0  ┆ false     │
+└────────┴─────────┴────────┴───────────┘
+```
+
+A join runs where its left side lives, so the whole plan ran inside DuckDB. mountainash moved the CSV frame and the targets into the DuckDB connection through Arrow before running it, and `report.explain()` lists both moves as `transfer` lines. `execute_on=` chooses the other side when you want the work done locally. [Joins](chapters/07-relations/index.md#joins) and [Operand transfer and owned copies](chapters/09-execution-targets-and-capabilities/index.md#operand-transfer-and-owned-copies) describe the rules.
+
+## Rules that travel with the data
+
+Table schemas follow the Frictionless Table Schema shape, and a DataPackage reads and writes Frictionless descriptors. `conform()` turns raw input into the typed columns a schema declares, and its drift report shows where the source differed. Data contracts and validation rules compile to the same plans as everything else, so a quality check written against the local extract runs unchanged in the database.
+
+A capability registry records what each backend and SQL dialect can do. When a dialect's declarations forbid a call, mountainash stops it before it runs and names the backend in the error, so a difference between development and production shows up as a clear refusal.
 
 ## Who it's for
 
@@ -58,48 +149,6 @@ mountainash keeps that logic in one place. You describe expressions and relation
     [Architecture](chapters/17-architecture/index.md)
 
 </div>
-
-## See it work
-
-One function describes a plan. The same function runs on a Polars frame and on a DuckDB table opened through Ibis:
-
-```python
-import ibis
-import polars as pl
-
-import mountainash as ma
-
-orders = pl.DataFrame(
-    {
-        "region": ["north", "south", "north", "south", "east"],
-        "amount": [120.0, 80.0, None, 200.0, 50.0],
-    }
-)
-
-
-def revenue_by_region(source):
-    return (
-        ma.relation(source)
-        .filter(ma.col("amount") > 60)
-        .group_by("region")
-        .agg(ma.col("amount").sum().alias("revenue"))
-        .sort("region")
-    )
-
-
-con = ibis.duckdb.connect()
-duck_orders = con.create_table("orders", orders.to_arrow())
-
-print(revenue_by_region(orders).to_dicts())
-print(revenue_by_region(duck_orders).to_dicts())
-```
-
-```text
-[{'region': 'north', 'revenue': 120.0}, {'region': 'south', 'revenue': 280.0}]
-[{'region': 'north', 'revenue': 120.0}, {'region': 'south', 'revenue': 280.0}]
-```
-
-The first call ran on Polars and the second ran as SQL inside DuckDB, with the same plan code and the same result.
 
 ## Where to go next
 
