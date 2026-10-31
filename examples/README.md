@@ -88,6 +88,8 @@ Recipes take these tables, or a subset of them, wherever they need data.
 
 | Recipe | Question |
 |---|---|
+| [DataPackage as a DAG](datapackage_dag/) | How do I load a multi-table package, derive a relation, check its foreign key and export it again? |
+| [Pipelines](pipelines/) | How do I run a chain of units with a checkpoint and resume without redoing finished work? |
 
 ## Extending
 
