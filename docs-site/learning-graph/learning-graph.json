@@ -1,3436 +1,3513 @@
 {
   "metadata": {
-    "title": "Mountainash Package Concept Graph",
-    "description": "A concept dependency graph covering the mountainash cross-backend data expression and relational pipeline library. 200 concepts across 11 taxonomy categories spanning core infrastructure, expression system, relation system, type system, DAG orchestration, and pipeline framework.",
+    "title": "Mountainash Concept Graph",
+    "description": "Internal concept dependency graph for the mountainash package documentation rebuild: foundations and ecosystem, package surface, expressions and namespaces, ternary logic, relations, execution targets, types and schemas, conformance, data contracts and validation, RelationDAG and pipelines, Python data ingress/egress, architecture, capabilities, backends, and extension/maintenance.",
     "creator": "Nathaniel Ramm",
-    "date": "2026-06-03",
-    "version": "2.0",
+    "date": "2026-10-30",
+    "version": "3.0",
     "format": "Learning Graph JSON v1.0",
     "schema": "https://raw.githubusercontent.com/dmccreary/learning-graphs/refs/heads/main/src/schema/learning-graph-schema.json",
-    "license": "CC BY-NC-SA 4.0 DEED",
-    "source_commit": "00e99834097053e30395b1943913b8b4a74a6e28",
-    "profile_dir": "03.profile/mountainash"
+    "license": "Apache-2.0 AND MIT (package licence; see LICENSE and NOTICE)",
+    "source_repository": "mountainash-io/mountainash",
+    "source_revision": "0a625ad1d1cc8b436b9fc66b027ac80fdff466ae",
+    "profile_revision": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+    "editorial_brief": "docs-site/editorial-brief.md (confirmed 2026-10-30)",
+    "tool_revision": "mountainash-ibook-skills 36c2babce38a51ee6886eb2e783bce9899aefef6",
+    "id_policy": "Replacement graph (editorial brief: reuse none, confirmed 2026-10-30). IDs start at 301 so no ID from the retired 2.0 graph (IDs 1-200, baseline 00e99834) is reused with a different meaning. ibook graph reconcile against the retired graph reports all 200 enriched concepts as removed and 18 labels re-used under new IDs (302,305,313,324,336-339,344,361,366,400,406,409,411,452,498,499); this is the deliberate retirement, not an identity match: re-used labels are re-derived from current source and carry no prior enrichment. Gaps between ID blocks are intentional and are never renumbered.",
+    "source_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+    "profile_dir": "docs-site/profile",
+    "enrichment": "Curated concept-to-module mapping from the approved chapter plan sources and module profiles (2026-10-31); unmapped concepts are conceptual or repository-level (pyproject, tests, conventions)."
   },
   "groups": {
-    "FOUND": {
-      "classifierName": "Foundation Concepts",
+    "ARCH": {
+      "classifierName": "Architecture: Protocols, Registries and Visitors",
       "color": "SteelBlue",
       "font": {
         "color": "white"
       }
     },
-    "INFRA": {
-      "classifierName": "Core Infrastructure",
+    "BACK": {
+      "classifierName": "Backends",
       "color": "DarkSlateBlue",
       "font": {
         "color": "white"
       }
     },
-    "EXAPI": {
-      "classifierName": "Expression API",
+    "CAP": {
+      "classifierName": "Capabilities and Backend Support",
       "color": "DarkGreen",
       "font": {
         "color": "white"
       }
     },
-    "EXAST": {
-      "classifierName": "Expression AST & System",
+    "CONF": {
+      "classifierName": "Schema Conformance",
       "color": "LimeGreen",
       "font": {
         "color": "black"
       }
     },
-    "EXBAK": {
-      "classifierName": "Expression Backends",
+    "EXEC": {
+      "classifierName": "Execution Targets and Materialization",
       "color": "Gold",
       "font": {
         "color": "black"
       }
     },
-    "RLAPI": {
-      "classifierName": "Relation API",
+    "EXPR": {
+      "classifierName": "Expression API",
+      "color": "DarkGoldenrod",
+      "font": {
+        "color": "white"
+      }
+    },
+    "EXT": {
+      "classifierName": "Extending and Maintaining",
+      "color": "Khaki",
+      "font": {
+        "color": "black"
+      }
+    },
+    "FOUND": {
+      "classifierName": "Foundations and Ecosystem",
       "color": "Teal",
       "font": {
         "color": "white"
       }
     },
-    "RLAST": {
-      "classifierName": "Relation AST & System",
+    "ORCH": {
+      "classifierName": "RelationDAG and Pipelines",
       "color": "DodgerBlue",
       "font": {
         "color": "white"
       }
     },
-    "RLBAK": {
-      "classifierName": "Relation Backends",
+    "PYD": {
+      "classifierName": "Python Data Ingress and Egress",
+      "color": "LightSkyBlue",
+      "font": {
+        "color": "black"
+      }
+    },
+    "QUAL": {
+      "classifierName": "Data Contracts and Validation",
       "color": "Crimson",
       "font": {
         "color": "white"
       }
     },
-    "TYPES": {
-      "classifierName": "Type System & Schema",
+    "REL": {
+      "classifierName": "Relation API",
+      "color": "DarkRed",
+      "font": {
+        "color": "white"
+      }
+    },
+    "SURF": {
+      "classifierName": "Package Surface and Install",
       "color": "MediumPurple",
       "font": {
         "color": "white"
       }
     },
-    "DAG": {
-      "classifierName": "DAG & DataPackage",
-      "color": "Orange",
+    "TERN": {
+      "classifierName": "Ternary Logic and Booleanization",
+      "color": "Indigo",
       "font": {
-        "color": "black"
+        "color": "white"
       }
     },
-    "PIPE": {
-      "classifierName": "Pipeline Framework",
+    "TYPE": {
+      "classifierName": "Types, Schemas and DataPackage",
       "color": "DarkOrchid",
       "font": {
         "color": "white"
+      }
+    },
+    "XOPS": {
+      "classifierName": "Expression Operations and Namespaces",
+      "color": "HotPink",
+      "font": {
+        "color": "black"
       }
     }
   },
   "nodes": [
     {
-      "id": 1,
-      "label": "Python Type Hints",
+      "id": 301,
+      "label": "Dataframe Libraries and Engines",
       "group": "FOUND",
       "shape": "box",
+      "cis": 1373,
+      "chapter": "01-what-mountainash-does",
       "source_module": null,
       "source_path": null,
-      "chapter": "01-foundations",
       "match_confidence": 0.0
     },
     {
-      "id": 2,
-      "label": "Protocol Classes",
-      "group": "FOUND",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "01-foundations",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 3,
-      "label": "Pydantic Models",
-      "group": "FOUND",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 4,
-      "label": "DataFrames",
-      "group": "FOUND",
-      "shape": "box",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 5,
-      "label": "Polars Library",
-      "group": "FOUND",
-      "source_module": "expressions.backends.polars",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
-      "chapter": "01-foundations",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 6,
-      "label": "Pandas Library",
-      "group": "FOUND",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 7,
-      "label": "Apache Arrow",
-      "group": "FOUND",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 8,
-      "label": "SQL Databases",
-      "group": "FOUND",
-      "shape": "box",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 9,
+      "id": 302,
       "label": "Lazy Evaluation",
       "group": "FOUND",
-      "shape": "box",
+      "cis": 408,
+      "chapter": "01-what-mountainash-does",
       "source_module": null,
       "source_path": null,
-      "chapter": "01-foundations",
       "match_confidence": 0.0
     },
     {
-      "id": 10,
-      "label": "Method Chaining",
+      "id": 303,
+      "label": "Backend-Agnostic Data Logic",
+      "group": "FOUND",
+      "cis": 842,
+      "chapter": "01-what-mountainash-does",
+      "source_module": "toplevel",
+      "source_path": "src/mountainash/__init__.py",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 304,
+      "label": "Abstract Syntax Trees",
       "group": "FOUND",
       "shape": "box",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "01-foundations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 11,
-      "label": "Visitor Pattern",
-      "group": "FOUND",
-      "shape": "box",
-      "source_module": "expressions.core.unified_visitor",
-      "source_path": "src/mountainash/expressions/core/unified_visitor/",
-      "chapter": "01-foundations",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 12,
-      "label": "Directed Acyclic Graph",
-      "group": "FOUND",
-      "shape": "box",
-      "source_module": "graph",
-      "source_path": "src/mountainash/graph/",
-      "chapter": "01-foundations",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 13,
-      "label": "Constants Module",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 14,
-      "label": "Backend Enum",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 15,
-      "label": "Backend System Enum",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 16,
-      "label": "Backend Detection",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 17,
-      "label": "DataFrame Type Guards",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 18,
-      "label": "MountainashDtype",
-      "group": "INFRA",
-      "source_module": "core",
-      "source_path": "src/mountainash/core/",
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 19,
-      "label": "Lazy Import System",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 20,
-      "label": "Factory Pattern",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 21,
-      "label": "BaseFactoryMixin",
-      "group": "INFRA",
-      "source_module": "core",
-      "source_path": "src/mountainash/core/",
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 22,
-      "label": "Operation Enums",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 23,
-      "label": "JoinType Enum",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 24,
-      "label": "SetType Enum",
-      "group": "INFRA",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "02-core-infrastructure",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 25,
-      "label": "col Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 26,
-      "label": "lit Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 27,
-      "label": "Expression Building",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 28,
-      "label": "BaseExpressionAPI",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 29,
-      "label": "BooleanExpressionAPI",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 30,
-      "label": "Fluent Expression Chain",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 31,
-      "label": "Operator Overloading",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 32,
-      "label": "String Namespace",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 33,
-      "label": "Datetime Namespace",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 34,
-      "label": "Struct Namespace",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 35,
-      "label": "List Namespace",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 36,
-      "label": "Name Namespace",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 37,
-      "label": "NamespaceDescriptor",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 38,
-      "label": "when Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 39,
-      "label": "coalesce Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 40,
-      "label": "greatest Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 41,
-      "label": "least Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 42,
-      "label": "native Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "04-expression-namespaces-and-functions",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 43,
-      "label": "Comparison Operations",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 44,
-      "label": "Arithmetic Operations",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 45,
-      "label": "Boolean Operations",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 46,
-      "label": "String Operations",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 47,
-      "label": "Datetime Operations",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 48,
-      "label": "Aggregation Functions",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 49,
-      "label": "Window Functions",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 50,
-      "label": "cast Operation",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 51,
-      "label": "Null Handling",
-      "group": "EXAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "03-expression-api-basics",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 52,
-      "label": "duration Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 53,
-      "label": "count_records Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 54,
-      "label": "corr Function",
-      "group": "EXAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "05-expression-operations",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 55,
-      "label": "ExpressionNode Base",
-      "group": "EXAST",
+      "cis": 666,
+      "chapter": "01-what-mountainash-does",
       "source_module": "expressions.core.expression_nodes",
       "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 56,
-      "label": "ScalarFunctionNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 57,
-      "label": "FieldReferenceNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 58,
-      "label": "LiteralNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 59,
-      "label": "CastNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 60,
-      "label": "IfThenNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 61,
-      "label": "SingularOrListNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 62,
-      "label": "WindowFunctionNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 63,
-      "label": "WindowSpec",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 64,
-      "label": "WindowBound",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 65,
-      "label": "OverNode",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_nodes",
-      "source_path": "src/mountainash/expressions/core/expression_nodes/",
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 66,
-      "label": "Function Key Enums",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "06-expression-ast-and-function-keys",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 67,
-      "label": "FKEY Substrait Prefix",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 68,
-      "label": "FKEY Mountainash Prefix",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 69,
-      "label": "ExpressionFunctionDef",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_system",
-      "source_path": "src/mountainash/expressions/core/expression_system/",
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 70,
-      "label": "ExpressionFunctionRegistry",
-      "group": "EXAST",
-      "source_module": "expressions.core.expression_system",
-      "source_path": "src/mountainash/expressions/core/expression_system/",
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 71,
-      "label": "Function Registry Lookup",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 72,
-      "label": "Substrait Spec Alignment",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 73,
+      "id": 305,
       "label": "Build Then Compile",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 74,
-      "label": "Expression Compilation",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 75,
-      "label": "Unified Expression Visitor",
-      "group": "EXAST",
-      "source_module": "expressions.core.unified_visitor",
-      "source_path": "src/mountainash/expressions/core/unified_visitor/",
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 76,
-      "label": "API Builder Protocols",
-      "group": "EXAST",
+      "group": "FOUND",
+      "cis": 407,
+      "chapter": "01-what-mountainash-does",
       "source_module": "expressions.core.expression_api",
       "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 77,
-      "label": "Expression System Protocols",
-      "group": "EXAST",
-      "source_module": "datacontracts",
-      "source_path": "src/mountainash/datacontracts/",
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.7
+      "id": 306,
+      "label": "Substrait Alignment",
+      "group": "FOUND",
+      "cis": 172,
+      "chapter": "01-what-mountainash-does",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
     },
     {
-      "id": 78,
-      "label": "Mountainash Extensions",
-      "group": "EXAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "07-expression-function-registry",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 79,
-      "label": "PolarsExpressionSystem",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.polars",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 80,
-      "label": "NarwhalsExpressionSystem",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.narwhals",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 81,
-      "label": "IbisExpressionSystem",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.ibis",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/ibis/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 82,
-      "label": "Polars Expr Compilation",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.polars",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 83,
-      "label": "Narwhals Expr Compilation",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.narwhals",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 84,
-      "label": "Ibis Expr Compilation",
-      "group": "EXBAK",
-      "source_module": "expressions.backends.ibis",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/ibis/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 85,
-      "label": "Backend Composition",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 86,
-      "label": "Multiple Inheritance",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 87,
-      "label": "Substrait Compile Files",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 88,
-      "label": "Extension Compile Files",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 89,
-      "label": "Known Expr Limitations",
-      "group": "EXBAK",
+      "id": 307,
+      "label": "Polars-Style Public API",
+      "group": "FOUND",
+      "cis": 178,
+      "chapter": "01-what-mountainash-does",
       "source_module": "expressions.core.expression_api",
       "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 90,
-      "label": "Expression Testing",
-      "group": "EXBAK",
+      "id": 308,
+      "label": "Mountainash Ecosystem Dependencies",
+      "group": "FOUND",
+      "cis": 256,
+      "chapter": "02-installation-and-package-surface",
       "source_module": null,
       "source_path": null,
-      "chapter": "08-expression-backends",
       "match_confidence": 0.0
     },
     {
-      "id": 91,
-      "label": "Cross-Backend Parametrize",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 92,
-      "label": "xfail Known Quirks",
-      "group": "EXBAK",
+      "id": 309,
+      "label": "Three-Valued Logic",
+      "group": "FOUND",
+      "shape": "box",
+      "cis": 27,
+      "chapter": "01-what-mountainash-does",
       "source_module": "expressions.core.expression_api",
       "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 93,
-      "label": "Arguments vs Options",
-      "group": "EXBAK",
+      "id": 310,
+      "label": "Installation and Extras",
+      "group": "SURF",
+      "cis": 255,
+      "chapter": "02-installation-and-package-surface",
       "source_module": null,
       "source_path": null,
-      "chapter": "08-expression-backends",
       "match_confidence": 0.0
     },
     {
-      "id": 94,
-      "label": "Expression Type Generics",
-      "group": "EXBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "08-expression-backends",
-      "match_confidence": 0.0
+      "id": 311,
+      "label": "Top-Level Namespace",
+      "group": "SURF",
+      "cis": 254,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "toplevel",
+      "source_path": "src/mountainash/__init__.py",
+      "match_confidence": 0.9
     },
     {
-      "id": 95,
+      "id": 312,
+      "label": "Lazy Top-Level Imports",
+      "group": "SURF",
+      "cis": 2,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "toplevel",
+      "source_path": "src/mountainash/__init__.py",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 313,
+      "label": "Backend Detection",
+      "group": "SURF",
+      "cis": 55,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "core",
+      "source_path": "src/mountainash/core/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 314,
+      "label": "MountainashError Hierarchy",
+      "group": "SURF",
+      "cis": 6,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "exceptions",
+      "source_path": "src/mountainash/exceptions.py",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 315,
+      "label": "Exceptions Facade",
+      "group": "SURF",
+      "cis": 1,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "exceptions",
+      "source_path": "src/mountainash/exceptions.py",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 316,
+      "label": "Value Classification",
+      "group": "SURF",
+      "cis": 2,
+      "chapter": "02-installation-and-package-surface",
+      "source_module": "core",
+      "source_path": "src/mountainash/core/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 320,
+      "label": "Expression Builder Objects",
+      "group": "EXPR",
+      "cis": 89,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 321,
+      "label": "col",
+      "group": "EXPR",
+      "cis": 39,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 322,
+      "label": "lit",
+      "group": "EXPR",
+      "cis": 2,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 323,
+      "label": "when-then-otherwise",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 324,
+      "label": "Operator Overloading",
+      "group": "EXPR",
+      "cis": 28,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 325,
+      "label": "Expression Compile",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 326,
+      "label": "native Passthrough",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 327,
+      "label": "coalesce greatest and least",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 328,
+      "label": "Horizontal Functions",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 329,
+      "label": "Aggregate Expressions",
+      "group": "EXPR",
+      "cis": 5,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 330,
+      "label": "Window Expressions with over",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 331,
+      "label": "Expression Output Names",
+      "group": "EXPR",
+      "cis": 2,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 332,
+      "label": "AST Introspection",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions",
+      "source_path": "src/mountainash/expressions/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 333,
+      "label": "Membership with is_in",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.membership",
+      "source_path": "src/mountainash/expressions/membership/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 334,
+      "label": "today and now",
+      "group": "EXPR",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 335,
+      "label": "Expression Namespaces",
+      "group": "XOPS",
+      "cis": 9,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 336,
+      "label": "String Namespace",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 337,
+      "label": "Datetime Namespace",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 338,
+      "label": "Name Namespace",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 339,
+      "label": "Struct Namespace",
+      "group": "XOPS",
+      "cis": 2,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 340,
+      "label": "List Namespace and element",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 341,
+      "label": "Categorical Namespace",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 342,
+      "label": "Geospatial Namespace",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "05-namespaces-aggregates-and-windows",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 343,
+      "label": "Arithmetic and Comparison Operations",
+      "group": "XOPS",
+      "cis": 3,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 344,
+      "label": "Boolean Operations",
+      "group": "XOPS",
+      "cis": 24,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 345,
+      "label": "Casting",
+      "group": "XOPS",
+      "cis": 2,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 346,
+      "label": "Null Handling Operations",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 347,
+      "label": "Rounding and Logarithmic Operations",
+      "group": "XOPS",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 350,
+      "label": "Ternary Columns with t_col",
+      "group": "TERN",
+      "cis": 26,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 351,
+      "label": "Sentinel Unknown Values",
+      "group": "TERN",
+      "cis": 1,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 352,
+      "label": "Ternary Comparisons",
+      "group": "TERN",
+      "cis": 1,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 353,
+      "label": "Ternary Logical Operators",
+      "group": "TERN",
+      "cis": 22,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 354,
+      "label": "Booleanization",
+      "group": "TERN",
+      "cis": 21,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 355,
+      "label": "Booleanizer Choices",
+      "group": "TERN",
+      "cis": 1,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 356,
+      "label": "Boolean-Ternary Coercion",
+      "group": "TERN",
+      "cis": 1,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 357,
+      "label": "always_true always_false always_unknown",
+      "group": "TERN",
+      "cis": 1,
+      "chapter": "06-ternary-logic",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 360,
+      "label": "Relation Objects",
+      "group": "REL",
+      "cis": 88,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 361,
       "label": "relation Factory",
-      "group": "RLAPI",
+      "group": "REL",
+      "cis": 6,
+      "chapter": "07-relations",
+      "source_module": "relations",
+      "source_path": "src/mountainash/relations/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 362,
+      "label": "Filter",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 96,
-      "label": "Relation Class",
-      "group": "RLAPI",
+      "id": 363,
+      "label": "Select and with_columns",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 97,
-      "label": "RelationBase",
-      "group": "RLAPI",
+      "id": 364,
+      "label": "Sort Head and Tail",
+      "group": "REL",
+      "cis": 2,
+      "chapter": "07-relations",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 98,
-      "label": "Filter Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 99,
-      "label": "Sort Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 100,
-      "label": "Head Fetch Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 101,
-      "label": "Select Project Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 102,
-      "label": "Join Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 103,
-      "label": "Group By Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 104,
-      "label": "GroupedRelation",
-      "group": "RLAPI",
+      "id": 365,
+      "label": "Joins",
+      "group": "REL",
+      "cis": 3,
+      "chapter": "07-relations",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "10-relation-api-core",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 105,
-      "label": "Aggregation on Groups",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 106,
-      "label": "Set Operations",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 107,
-      "label": "concat Function",
-      "group": "RLAPI",
+      "id": 366,
+      "label": "Cross-Type Joins",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "10-relation-api-core",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 108,
-      "label": "Conform Operation",
-      "group": "RLAPI",
+      "id": 367,
+      "label": "As-Of Joins",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 368,
+      "label": "Group By and Aggregate",
+      "group": "REL",
+      "cis": 2,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 369,
+      "label": "Unique and Drop Nulls",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 370,
+      "label": "Pivot and Unpivot",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 371,
+      "label": "Explode Unnest and Row Index",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 372,
+      "label": "Sample and Top-K",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 373,
+      "label": "concat",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 374,
+      "label": "from_arrow",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "relations",
+      "source_path": "src/mountainash/relations/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 375,
+      "label": "Relation Schema and Columns",
+      "group": "REL",
+      "cis": 2,
+      "chapter": "07-relations",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 376,
+      "label": "Collect and Terminals",
+      "group": "REL",
+      "cis": 49,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 377,
+      "label": "Egress Formats",
+      "group": "REL",
+      "cis": 4,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 378,
+      "label": "Scalar Terminals",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 379,
+      "label": "explain",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 380,
+      "label": "Fingerprint",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 381,
+      "label": "Snapshots",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 382,
+      "label": "Logical Terminal Requirement",
+      "group": "REL",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "relations.core.relation_api",
+      "source_path": "src/mountainash/relations/core/relation_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 385,
+      "label": "Execution Targets",
+      "group": "EXEC",
+      "cis": 7,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 386,
+      "label": "Execution Locations",
+      "group": "EXEC",
+      "cis": 6,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 387,
+      "label": "Operand Transfer",
+      "group": "EXEC",
+      "cis": 4,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 388,
+      "label": "Materialization Scopes and Checkpoints",
+      "group": "EXEC",
+      "cis": 3,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 389,
+      "label": "Owned Copies",
+      "group": "EXEC",
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 390,
+      "label": "Compilation Reuse",
+      "group": "EXEC",
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations.core.execution",
+      "source_path": "src/mountainash/relations/core/execution/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 391,
+      "label": "Schema Inference and Resolution",
+      "group": "EXEC",
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "relations",
+      "source_path": "src/mountainash/relations/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 395,
+      "label": "Canonical Dtypes",
+      "group": "TYPE",
+      "cis": 67,
+      "chapter": "03-dtypes",
+      "source_module": "core.dtypes",
+      "source_path": "src/mountainash/core/dtypes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 396,
+      "label": "Parameterized Dtypes",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "03-dtypes",
+      "source_module": "core.dtypes",
+      "source_path": "src/mountainash/core/dtypes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 397,
+      "label": "Dtype Parsing",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "03-dtypes",
+      "source_module": "core.dtypes",
+      "source_path": "src/mountainash/core/dtypes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 398,
+      "label": "Cast Safety",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "04-building-expressions",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 399,
+      "label": "Native Type Targets",
+      "group": "TYPE",
+      "cis": 4,
+      "chapter": "03-dtypes",
+      "source_module": "core.dtypes",
+      "source_path": "src/mountainash/core/dtypes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 400,
+      "label": "TableSchema",
+      "group": "TYPE",
+      "cis": 56,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 401,
+      "label": "FieldDefinition and FieldConstraints",
+      "group": "TYPE",
+      "cis": 13,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 402,
+      "label": "table_schema Shortcut",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 403,
+      "label": "Frictionless Table Schema",
+      "group": "TYPE",
+      "cis": 14,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 404,
+      "label": "Universal Types Boundary",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 405,
+      "label": "DataPackage and DataResource",
+      "group": "TYPE",
+      "cis": 11,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 406,
+      "label": "TableDialect",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 407,
+      "label": "Descriptor Read and Write",
+      "group": "TYPE",
+      "cis": 2,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 408,
+      "label": "Descriptor Reference Resolution",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 409,
+      "label": "Schema Extraction",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 410,
+      "label": "Native Schema Conversion",
+      "group": "TYPE",
+      "cis": 2,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 411,
+      "label": "Schema Comparison",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 412,
+      "label": "Custom Semantic Types",
+      "group": "TYPE",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 413,
+      "label": "Missing Values and Labeled Values",
+      "group": "TYPE",
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 414,
+      "label": "Foreign Keys in Schemas",
+      "group": "TYPE",
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 415,
+      "label": "Temporal Parsing",
+      "group": "TYPE",
+      "cis": 3,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 420,
+      "label": "Relation conform",
+      "group": "CONF",
+      "cis": 10,
+      "chapter": "11-conforming-data",
       "source_module": "conform",
       "source_path": "src/mountainash/conform/",
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 109,
-      "label": "Unnest Operation",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 110,
-      "label": "Build Then Collect",
-      "group": "RLAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 111,
-      "label": "Terminal Operations",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 112,
-      "label": "to_polars Method",
-      "group": "RLAPI",
-      "source_module": "expressions.backends.polars",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 113,
-      "label": "to_pandas Method",
-      "group": "RLAPI",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 114,
-      "label": "collect Method",
-      "group": "RLAPI",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "11-relation-api-advanced",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 115,
-      "label": "RelationNode Base",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_api",
-      "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 116,
-      "label": "ReadRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 117,
-      "label": "ProjectRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 118,
-      "label": "FilterRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 119,
-      "label": "AggregateRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 120,
-      "label": "JoinRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 121,
-      "label": "FetchRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 122,
-      "label": "SortRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 123,
-      "label": "SetRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 124,
-      "label": "ExtensionRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 125,
-      "label": "SourceRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 126,
-      "label": "RefRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 127,
-      "label": "ResourceReadRelNode",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_nodes",
-      "source_path": "src/mountainash/relations/core/relation_nodes/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 128,
-      "label": "Relation Protocols",
-      "group": "RLAST",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 129,
-      "label": "UnifiedRelationVisitor",
-      "group": "RLAST",
-      "source_module": "relations.core.unified_visitor",
-      "source_path": "src/mountainash/relations/core/unified_visitor/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 130,
-      "label": "Visitor Composition",
-      "group": "RLAST",
-      "source_module": "expressions.core.unified_visitor",
-      "source_path": "src/mountainash/expressions/core/unified_visitor/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 131,
-      "label": "RelationVisitRegistry",
-      "group": "RLAST",
-      "source_module": "expressions.core.unified_visitor",
-      "source_path": "src/mountainash/expressions/core/unified_visitor/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 132,
-      "label": "OptimisationRegistry",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_api",
-      "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 133,
-      "label": "Relation System Base",
-      "group": "RLAST",
-      "source_module": "relations.core.relation_protocols",
-      "source_path": "src/mountainash/relations/core/relation_protocols/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 134,
-      "label": "ExtensionRelOperation",
-      "group": "RLAST",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 135,
-      "label": "PolarsRelationSystem",
-      "group": "RLBAK",
-      "source_module": "relations.backends.polars",
-      "source_path": "src/mountainash/relations/backends/relation_systems/polars/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 136,
-      "label": "NarwhalsRelationSystem",
-      "group": "RLBAK",
-      "source_module": "relations.backends.narwhals",
-      "source_path": "src/mountainash/relations/backends/relation_systems/narwhals/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 137,
-      "label": "IbisRelationSystem",
-      "group": "RLBAK",
-      "source_module": "relations.backends.ibis",
-      "source_path": "src/mountainash/relations/backends/relation_systems/ibis/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 138,
-      "label": "LazyFrame Operations",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 139,
-      "label": "Narwhals Portability",
-      "group": "RLBAK",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 140,
-      "label": "Ibis SQL Compilation",
-      "group": "RLBAK",
-      "source_module": "expressions.backends.ibis",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/ibis/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 141,
-      "label": "Cross-Type Joins",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 142,
-      "label": "Join Key Coalescing",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 143,
-      "label": "Backend Relation Testing",
-      "group": "RLBAK",
-      "source_module": "relations.core.relation_api",
-      "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 144,
-      "label": "Backend Divergences",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 145,
-      "label": "Execution Target",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 146,
-      "label": "execute_on Parameter",
-      "group": "RLBAK",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "15-relation-backends",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 147,
-      "label": "TableSchema",
-      "group": "TYPES",
-      "source_module": "toplevel",
-      "source_path": "src/mountainash/__init__.py",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 148,
-      "label": "FieldDefinition",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 149,
-      "label": "FieldConstraints",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 150,
-      "label": "UniversalType Enum",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 151,
-      "label": "Type Bridge",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 152,
-      "label": "Backend Type Mapping",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 153,
-      "label": "Foreign Keys",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 154,
-      "label": "ForeignKeyReference",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 155,
-      "label": "Custom Type Registry",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 156,
-      "label": "Type Converters",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 157,
-      "label": "Frictionless Standard",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 158,
-      "label": "Table Schema",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 159,
-      "label": "Schema Extraction",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 160,
-      "label": "DataFrame Extraction",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 161,
-      "label": "Dataclass Extraction",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 162,
-      "label": "Pydantic Extraction",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 163,
-      "label": "Schema Validation",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 164,
-      "label": "validate_match Function",
-      "group": "TYPES",
-      "source_module": "typespec",
-      "source_path": "src/mountainash/typespec/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 165,
-      "label": "Schema Comparison",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 166,
-      "label": "Polars Schema Convert",
-      "group": "TYPES",
-      "source_module": "expressions.backends.polars",
-      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 167,
-      "label": "Pandas Dtypes Convert",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 168,
-      "label": "Arrow Schema Convert",
-      "group": "TYPES",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "09-type-system-and-schema",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 169,
-      "label": "RelationDAG",
-      "group": "DAG",
-      "source_module": "relations.dag",
-      "source_path": "src/mountainash/relations/dag/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 170,
-      "label": "Named Relations",
-      "group": "DAG",
-      "source_module": "relations.core.relation_api",
-      "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 171,
-      "label": "dag.ref Method",
-      "group": "DAG",
-      "source_module": "relations.dag",
-      "source_path": "src/mountainash/relations/dag/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.6
-    },
-    {
-      "id": 172,
-      "label": "Dependency Edges",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 173,
-      "label": "Constraint Edges",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 174,
-      "label": "Two-Edge Graph Model",
-      "group": "DAG",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 421,
+      "label": "ConformContract Dimensions",
+      "group": "CONF",
+      "cis": 5,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 422,
+      "label": "fields_match Presets",
+      "group": "CONF",
+      "cis": 1,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 423,
+      "label": "Conform Transform Stages",
+      "group": "CONF",
+      "cis": 2,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 424,
+      "label": "Conform Errors",
+      "group": "CONF",
+      "cis": 1,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 425,
+      "label": "Drift Reporting",
+      "group": "CONF",
+      "cis": 2,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 426,
+      "label": "collect_with_drift",
+      "group": "CONF",
+      "cis": 1,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 427,
+      "label": "Structured Field Transport",
+      "group": "CONF",
+      "cis": 1,
+      "chapter": "11-conforming-data",
+      "source_module": "conform",
+      "source_path": "src/mountainash/conform/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 430,
+      "label": "Data Contracts",
+      "group": "QUAL",
+      "cis": 10,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 431,
+      "label": "BaseDataContract",
+      "group": "QUAL",
+      "cis": 3,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 432,
+      "label": "datacontract Factory",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 433,
+      "label": "Rules and RuleRegistry",
+      "group": "QUAL",
+      "cis": 5,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 434,
+      "label": "Guarded Rules",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 435,
+      "label": "Validator",
+      "group": "QUAL",
+      "cis": 2,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 436,
+      "label": "ValidationPlan",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "12-data-contracts",
+      "source_module": "datacontracts",
+      "source_path": "src/mountainash/datacontracts/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 437,
+      "label": "Validation Check IR",
+      "group": "QUAL",
+      "cis": 13,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 438,
+      "label": "Value Row Scalar and Relation Rules",
+      "group": "QUAL",
+      "cis": 2,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 439,
+      "label": "ValidationRunner",
+      "group": "QUAL",
+      "cis": 4,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 440,
+      "label": "ValidationResult and CheckSummary",
+      "group": "QUAL",
+      "cis": 3,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 441,
+      "label": "Row Identity",
+      "group": "QUAL",
+      "cis": 2,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 442,
+      "label": "Failure Cases",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 443,
+      "label": "Severities",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 444,
+      "label": "Foreign Key Validation",
+      "group": "QUAL",
+      "cis": 2,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 445,
+      "label": "Distribution Rules",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 446,
+      "label": "JSON Schema and GeoJSON Checks",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 447,
+      "label": "Table Schema Semantic Validation",
+      "group": "QUAL",
+      "cis": 1,
+      "chapter": "13-validation",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 450,
+      "label": "Graph Kernel",
+      "group": "ORCH",
+      "shape": "box",
+      "cis": 29,
+      "chapter": "14-relationdag",
       "source_module": "graph",
       "source_path": "src/mountainash/graph/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.6
+      "match_confidence": 0.9
     },
     {
-      "id": 175,
-      "label": "Topological Collection",
-      "group": "DAG",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
+      "id": 451,
+      "label": "Dependency and Constraint Edges",
+      "group": "ORCH",
+      "cis": 9,
+      "chapter": "14-relationdag",
+      "source_module": "graph",
+      "source_path": "src/mountainash/graph/",
+      "match_confidence": 0.9
     },
     {
-      "id": 176,
-      "label": "dag.collect Method",
-      "group": "DAG",
-      "source_module": "expressions.core.expression_api",
-      "source_path": "src/mountainash/expressions/core/expression_api/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 177,
-      "label": "ref_resolver Parameter",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 178,
-      "label": "DataPackage",
-      "group": "DAG",
-      "source_module": "toplevel",
-      "source_path": "src/mountainash/__init__.py",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 179,
-      "label": "DataResource",
-      "group": "DAG",
-      "source_module": "toplevel",
-      "source_path": "src/mountainash/__init__.py",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 180,
-      "label": "TableDialect",
-      "group": "DAG",
-      "source_module": "toplevel",
-      "source_path": "src/mountainash/__init__.py",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 1.0
-    },
-    {
-      "id": 181,
-      "label": "from_descriptor Method",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
-    },
-    {
-      "id": 182,
-      "label": "to_relation_dag Method",
-      "group": "DAG",
-      "source_module": "relations.core.relation_api",
-      "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 183,
-      "label": "Resource Overrides",
-      "group": "DAG",
-      "source_module": "pipelines",
-      "source_path": "src/mountainash/pipelines/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.7
-    },
-    {
-      "id": 184,
-      "label": "dag.add Method",
-      "group": "DAG",
+      "id": 452,
+      "label": "RelationDAG",
+      "group": "ORCH",
+      "cis": 8,
+      "chapter": "14-relationdag",
       "source_module": "relations.dag",
       "source_path": "src/mountainash/relations/dag/",
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.6
+      "match_confidence": 0.9
     },
     {
-      "id": 185,
-      "label": "to_package Method",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
+      "id": 453,
+      "label": "DAG References",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
     },
     {
-      "id": 186,
-      "label": "FK Integrity Check",
-      "group": "DAG",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "13-dag-and-datapackage",
-      "match_confidence": 0.0
+      "id": 454,
+      "label": "DAG Collect",
+      "group": "ORCH",
+      "cis": 3,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
     },
     {
-      "id": 187,
-      "label": "PipelineBuilder",
-      "group": "PIPE",
+      "id": 455,
+      "label": "DAG Materialization Session",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 456,
+      "label": "DataPackage to DAG",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 457,
+      "label": "DAG Validation",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 458,
+      "label": "Cross-Family DAG Collection",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 459,
+      "label": "ResourceRef",
+      "group": "ORCH",
+      "cis": 2,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 460,
+      "label": "Resource Reads",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "14-relationdag",
+      "source_module": "relations.dag",
+      "source_path": "src/mountainash/relations/dag/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 465,
+      "label": "Pipelines",
+      "group": "ORCH",
+      "cis": 19,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 188,
-      "label": "step Decorator",
-      "group": "PIPE",
+      "id": 466,
+      "label": "Units",
+      "group": "ORCH",
+      "cis": 13,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 189,
-      "label": "source Function",
-      "group": "PIPE",
+      "id": 467,
+      "label": "Source and Sink Units",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 190,
-      "label": "PipelineSpec",
-      "group": "PIPE",
+      "id": 468,
+      "label": "DAG and Python Units",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 191,
-      "label": "StepDefinition",
-      "group": "PIPE",
+      "id": 469,
+      "label": "Runner Plan and Execute",
+      "group": "ORCH",
+      "cis": 5,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 192,
-      "label": "StepContext",
-      "group": "PIPE",
+      "id": 470,
+      "label": "Values Identity and Coverage",
+      "group": "ORCH",
+      "cis": 3,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 193,
-      "label": "StepResult",
-      "group": "PIPE",
+      "id": 471,
+      "label": "Pipeline Checkpoints and Resume",
+      "group": "ORCH",
+      "cis": 2,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 194,
-      "label": "SimplePipelineRunner",
-      "group": "PIPE",
+      "id": 472,
+      "label": "Retry and Empty Policies",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 195,
-      "label": "ParamSpec",
-      "group": "PIPE",
+      "id": 473,
+      "label": "Parameter Axes",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "15-pipelines",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 196,
-      "label": "Parameter Binding",
-      "group": "PIPE",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.0
+      "id": 474,
+      "label": "Pipeline Errors",
+      "group": "ORCH",
+      "cis": 1,
+      "chapter": "15-pipelines",
+      "source_module": "pipelines",
+      "source_path": "src/mountainash/pipelines/",
+      "match_confidence": 0.9
     },
     {
-      "id": 197,
-      "label": "relation.params Method",
-      "group": "PIPE",
+      "id": 480,
+      "label": "Python Data Ingress",
+      "group": "PYD",
+      "cis": 4,
+      "chapter": "07-relations",
+      "source_module": "pydata.ingress",
+      "source_path": "src/mountainash/pydata/ingress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 481,
+      "label": "Supported Python Input Formats",
+      "group": "PYD",
+      "cis": 1,
+      "chapter": "07-relations",
+      "source_module": "pydata.ingress",
+      "source_path": "src/mountainash/pydata/ingress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 482,
+      "label": "Source Schema vs Target Schema",
+      "group": "PYD",
+      "cis": 1,
+      "chapter": "10-table-schemas-and-datapackage",
+      "source_module": "pydata.ingress",
+      "source_path": "src/mountainash/pydata/ingress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 483,
+      "label": "Python Data Egress",
+      "group": "PYD",
+      "cis": 3,
+      "chapter": "08-collecting-results",
+      "source_module": "pydata.egress",
+      "source_path": "src/mountainash/pydata/egress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 484,
+      "label": "Dataclass and Pydantic Egress",
+      "group": "PYD",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "pydata.egress",
+      "source_path": "src/mountainash/pydata/egress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 485,
+      "label": "Named Tuple and Indexed Egress",
+      "group": "PYD",
+      "cis": 1,
+      "chapter": "08-collecting-results",
+      "source_module": "pydata.egress",
+      "source_path": "src/mountainash/pydata/egress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 490,
+      "label": "Three-Layer Separation",
+      "group": "ARCH",
+      "cis": 180,
+      "chapter": "17-architecture",
+      "source_module": "expressions.core.expression_protocols",
+      "source_path": "src/mountainash/expressions/core/expression_protocols/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 491,
+      "label": "Protocols as Contracts",
+      "group": "ARCH",
+      "cis": 178,
+      "chapter": "17-architecture",
+      "source_module": "expressions.core.expression_protocols",
+      "source_path": "src/mountainash/expressions/core/expression_protocols/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 492,
+      "label": "API Builders",
+      "group": "ARCH",
+      "cis": 2,
+      "chapter": "17-architecture",
+      "source_module": "expressions.core.expression_api",
+      "source_path": "src/mountainash/expressions/core/expression_api/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 493,
+      "label": "Expression Systems",
+      "group": "ARCH",
+      "cis": 139,
+      "chapter": "17-architecture",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 494,
+      "label": "Function Keys",
+      "group": "ARCH",
+      "cis": 117,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 495,
+      "label": "Substrait vs Mountainash Extensions",
+      "group": "ARCH",
+      "cis": 2,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 496,
+      "label": "Function Registry",
+      "group": "ARCH",
+      "cis": 80,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 497,
+      "label": "Expression AST Nodes",
+      "group": "ARCH",
+      "cis": 33,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_nodes",
+      "source_path": "src/mountainash/expressions/core/expression_nodes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 498,
+      "label": "Arguments vs Options",
+      "group": "ARCH",
+      "cis": 1,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_nodes",
+      "source_path": "src/mountainash/expressions/core/expression_nodes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 499,
+      "label": "Unified Expression Visitor",
+      "group": "ARCH",
+      "cis": 27,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.unified_visitor",
+      "source_path": "src/mountainash/expressions/core/unified_visitor/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 500,
+      "label": "Operand Type Resolution",
+      "group": "ARCH",
+      "cis": 1,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.unified_visitor",
+      "source_path": "src/mountainash/expressions/core/unified_visitor/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 501,
+      "label": "Gate Then Lower",
+      "group": "ARCH",
+      "cis": 3,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.unified_visitor",
+      "source_path": "src/mountainash/expressions/core/unified_visitor/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 502,
+      "label": "Relation AST Nodes",
+      "group": "ARCH",
+      "cis": 52,
+      "chapter": "19-relation-compilation",
+      "source_module": "relations.core.relation_nodes",
+      "source_path": "src/mountainash/relations/core/relation_nodes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 503,
+      "label": "Relation Operation Keys and Registry",
+      "group": "ARCH",
+      "cis": 49,
+      "chapter": "19-relation-compilation",
+      "source_module": "relations.core.relation_system",
+      "source_path": "src/mountainash/relations/core/relation_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 504,
+      "label": "Relation Systems",
+      "group": "ARCH",
+      "cis": 35,
+      "chapter": "19-relation-compilation",
+      "source_module": "relations.core.relation_system",
+      "source_path": "src/mountainash/relations/core/relation_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 505,
+      "label": "Unified Relation Visitor",
+      "group": "ARCH",
+      "cis": 12,
+      "chapter": "19-relation-compilation",
+      "source_module": "relations.core.unified_visitor",
+      "source_path": "src/mountainash/relations/core/unified_visitor/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 506,
+      "label": "Keyed Registries",
+      "group": "ARCH",
+      "cis": 2,
+      "chapter": "18-expression-compilation",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 507,
+      "label": "Optimisation Passes",
+      "group": "ARCH",
+      "cis": 1,
+      "chapter": "19-relation-compilation",
       "source_module": "relations.core.relation_api",
       "source_path": "src/mountainash/relations/core/relation_api/",
-      "chapter": "12-pipeline-framework",
-      "match_confidence": 0.7
+      "match_confidence": 0.9
     },
     {
-      "id": 198,
-      "label": "ParamsRelNode",
-      "group": "PIPE",
-      "source_module": null,
-      "source_path": null,
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 0.0
+      "id": 509,
+      "label": "Backend Capabilities",
+      "group": "CAP",
+      "cis": 19,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
     },
     {
-      "id": 199,
-      "label": "PipelineStepRelNode",
-      "group": "PIPE",
+      "id": 510,
+      "label": "Capability Spine",
+      "group": "CAP",
+      "cis": 10,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 511,
+      "label": "Capability Information vs Policy",
+      "group": "CAP",
+      "cis": 9,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 512,
+      "label": "Capability Segments and Scopes",
+      "group": "CAP",
+      "cis": 8,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 513,
+      "label": "Families and Dialects",
+      "group": "CAP",
+      "cis": 15,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 514,
+      "label": "Backend Identity",
+      "group": "CAP",
+      "cis": 16,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 515,
+      "label": "Capability Bootstrap",
+      "group": "CAP",
+      "cis": 6,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 516,
+      "label": "CapabilityRegistry",
+      "group": "CAP",
+      "cis": 5,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 517,
+      "label": "Bound Calls",
+      "group": "CAP",
+      "cis": 4,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 518,
+      "label": "Capability Gates",
+      "group": "CAP",
+      "cis": 2,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 519,
+      "label": "Capability Errors",
+      "group": "CAP",
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 520,
+      "label": "capability_policy",
+      "group": "CAP",
+      "cis": 1,
+      "chapter": "09-execution-targets-and-capabilities",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 521,
+      "label": "Value Classes and Predicates",
+      "group": "CAP",
+      "cis": 1,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 522,
+      "label": "Capability Preflight",
+      "group": "CAP",
+      "cis": 1,
+      "chapter": "20-capability-spine",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 523,
+      "label": "Backend Support Matrix",
+      "group": "CAP",
+      "cis": 4,
+      "chapter": "16-backend-support-and-limits",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 524,
+      "label": "Known Divergences",
+      "group": "CAP",
+      "cis": 3,
+      "chapter": "16-backend-support-and-limits",
+      "source_module": "core.capabilities",
+      "source_path": "src/mountainash/core/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 530,
+      "label": "Backend Composition by Mixins",
+      "group": "BACK",
+      "cis": 21,
+      "chapter": "21-backends",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 531,
+      "label": "Backend Registration",
+      "group": "BACK",
+      "cis": 1,
+      "chapter": "21-backends",
+      "source_module": "core",
+      "source_path": "src/mountainash/core/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 532,
+      "label": "Polars Backend",
+      "group": "BACK",
+      "cis": 5,
+      "chapter": "21-backends",
+      "source_module": "expressions.backends.polars",
+      "source_path": "src/mountainash/expressions/backends/expression_systems/polars/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 533,
+      "label": "Narwhals Backend",
+      "group": "BACK",
+      "cis": 6,
+      "chapter": "21-backends",
+      "source_module": "expressions.backends.narwhals",
+      "source_path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 534,
+      "label": "Ibis Backend",
+      "group": "BACK",
+      "cis": 6,
+      "chapter": "21-backends",
+      "source_module": "expressions.backends.ibis",
+      "source_path": "src/mountainash/expressions/backends/expression_systems/ibis/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 535,
+      "label": "Narwhals Providers",
+      "group": "BACK",
+      "cis": 1,
+      "chapter": "21-backends",
+      "source_module": "expressions.backends.narwhals",
+      "source_path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 536,
+      "label": "Ibis SQL Dialects",
+      "group": "BACK",
+      "cis": 1,
+      "chapter": "21-backends",
+      "source_module": "expressions.backends.ibis",
+      "source_path": "src/mountainash/expressions/backends/expression_systems/ibis/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 537,
+      "label": "Arrow Import and Export",
+      "group": "BACK",
+      "cis": 1,
+      "chapter": "21-backends",
+      "source_module": "relations.core.relation_system",
+      "source_path": "src/mountainash/relations/core/relation_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 540,
+      "label": "Adding an Expression Operation",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "expressions.core.expression_system",
+      "source_path": "src/mountainash/expressions/core/expression_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 541,
+      "label": "Adding a Relation Operation",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "relations.core.relation_system",
+      "source_path": "src/mountainash/relations/core/relation_system/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 542,
+      "label": "Custom Relation Nodes and Visit Handlers",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "relations.core.unified_visitor",
+      "source_path": "src/mountainash/relations/core/unified_visitor/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 543,
+      "label": "Declaring Capability Segments",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "expressions.backends.capabilities",
+      "source_path": "src/mountainash/expressions/backends/capabilities/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 544,
+      "label": "Native Type Adapters",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "core.dtypes",
+      "source_path": "src/mountainash/core/dtypes/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 545,
+      "label": "Schema Adapters and Codecs",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "typespec",
+      "source_path": "src/mountainash/typespec/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 546,
+      "label": "Custom Ingress Handlers",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "pydata.ingress",
+      "source_path": "src/mountainash/pydata/ingress/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 547,
+      "label": "Custom Units Sinks and Checkpoints",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
       "source_module": "pipelines",
       "source_path": "src/mountainash/pipelines/",
-      "chapter": "14-relation-ast-and-system",
-      "match_confidence": 1.0
+      "match_confidence": 0.9
     },
     {
-      "id": 200,
-      "label": "fold_params Function",
-      "group": "PIPE",
+      "id": 548,
+      "label": "Custom Rules and Value Validators",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "22-extending-mountainash",
+      "source_module": "validation",
+      "source_path": "src/mountainash/validation/",
+      "match_confidence": 0.9
+    },
+    {
+      "id": 549,
+      "label": "Naming Conventions",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "23-contributing-and-testing",
       "source_module": null,
       "source_path": null,
-      "chapter": "12-pipeline-framework",
       "match_confidence": 0.0
+    },
+    {
+      "id": 550,
+      "label": "Import Conventions",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "23-contributing-and-testing",
+      "source_module": null,
+      "source_path": null,
+      "match_confidence": 0.0
+    },
+    {
+      "id": 551,
+      "label": "Cross-Backend Testing",
+      "group": "EXT",
+      "cis": 3,
+      "chapter": "23-contributing-and-testing",
+      "source_module": null,
+      "source_path": null,
+      "match_confidence": 0.0
+    },
+    {
+      "id": 552,
+      "label": "Per-Backend xfail for Known Divergences",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "23-contributing-and-testing",
+      "source_module": null,
+      "source_path": null,
+      "match_confidence": 0.0
+    },
+    {
+      "id": 553,
+      "label": "Protocol Alignment Tests",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "23-contributing-and-testing",
+      "source_module": null,
+      "source_path": null,
+      "match_confidence": 0.0
+    },
+    {
+      "id": 554,
+      "label": "Typed Error Conventions",
+      "group": "EXT",
+      "cis": 1,
+      "chapter": "23-contributing-and-testing",
+      "source_module": "exceptions",
+      "source_path": "src/mountainash/exceptions.py",
+      "match_confidence": 0.9
     }
   ],
   "edges": [
     {
-      "from": 2,
-      "to": 1
+      "from": 302,
+      "to": 301
     },
     {
-      "from": 3,
-      "to": 1
+      "from": 303,
+      "to": 301
     },
     {
-      "from": 5,
-      "to": 4
+      "from": 305,
+      "to": 303
     },
     {
-      "from": 6,
-      "to": 4
+      "from": 305,
+      "to": 304
     },
     {
-      "from": 7,
-      "to": 4
+      "from": 305,
+      "to": 302
     },
     {
-      "from": 13,
-      "to": 1
+      "from": 306,
+      "to": 304
     },
     {
-      "from": 14,
-      "to": 13
+      "from": 307,
+      "to": 303
     },
     {
-      "from": 15,
-      "to": 14
+      "from": 308,
+      "to": 303
     },
     {
-      "from": 16,
-      "to": 14
+      "from": 310,
+      "to": 308
     },
     {
-      "from": 16,
-      "to": 15
+      "from": 311,
+      "to": 310
     },
     {
-      "from": 16,
-      "to": 5
+      "from": 312,
+      "to": 311
     },
     {
-      "from": 16,
-      "to": 6
+      "from": 313,
+      "to": 301
     },
     {
-      "from": 16,
-      "to": 7
+      "from": 313,
+      "to": 311
     },
     {
-      "from": 17,
-      "to": 1
+      "from": 314,
+      "to": 311
     },
     {
-      "from": 17,
-      "to": 4
+      "from": 315,
+      "to": 314
     },
     {
-      "from": 17,
-      "to": 16
+      "from": 316,
+      "to": 311
     },
     {
-      "from": 18,
-      "to": 1
+      "from": 320,
+      "to": 305
     },
     {
-      "from": 18,
-      "to": 4
+      "from": 320,
+      "to": 307
     },
     {
-      "from": 19,
-      "to": 1
+      "from": 320,
+      "to": 311
     },
     {
-      "from": 20,
-      "to": 1
+      "from": 321,
+      "to": 320
     },
     {
-      "from": 20,
-      "to": 2
+      "from": 322,
+      "to": 320
     },
     {
-      "from": 21,
-      "to": 20
+      "from": 323,
+      "to": 320
     },
     {
-      "from": 21,
-      "to": 2
+      "from": 323,
+      "to": 321
     },
     {
-      "from": 22,
-      "to": 13
+      "from": 323,
+      "to": 322
     },
     {
-      "from": 23,
-      "to": 22
+      "from": 324,
+      "to": 320
     },
     {
-      "from": 23,
-      "to": 8
+      "from": 325,
+      "to": 320
     },
     {
-      "from": 24,
-      "to": 22
+      "from": 325,
+      "to": 313
     },
     {
-      "from": 25,
-      "to": 10
+      "from": 326,
+      "to": 320
     },
     {
-      "from": 25,
-      "to": 4
+      "from": 327,
+      "to": 321
     },
     {
-      "from": 26,
-      "to": 10
+      "from": 328,
+      "to": 321
     },
     {
-      "from": 26,
-      "to": 1
+      "from": 329,
+      "to": 321
     },
     {
-      "from": 27,
-      "to": 25
+      "from": 330,
+      "to": 329
     },
     {
-      "from": 27,
-      "to": 26
+      "from": 331,
+      "to": 321
     },
     {
-      "from": 27,
-      "to": 10
+      "from": 332,
+      "to": 320
     },
     {
-      "from": 28,
-      "to": 2
+      "from": 332,
+      "to": 304
     },
     {
-      "from": 28,
-      "to": 27
+      "from": 333,
+      "to": 321
     },
     {
-      "from": 28,
-      "to": 10
+      "from": 334,
+      "to": 320
     },
     {
-      "from": 29,
-      "to": 28
+      "from": 335,
+      "to": 320
     },
     {
-      "from": 30,
-      "to": 27
+      "from": 336,
+      "to": 335
     },
     {
-      "from": 30,
-      "to": 10
+      "from": 337,
+      "to": 335
     },
     {
-      "from": 30,
-      "to": 28
+      "from": 338,
+      "to": 335
     },
     {
-      "from": 31,
-      "to": 28
+      "from": 338,
+      "to": 331
     },
     {
-      "from": 31,
-      "to": 1
+      "from": 339,
+      "to": 335
     },
     {
-      "from": 32,
-      "to": 28
+      "from": 340,
+      "to": 335
     },
     {
-      "from": 32,
-      "to": 37
+      "from": 341,
+      "to": 335
     },
     {
-      "from": 33,
-      "to": 28
+      "from": 342,
+      "to": 335
     },
     {
-      "from": 33,
-      "to": 37
+      "from": 343,
+      "to": 324
     },
     {
-      "from": 34,
-      "to": 28
+      "from": 344,
+      "to": 324
     },
     {
-      "from": 34,
-      "to": 37
+      "from": 345,
+      "to": 320
     },
     {
-      "from": 35,
-      "to": 28
+      "from": 345,
+      "to": 395
     },
     {
-      "from": 35,
-      "to": 37
+      "from": 346,
+      "to": 321
     },
     {
-      "from": 36,
-      "to": 28
+      "from": 347,
+      "to": 343
     },
     {
-      "from": 36,
-      "to": 37
+      "from": 350,
+      "to": 309
     },
     {
-      "from": 37,
-      "to": 28
+      "from": 350,
+      "to": 321
     },
     {
-      "from": 37,
-      "to": 1
+      "from": 351,
+      "to": 350
     },
     {
-      "from": 38,
-      "to": 27
+      "from": 352,
+      "to": 350
     },
     {
-      "from": 38,
-      "to": 29
+      "from": 352,
+      "to": 343
     },
     {
-      "from": 39,
-      "to": 27
+      "from": 353,
+      "to": 350
     },
     {
-      "from": 39,
-      "to": 51
+      "from": 353,
+      "to": 344
     },
     {
-      "from": 40,
-      "to": 27
+      "from": 354,
+      "to": 353
     },
     {
-      "from": 41,
-      "to": 27
+      "from": 355,
+      "to": 354
     },
     {
-      "from": 42,
-      "to": 27
+      "from": 356,
+      "to": 354
     },
     {
-      "from": 42,
-      "to": 16
+      "from": 357,
+      "to": 350
     },
     {
-      "from": 43,
-      "to": 28
+      "from": 360,
+      "to": 305
     },
     {
-      "from": 43,
-      "to": 31
+      "from": 360,
+      "to": 307
     },
     {
-      "from": 44,
-      "to": 28
+      "from": 360,
+      "to": 311
     },
     {
-      "from": 44,
-      "to": 31
+      "from": 361,
+      "to": 360
     },
     {
-      "from": 45,
-      "to": 29
+      "from": 361,
+      "to": 313
     },
     {
-      "from": 45,
-      "to": 31
+      "from": 362,
+      "to": 360
     },
     {
-      "from": 46,
-      "to": 32
+      "from": 362,
+      "to": 344
     },
     {
-      "from": 47,
-      "to": 33
+      "from": 363,
+      "to": 360
     },
     {
-      "from": 48,
-      "to": 28
+      "from": 363,
+      "to": 320
     },
     {
-      "from": 49,
-      "to": 28
+      "from": 364,
+      "to": 360
     },
     {
-      "from": 49,
-      "to": 48
+      "from": 365,
+      "to": 360
     },
     {
-      "from": 50,
-      "to": 28
+      "from": 366,
+      "to": 365
     },
     {
-      "from": 50,
-      "to": 18
+      "from": 366,
+      "to": 313
     },
     {
-      "from": 51,
-      "to": 28
+      "from": 367,
+      "to": 365
     },
     {
-      "from": 51,
-      "to": 29
+      "from": 368,
+      "to": 360
     },
     {
-      "from": 52,
-      "to": 33
+      "from": 368,
+      "to": 329
     },
     {
-      "from": 52,
-      "to": 47
+      "from": 369,
+      "to": 360
     },
     {
-      "from": 53,
-      "to": 48
+      "from": 370,
+      "to": 368
     },
     {
-      "from": 54,
-      "to": 48
+      "from": 371,
+      "to": 360
     },
     {
-      "from": 55,
-      "to": 3
+      "from": 372,
+      "to": 364
     },
     {
-      "from": 55,
-      "to": 1
+      "from": 373,
+      "to": 360
     },
     {
-      "from": 56,
-      "to": 55
+      "from": 374,
+      "to": 361
     },
     {
-      "from": 56,
-      "to": 66
+      "from": 375,
+      "to": 360
     },
     {
-      "from": 57,
-      "to": 55
+      "from": 376,
+      "to": 360
     },
     {
-      "from": 57,
-      "to": 25
+      "from": 376,
+      "to": 305
     },
     {
-      "from": 58,
-      "to": 55
+      "from": 377,
+      "to": 376
     },
     {
-      "from": 58,
-      "to": 26
+      "from": 378,
+      "to": 376
     },
     {
-      "from": 59,
-      "to": 55
+      "from": 378,
+      "to": 329
     },
     {
-      "from": 59,
-      "to": 50
+      "from": 379,
+      "to": 376
     },
     {
-      "from": 60,
-      "to": 55
+      "from": 380,
+      "to": 376
     },
     {
-      "from": 60,
-      "to": 38
+      "from": 381,
+      "to": 376
     },
     {
-      "from": 61,
-      "to": 55
+      "from": 382,
+      "to": 376
     },
     {
-      "from": 62,
-      "to": 55
+      "from": 385,
+      "to": 376
     },
     {
-      "from": 62,
-      "to": 63
+      "from": 385,
+      "to": 313
     },
     {
-      "from": 62,
-      "to": 49
+      "from": 386,
+      "to": 385
     },
     {
-      "from": 63,
-      "to": 3
+      "from": 387,
+      "to": 386
     },
     {
-      "from": 64,
-      "to": 63
+      "from": 388,
+      "to": 376
     },
     {
-      "from": 65,
-      "to": 62
+      "from": 389,
+      "to": 387
     },
     {
-      "from": 65,
-      "to": 63
+      "from": 389,
+      "to": 388
     },
     {
-      "from": 65,
-      "to": 64
+      "from": 390,
+      "to": 376
     },
     {
-      "from": 66,
-      "to": 13
+      "from": 391,
+      "to": 375
     },
     {
-      "from": 67,
-      "to": 66
+      "from": 391,
+      "to": 376
     },
     {
-      "from": 67,
-      "to": 72
+      "from": 395,
+      "to": 301
     },
     {
-      "from": 68,
-      "to": 66
+      "from": 396,
+      "to": 395
     },
     {
-      "from": 68,
-      "to": 78
+      "from": 397,
+      "to": 395
     },
     {
-      "from": 69,
-      "to": 66
+      "from": 398,
+      "to": 395
     },
     {
-      "from": 69,
-      "to": 1
+      "from": 398,
+      "to": 345
     },
     {
-      "from": 70,
-      "to": 69
+      "from": 399,
+      "to": 395
     },
     {
-      "from": 70,
-      "to": 9
+      "from": 399,
+      "to": 313
     },
     {
-      "from": 71,
-      "to": 70
+      "from": 400,
+      "to": 395
     },
     {
-      "from": 71,
-      "to": 66
+      "from": 401,
+      "to": 400
     },
     {
-      "from": 72,
-      "to": 66
+      "from": 402,
+      "to": 400
     },
     {
-      "from": 73,
-      "to": 27
+      "from": 402,
+      "to": 311
     },
     {
-      "from": 73,
-      "to": 55
+      "from": 403,
+      "to": 400
     },
     {
-      "from": 73,
-      "to": 70
+      "from": 404,
+      "to": 403
     },
     {
-      "from": 74,
-      "to": 73
+      "from": 404,
+      "to": 395
     },
     {
-      "from": 74,
-      "to": 75
+      "from": 405,
+      "to": 403
     },
     {
-      "from": 74,
-      "to": 71
+      "from": 406,
+      "to": 405
     },
     {
-      "from": 75,
-      "to": 11
+      "from": 407,
+      "to": 405
     },
     {
-      "from": 75,
-      "to": 55
+      "from": 408,
+      "to": 407
     },
     {
-      "from": 75,
-      "to": 70
+      "from": 409,
+      "to": 400
     },
     {
-      "from": 76,
-      "to": 2
+      "from": 410,
+      "to": 400
     },
     {
-      "from": 76,
-      "to": 28
+      "from": 410,
+      "to": 399
     },
     {
-      "from": 77,
-      "to": 2
+      "from": 411,
+      "to": 400
     },
     {
-      "from": 77,
-      "to": 76
+      "from": 412,
+      "to": 400
     },
     {
-      "from": 78,
-      "to": 72
+      "from": 413,
+      "to": 401
     },
     {
-      "from": 78,
-      "to": 66
+      "from": 414,
+      "to": 401
     },
     {
-      "from": 79,
-      "to": 77
+      "from": 414,
+      "to": 405
     },
     {
-      "from": 79,
-      "to": 5
+      "from": 415,
+      "to": 401
     },
     {
-      "from": 79,
-      "to": 85
+      "from": 420,
+      "to": 360
     },
     {
-      "from": 80,
-      "to": 77
+      "from": 420,
+      "to": 400
     },
     {
-      "from": 80,
-      "to": 6
+      "from": 421,
+      "to": 420
     },
     {
-      "from": 80,
-      "to": 7
+      "from": 422,
+      "to": 421
     },
     {
-      "from": 80,
-      "to": 85
+      "from": 423,
+      "to": 420
     },
     {
-      "from": 81,
-      "to": 77
+      "from": 423,
+      "to": 413
     },
     {
-      "from": 81,
-      "to": 8
+      "from": 423,
+      "to": 415
     },
     {
-      "from": 81,
-      "to": 85
+      "from": 424,
+      "to": 421
     },
     {
-      "from": 82,
-      "to": 79
+      "from": 424,
+      "to": 314
     },
     {
-      "from": 82,
-      "to": 74
+      "from": 425,
+      "to": 421
     },
     {
-      "from": 83,
-      "to": 80
+      "from": 426,
+      "to": 425
     },
     {
-      "from": 83,
-      "to": 74
+      "from": 426,
+      "to": 376
     },
     {
-      "from": 84,
-      "to": 81
+      "from": 427,
+      "to": 423
     },
     {
-      "from": 84,
-      "to": 74
+      "from": 427,
+      "to": 339
     },
     {
-      "from": 85,
-      "to": 86
+      "from": 430,
+      "to": 400
     },
     {
-      "from": 85,
-      "to": 2
+      "from": 430,
+      "to": 311
     },
     {
-      "from": 86,
-      "to": 1
+      "from": 431,
+      "to": 430
     },
     {
-      "from": 87,
-      "to": 82
+      "from": 431,
+      "to": 401
     },
     {
-      "from": 87,
-      "to": 83
+      "from": 432,
+      "to": 430
     },
     {
-      "from": 87,
-      "to": 84
+      "from": 433,
+      "to": 430
     },
     {
-      "from": 87,
-      "to": 72
+      "from": 433,
+      "to": 354
     },
     {
-      "from": 88,
-      "to": 82
+      "from": 434,
+      "to": 433
     },
     {
-      "from": 88,
-      "to": 83
+      "from": 435,
+      "to": 431
     },
     {
-      "from": 88,
-      "to": 84
+      "from": 435,
+      "to": 433
     },
     {
-      "from": 88,
-      "to": 78
+      "from": 435,
+      "to": 420
     },
     {
-      "from": 89,
-      "to": 82
+      "from": 436,
+      "to": 435
     },
     {
-      "from": 89,
-      "to": 83
+      "from": 437,
+      "to": 354
     },
     {
-      "from": 89,
-      "to": 84
+      "from": 438,
+      "to": 437
     },
     {
-      "from": 90,
-      "to": 82
+      "from": 439,
+      "to": 437
     },
     {
-      "from": 90,
-      "to": 83
+      "from": 439,
+      "to": 376
     },
     {
-      "from": 90,
-      "to": 84
+      "from": 440,
+      "to": 439
     },
     {
-      "from": 91,
-      "to": 90
+      "from": 441,
+      "to": 440
     },
     {
-      "from": 91,
-      "to": 16
+      "from": 442,
+      "to": 441
     },
     {
-      "from": 92,
-      "to": 91
+      "from": 443,
+      "to": 437
     },
     {
-      "from": 92,
-      "to": 89
+      "from": 444,
+      "to": 437
     },
     {
-      "from": 93,
-      "to": 69
+      "from": 444,
+      "to": 414
     },
     {
-      "from": 93,
-      "to": 28
+      "from": 445,
+      "to": 437
     },
     {
-      "from": 94,
-      "to": 1
+      "from": 446,
+      "to": 437
     },
     {
-      "from": 94,
-      "to": 28
+      "from": 447,
+      "to": 400
     },
     {
-      "from": 95,
-      "to": 4
+      "from": 447,
+      "to": 437
     },
     {
-      "from": 95,
-      "to": 10
+      "from": 451,
+      "to": 450
     },
     {
-      "from": 95,
-      "to": 96
+      "from": 452,
+      "to": 360
     },
     {
-      "from": 96,
-      "to": 97
+      "from": 452,
+      "to": 451
     },
     {
-      "from": 96,
-      "to": 2
+      "from": 453,
+      "to": 452
     },
     {
-      "from": 97,
-      "to": 2
+      "from": 454,
+      "to": 452
     },
     {
-      "from": 97,
-      "to": 10
+      "from": 454,
+      "to": 376
     },
     {
-      "from": 98,
-      "to": 96
+      "from": 455,
+      "to": 454
     },
     {
-      "from": 98,
-      "to": 29
+      "from": 455,
+      "to": 388
     },
     {
-      "from": 99,
-      "to": 96
+      "from": 456,
+      "to": 452
     },
     {
-      "from": 100,
-      "to": 96
+      "from": 456,
+      "to": 405
     },
     {
-      "from": 101,
-      "to": 96
+      "from": 457,
+      "to": 452
     },
     {
-      "from": 101,
-      "to": 25
+      "from": 457,
+      "to": 444
     },
     {
-      "from": 102,
-      "to": 96
+      "from": 458,
+      "to": 454
     },
     {
-      "from": 102,
-      "to": 23
+      "from": 458,
+      "to": 387
     },
     {
-      "from": 103,
-      "to": 96
+      "from": 459,
+      "to": 405
     },
     {
-      "from": 103,
-      "to": 104
+      "from": 460,
+      "to": 405
     },
     {
-      "from": 104,
-      "to": 96
+      "from": 460,
+      "to": 459
     },
     {
-      "from": 104,
-      "to": 48
+      "from": 465,
+      "to": 450
     },
     {
-      "from": 105,
-      "to": 104
+      "from": 466,
+      "to": 465
     },
     {
-      "from": 105,
-      "to": 48
+      "from": 467,
+      "to": 466
     },
     {
-      "from": 106,
-      "to": 96
+      "from": 468,
+      "to": 466
     },
     {
-      "from": 106,
-      "to": 24
+      "from": 468,
+      "to": 452
     },
     {
-      "from": 107,
-      "to": 96
+      "from": 469,
+      "to": 465
     },
     {
-      "from": 107,
-      "to": 106
+      "from": 469,
+      "to": 466
     },
     {
-      "from": 108,
-      "to": 96
+      "from": 470,
+      "to": 466
     },
     {
-      "from": 108,
-      "to": 147
+      "from": 471,
+      "to": 469
     },
     {
-      "from": 108,
-      "to": 162
+      "from": 471,
+      "to": 470
     },
     {
-      "from": 109,
-      "to": 96
+      "from": 472,
+      "to": 469
     },
     {
-      "from": 109,
-      "to": 34
+      "from": 473,
+      "to": 466
     },
     {
-      "from": 110,
-      "to": 95
+      "from": 474,
+      "to": 469
     },
     {
-      "from": 110,
-      "to": 73
+      "from": 474,
+      "to": 314
     },
     {
-      "from": 111,
-      "to": 96
+      "from": 480,
+      "to": 361
     },
     {
-      "from": 111,
-      "to": 110
+      "from": 481,
+      "to": 480
     },
     {
-      "from": 112,
-      "to": 111
+      "from": 482,
+      "to": 480
     },
     {
-      "from": 112,
-      "to": 5
+      "from": 482,
+      "to": 400
     },
     {
-      "from": 113,
-      "to": 111
+      "from": 483,
+      "to": 377
     },
     {
-      "from": 113,
-      "to": 6
+      "from": 484,
+      "to": 483
     },
     {
-      "from": 114,
-      "to": 111
+      "from": 485,
+      "to": 483
     },
     {
-      "from": 115,
-      "to": 3
+      "from": 490,
+      "to": 305
     },
     {
-      "from": 115,
-      "to": 1
+      "from": 491,
+      "to": 490
     },
     {
-      "from": 116,
-      "to": 115
+      "from": 492,
+      "to": 491
     },
     {
-      "from": 116,
-      "to": 4
+      "from": 492,
+      "to": 320
     },
     {
-      "from": 117,
-      "to": 115
+      "from": 493,
+      "to": 491
     },
     {
-      "from": 117,
-      "to": 101
+      "from": 494,
+      "to": 306
     },
     {
-      "from": 118,
-      "to": 115
+      "from": 494,
+      "to": 493
     },
     {
-      "from": 118,
-      "to": 98
+      "from": 495,
+      "to": 494
     },
     {
-      "from": 119,
-      "to": 115
+      "from": 495,
+      "to": 306
     },
     {
-      "from": 119,
-      "to": 105
+      "from": 496,
+      "to": 494
     },
     {
-      "from": 120,
-      "to": 115
+      "from": 497,
+      "to": 304
     },
     {
-      "from": 120,
-      "to": 102
+      "from": 497,
+      "to": 494
     },
     {
-      "from": 121,
-      "to": 115
+      "from": 498,
+      "to": 497
     },
     {
-      "from": 121,
-      "to": 100
+      "from": 499,
+      "to": 496
     },
     {
-      "from": 122,
-      "to": 115
+      "from": 499,
+      "to": 497
     },
     {
-      "from": 122,
-      "to": 99
+      "from": 500,
+      "to": 499
     },
     {
-      "from": 123,
-      "to": 115
+      "from": 501,
+      "to": 499
     },
     {
-      "from": 123,
-      "to": 106
+      "from": 502,
+      "to": 304
     },
     {
-      "from": 124,
-      "to": 115
+      "from": 502,
+      "to": 306
     },
     {
-      "from": 124,
-      "to": 78
+      "from": 503,
+      "to": 502
     },
     {
-      "from": 125,
-      "to": 115
+      "from": 503,
+      "to": 496
     },
     {
-      "from": 125,
-      "to": 187
+      "from": 504,
+      "to": 491
     },
     {
-      "from": 126,
-      "to": 115
+      "from": 504,
+      "to": 503
     },
     {
-      "from": 126,
-      "to": 171
+      "from": 505,
+      "to": 503
     },
     {
-      "from": 127,
-      "to": 115
+      "from": 505,
+      "to": 504
     },
     {
-      "from": 127,
-      "to": 179
+      "from": 505,
+      "to": 499
     },
     {
-      "from": 128,
-      "to": 2
+      "from": 506,
+      "to": 496
     },
     {
-      "from": 128,
-      "to": 96
+      "from": 507,
+      "to": 502
     },
     {
-      "from": 129,
-      "to": 11
+      "from": 509,
+      "to": 313
     },
     {
-      "from": 129,
-      "to": 115
+      "from": 509,
+      "to": 376
     },
     {
-      "from": 129,
-      "to": 128
+      "from": 510,
+      "to": 509
     },
     {
-      "from": 130,
-      "to": 129
+      "from": 510,
+      "to": 505
     },
     {
-      "from": 130,
-      "to": 85
+      "from": 510,
+      "to": 499
     },
     {
-      "from": 131,
-      "to": 129
+      "from": 511,
+      "to": 510
     },
     {
-      "from": 131,
-      "to": 9
+      "from": 512,
+      "to": 511
     },
     {
-      "from": 132,
-      "to": 129
+      "from": 512,
+      "to": 513
     },
     {
-      "from": 132,
-      "to": 131
+      "from": 513,
+      "to": 514
     },
     {
-      "from": 133,
-      "to": 128
+      "from": 514,
+      "to": 313
     },
     {
-      "from": 133,
-      "to": 129
+      "from": 515,
+      "to": 512
     },
     {
-      "from": 134,
-      "to": 124
+      "from": 516,
+      "to": 515
     },
     {
-      "from": 134,
-      "to": 131
+      "from": 517,
+      "to": 516
     },
     {
-      "from": 135,
-      "to": 133
+      "from": 517,
+      "to": 497
     },
     {
-      "from": 135,
-      "to": 5
+      "from": 518,
+      "to": 517
     },
     {
-      "from": 135,
-      "to": 130
+      "from": 518,
+      "to": 501
     },
     {
-      "from": 136,
-      "to": 133
+      "from": 518,
+      "to": 509
     },
     {
-      "from": 136,
-      "to": 6
+      "from": 519,
+      "to": 509
     },
     {
-      "from": 136,
-      "to": 7
+      "from": 519,
+      "to": 314
     },
     {
-      "from": 136,
-      "to": 130
+      "from": 520,
+      "to": 509
     },
     {
-      "from": 137,
-      "to": 133
+      "from": 521,
+      "to": 517
     },
     {
-      "from": 137,
-      "to": 8
+      "from": 521,
+      "to": 316
     },
     {
-      "from": 137,
-      "to": 130
+      "from": 522,
+      "to": 518
     },
     {
-      "from": 138,
-      "to": 135
+      "from": 522,
+      "to": 386
     },
     {
-      "from": 138,
-      "to": 9
+      "from": 523,
+      "to": 509
     },
     {
-      "from": 139,
-      "to": 136
+      "from": 523,
+      "to": 513
     },
     {
-      "from": 139,
-      "to": 6
+      "from": 524,
+      "to": 523
     },
     {
-      "from": 139,
-      "to": 7
+      "from": 530,
+      "to": 493
     },
     {
-      "from": 140,
-      "to": 137
+      "from": 530,
+      "to": 504
     },
     {
-      "from": 140,
-      "to": 8
+      "from": 531,
+      "to": 530
     },
     {
-      "from": 141,
-      "to": 102
+      "from": 531,
+      "to": 506
     },
     {
-      "from": 141,
-      "to": 16
+      "from": 532,
+      "to": 530
     },
     {
-      "from": 141,
-      "to": 135
+      "from": 533,
+      "to": 530
     },
     {
-      "from": 141,
-      "to": 136
+      "from": 534,
+      "to": 530
     },
     {
-      "from": 141,
-      "to": 137
+      "from": 535,
+      "to": 533
     },
     {
-      "from": 142,
-      "to": 141
+      "from": 535,
+      "to": 513
     },
     {
-      "from": 142,
-      "to": 102
+      "from": 536,
+      "to": 534
     },
     {
-      "from": 143,
-      "to": 135
+      "from": 536,
+      "to": 513
     },
     {
-      "from": 143,
-      "to": 136
+      "from": 537,
+      "to": 532
     },
     {
-      "from": 143,
-      "to": 137
+      "from": 537,
+      "to": 533
     },
     {
-      "from": 144,
-      "to": 143
+      "from": 537,
+      "to": 534
     },
     {
-      "from": 144,
-      "to": 89
+      "from": 537,
+      "to": 387
     },
     {
-      "from": 145,
-      "to": 16
+      "from": 540,
+      "to": 494
     },
     {
-      "from": 145,
-      "to": 111
+      "from": 540,
+      "to": 495
     },
     {
-      "from": 146,
-      "to": 145
+      "from": 540,
+      "to": 492
     },
     {
-      "from": 146,
-      "to": 95
+      "from": 540,
+      "to": 530
     },
     {
-      "from": 147,
-      "to": 3
+      "from": 540,
+      "to": 496
     },
     {
-      "from": 147,
-      "to": 1
+      "from": 541,
+      "to": 503
     },
     {
-      "from": 148,
-      "to": 147
+      "from": 541,
+      "to": 504
     },
     {
-      "from": 149,
-      "to": 148
+      "from": 541,
+      "to": 530
     },
     {
-      "from": 150,
-      "to": 147
+      "from": 542,
+      "to": 505
     },
     {
-      "from": 150,
-      "to": 13
+      "from": 542,
+      "to": 502
     },
     {
-      "from": 151,
-      "to": 150
+      "from": 543,
+      "to": 512
     },
     {
-      "from": 151,
-      "to": 18
+      "from": 543,
+      "to": 524
     },
     {
-      "from": 152,
-      "to": 151
+      "from": 544,
+      "to": 399
     },
     {
-      "from": 152,
-      "to": 16
+      "from": 545,
+      "to": 410
     },
     {
-      "from": 153,
-      "to": 148
+      "from": 545,
+      "to": 403
     },
     {
-      "from": 153,
-      "to": 8
+      "from": 546,
+      "to": 480
     },
     {
-      "from": 154,
-      "to": 153
+      "from": 547,
+      "to": 466
     },
     {
-      "from": 155,
-      "to": 147
+      "from": 547,
+      "to": 471
     },
     {
-      "from": 155,
-      "to": 9
+      "from": 548,
+      "to": 433
     },
     {
-      "from": 156,
-      "to": 155
+      "from": 548,
+      "to": 438
     },
     {
-      "from": 156,
-      "to": 150
+      "from": 549,
+      "to": 490
     },
     {
-      "from": 157,
-      "to": 147
+      "from": 550,
+      "to": 312
     },
     {
-      "from": 158,
-      "to": 157
+      "from": 551,
+      "to": 532
     },
     {
-      "from": 158,
-      "to": 148
+      "from": 551,
+      "to": 533
     },
     {
-      "from": 159,
-      "to": 147
+      "from": 551,
+      "to": 534
     },
     {
-      "from": 159,
-      "to": 4
+      "from": 552,
+      "to": 551
     },
     {
-      "from": 160,
-      "to": 159
+      "from": 552,
+      "to": 524
     },
     {
-      "from": 160,
-      "to": 4
+      "from": 553,
+      "to": 491
     },
     {
-      "from": 161,
-      "to": 159
+      "from": 553,
+      "to": 551
     },
     {
-      "from": 161,
-      "to": 1
-    },
-    {
-      "from": 162,
-      "to": 159
-    },
-    {
-      "from": 162,
-      "to": 3
-    },
-    {
-      "from": 163,
-      "to": 147
-    },
-    {
-      "from": 163,
-      "to": 149
-    },
-    {
-      "from": 164,
-      "to": 163
-    },
-    {
-      "from": 164,
-      "to": 172
-    },
-    {
-      "from": 165,
-      "to": 163
-    },
-    {
-      "from": 165,
-      "to": 158
-    },
-    {
-      "from": 166,
-      "to": 152
-    },
-    {
-      "from": 166,
-      "to": 5
-    },
-    {
-      "from": 167,
-      "to": 152
-    },
-    {
-      "from": 167,
-      "to": 6
-    },
-    {
-      "from": 168,
-      "to": 152
-    },
-    {
-      "from": 168,
-      "to": 7
-    },
-    {
-      "from": 169,
-      "to": 12
-    },
-    {
-      "from": 169,
-      "to": 96
-    },
-    {
-      "from": 169,
-      "to": 170
-    },
-    {
-      "from": 170,
-      "to": 96
-    },
-    {
-      "from": 171,
-      "to": 169
-    },
-    {
-      "from": 172,
-      "to": 169
-    },
-    {
-      "from": 172,
-      "to": 12
-    },
-    {
-      "from": 173,
-      "to": 169
-    },
-    {
-      "from": 173,
-      "to": 12
-    },
-    {
-      "from": 174,
-      "to": 172
-    },
-    {
-      "from": 174,
-      "to": 173
-    },
-    {
-      "from": 175,
-      "to": 169
-    },
-    {
-      "from": 175,
-      "to": 12
-    },
-    {
-      "from": 176,
-      "to": 175
-    },
-    {
-      "from": 176,
-      "to": 111
-    },
-    {
-      "from": 177,
-      "to": 169
-    },
-    {
-      "from": 177,
-      "to": 171
-    },
-    {
-      "from": 178,
-      "to": 157
-    },
-    {
-      "from": 178,
-      "to": 3
-    },
-    {
-      "from": 179,
-      "to": 178
-    },
-    {
-      "from": 179,
-      "to": 148
-    },
-    {
-      "from": 180,
-      "to": 179
-    },
-    {
-      "from": 181,
-      "to": 178
-    },
-    {
-      "from": 181,
-      "to": 179
-    },
-    {
-      "from": 182,
-      "to": 181
-    },
-    {
-      "from": 182,
-      "to": 169
-    },
-    {
-      "from": 183,
-      "to": 182
-    },
-    {
-      "from": 183,
-      "to": 179
-    },
-    {
-      "from": 184,
-      "to": 169
-    },
-    {
-      "from": 184,
-      "to": 170
-    },
-    {
-      "from": 185,
-      "to": 169
-    },
-    {
-      "from": 185,
-      "to": 178
-    },
-    {
-      "from": 186,
-      "to": 153
-    },
-    {
-      "from": 186,
-      "to": 169
-    },
-    {
-      "from": 187,
-      "to": 12
-    },
-    {
-      "from": 187,
-      "to": 96
-    },
-    {
-      "from": 188,
-      "to": 187
-    },
-    {
-      "from": 188,
-      "to": 1
-    },
-    {
-      "from": 189,
-      "to": 187
-    },
-    {
-      "from": 190,
-      "to": 187
-    },
-    {
-      "from": 190,
-      "to": 3
-    },
-    {
-      "from": 191,
-      "to": 190
-    },
-    {
-      "from": 191,
-      "to": 188
-    },
-    {
-      "from": 192,
-      "to": 191
-    },
-    {
-      "from": 193,
-      "to": 191
-    },
-    {
-      "from": 194,
-      "to": 190
-    },
-    {
-      "from": 194,
-      "to": 12
-    },
-    {
-      "from": 195,
-      "to": 3
-    },
-    {
-      "from": 195,
-      "to": 1
-    },
-    {
-      "from": 196,
-      "to": 195
-    },
-    {
-      "from": 196,
-      "to": 188
-    },
-    {
-      "from": 197,
-      "to": 196
-    },
-    {
-      "from": 197,
-      "to": 95
-    },
-    {
-      "from": 198,
-      "to": 115
-    },
-    {
-      "from": 198,
-      "to": 195
-    },
-    {
-      "from": 199,
-      "to": 115
-    },
-    {
-      "from": 199,
-      "to": 188
-    },
-    {
-      "from": 200,
-      "to": 196
-    },
-    {
-      "from": 200,
-      "to": 197
+      "from": 554,
+      "to": 314
     }
   ]
 }

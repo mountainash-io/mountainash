@@ -2,12 +2,12 @@
 
 ## Overview
 
-- **Total Concepts**: 200
-- **Foundational Concepts** (no prerequisites, other concepts depend on them): 7
-- **Terminal Nodes** (nothing depends on them, but have prerequisites): 81
+- **Total Concepts**: 213
+- **Foundational Concepts** (no prerequisites, other concepts depend on them): 4
+- **Terminal Nodes** (nothing depends on them, but have prerequisites): 103
 - **Orphaned Nodes** (completely disconnected, no edges): 0
-- **Concepts with Dependencies**: 193
-- **Average Dependencies per Concept**: 1.98
+- **Concepts with Dependencies**: 209
+- **Average Dependencies per Concept**: 1.48
 
 ## Graph Structure Validation
 
@@ -19,63 +19,68 @@
 
 These concepts have no prerequisites:
 
-- **1**: Python Type Hints
-- **4**: DataFrames
-- **8**: SQL Databases
-- **9**: Lazy Evaluation
-- **10**: Method Chaining
-- **11**: Visitor Pattern
-- **12**: Directed Acyclic Graph
+- **301**: Dataframe Libraries and Engines
+- **304**: Abstract Syntax Trees
+- **309**: Three-Valued Logic
+- **450**: Graph Kernel
 
 ## Dependency Chain Analysis
 
-- **Maximum Dependency Chain Length**: 11
+- **Maximum Dependency Chain Length**: 19
 
 ### Longest Learning Path:
 
-1. **Method Chaining** (ID: 10)
-2. **col Function** (ID: 25)
-3. **Expression Building** (ID: 27)
-4. **BaseExpressionAPI** (ID: 28)
-5. **API Builder Protocols** (ID: 76)
-6. **Expression System Protocols** (ID: 77)
-7. **PolarsExpressionSystem** (ID: 79)
-8. **Polars Expr Compilation** (ID: 82)
-9. **Expression Testing** (ID: 90)
-10. **Cross-Backend Parametrize** (ID: 91)
-11. **xfail Known Quirks** (ID: 92)
+1. **Dataframe Libraries and Engines** (ID: 301)
+2. **Backend-Agnostic Data Logic** (ID: 303)
+3. **Build Then Compile** (ID: 305)
+4. **Three-Layer Separation** (ID: 490)
+5. **Protocols as Contracts** (ID: 491)
+6. **Expression Systems** (ID: 493)
+7. **Function Keys** (ID: 494)
+8. **Function Registry** (ID: 496)
+9. **Relation Operation Keys and Registry** (ID: 503)
+10. **Relation Systems** (ID: 504)
+11. **Unified Relation Visitor** (ID: 505)
+12. **Capability Spine** (ID: 510)
+13. **Capability Information vs Policy** (ID: 511)
+14. **Capability Segments and Scopes** (ID: 512)
+15. **Capability Bootstrap** (ID: 515)
+16. **CapabilityRegistry** (ID: 516)
+17. **Bound Calls** (ID: 517)
+18. **Capability Gates** (ID: 518)
+19. **Capability Preflight** (ID: 522)
 
 ## Terminal Nodes Analysis
 
 Terminal nodes are concepts that nothing else depends on but have prerequisites. They represent natural endpoints of learning paths — culminating or specialized concepts.
 
-- **Total Terminal Nodes**: 81 (40.5% of all concepts)
+- **Total Terminal Nodes**: 103 (48.4% of all concepts)
 - **Healthy Range**: 5-40% of total concepts
 
 Concepts at the end of learning paths:
 
-- **17**: DataFrame Type Guards
-- **19**: Lazy Import System
-- **21**: BaseFactoryMixin
-- **30**: Fluent Expression Chain
-- **35**: List Namespace
-- **36**: Name Namespace
-- **39**: coalesce Function
-- **40**: greatest Function
-- **41**: least Function
-- **42**: native Function
-- **43**: Comparison Operations
-- **44**: Arithmetic Operations
-- **45**: Boolean Operations
-- **46**: String Operations
-- **52**: duration Function
-- **53**: count_records Function
-- **54**: corr Function
-- **56**: ScalarFunctionNode
-- **57**: FieldReferenceNode
-- **58**: LiteralNode
+- **315**: Exceptions Facade
+- **323**: when-then-otherwise
+- **325**: Expression Compile
+- **326**: native Passthrough
+- **327**: coalesce greatest and least
+- **328**: Horizontal Functions
+- **330**: Window Expressions with over
+- **332**: AST Introspection
+- **333**: Membership with is_in
+- **334**: today and now
+- **336**: String Namespace
+- **337**: Datetime Namespace
+- **338**: Name Namespace
+- **340**: List Namespace and element
+- **341**: Categorical Namespace
+- **342**: Geospatial Namespace
+- **346**: Null Handling Operations
+- **347**: Rounding and Logarithmic Operations
+- **351**: Sentinel Unknown Values
+- **352**: Ternary Comparisons
 
-*...and 61 more*
+*...and 83 more*
 
 ## Orphaned Nodes Analysis
 
@@ -97,33 +102,35 @@ Top 10 concepts that are prerequisites for the most other concepts:
 
 | Rank | Concept ID | Concept Label | Indegree |
 |------|-----------|---------------|----------|
-| 1 | 1 | Python Type Hints | 19 |
-| 2 | 28 | BaseExpressionAPI | 18 |
-| 3 | 96 | Relation Class | 17 |
-| 4 | 115 | RelationNode Base | 15 |
-| 5 | 4 | DataFrames | 10 |
-| 6 | 2 | Protocol Classes | 9 |
-| 7 | 55 | ExpressionNode Base | 9 |
-| 8 | 169 | RelationDAG | 9 |
-| 9 | 3 | Pydantic Models | 8 |
-| 10 | 27 | Expression Building | 8 |
+| 1 | 376 | Collect and Terminals | 14 |
+| 2 | 360 | Relation Objects | 13 |
+| 3 | 320 | Expression Builder Objects | 12 |
+| 4 | 400 | TableSchema | 11 |
+| 5 | 311 | Top-Level Namespace | 8 |
+| 6 | 321 | col | 8 |
+| 7 | 313 | Backend Detection | 7 |
+| 8 | 335 | Expression Namespaces | 7 |
+| 9 | 395 | Canonical Dtypes | 7 |
+| 10 | 437 | Validation Check IR | 7 |
 
 ## Outdegree Distribution
 
 | Dependencies | Number of Concepts |
 |--------------|--------------------|
-| 0 | 7 |
-| 1 | 38 |
-| 2 | 128 |
-| 3 | 21 |
-| 4 | 4 |
-| 5 | 2 |
+| 0 | 4 |
+| 1 | 124 |
+| 2 | 72 |
+| 3 | 11 |
+| 4 | 1 |
+| 5 | 1 |
 
 ## Recommendations
 
-- ℹ️ **High terminal node percentage** (40.5%): Consider if some terminal concepts should be prerequisites for advanced concepts
+- ℹ️ **High terminal node percentage** (48.4%): Consider if some terminal concepts should be prerequisites for advanced concepts
 - ✅ **DAG structure verified**: Graph supports valid learning progressions
+- ℹ️ **Long dependency chains** (19): Ensure students can follow extended learning paths
+- ℹ️ **Consider adding cross-dependencies**: More connections could create richer learning pathways
 
 ---
 
-*Report generated by learning-graph-reports/analyze_graph.py*
+*Report generated by ibook graph analyze*

@@ -1,10 +1,16 @@
 {
-  "title": "Mountainash Package Concept Graph",
-  "description": "A concept dependency graph covering the mountainash cross-backend data expression and relational pipeline library. 200 concepts across 11 taxonomy categories spanning core infrastructure, expression system, relation system, type system, DAG orchestration, and pipeline framework.",
+  "title": "Mountainash Concept Graph",
+  "description": "Internal concept dependency graph for the mountainash package documentation rebuild: foundations and ecosystem, package surface, expressions and namespaces, ternary logic, relations, execution targets, types and schemas, conformance, data contracts and validation, RelationDAG and pipelines, Python data ingress/egress, architecture, capabilities, backends, and extension/maintenance.",
   "creator": "Nathaniel Ramm",
-  "date": "2026-06-03",
-  "version": "2.0",
+  "date": "2026-10-30",
+  "version": "3.0",
   "format": "Learning Graph JSON v1.0",
   "schema": "https://raw.githubusercontent.com/dmccreary/learning-graphs/refs/heads/main/src/schema/learning-graph-schema.json",
-  "license": "CC BY-NC-SA 4.0 DEED"
+  "license": "Apache-2.0 AND MIT (package licence; see LICENSE and NOTICE)",
+  "source_repository": "mountainash-io/mountainash",
+  "source_revision": "0a625ad1d1cc8b436b9fc66b027ac80fdff466ae",
+  "profile_revision": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "editorial_brief": "docs-site/editorial-brief.md (confirmed 2026-10-30)",
+  "tool_revision": "mountainash-ibook-skills 36c2babce38a51ee6886eb2e783bce9899aefef6",
+  "id_policy": "Replacement graph (editorial brief: reuse none, confirmed 2026-10-30). IDs start at 301 so no ID from the retired 2.0 graph (IDs 1-200, baseline 00e99834) is reused with a different meaning. ibook graph reconcile against the retired graph reports all 200 enriched concepts as removed and 18 labels re-used under new IDs (302,305,313,324,336-339,344,361,366,400,406,409,411,452,498,499); this is the deliberate retirement, not an identity match: re-used labels are re-derived from current source and carry no prior enrichment. Gaps between ID blocks are intentional and are never renumbered."
 }
