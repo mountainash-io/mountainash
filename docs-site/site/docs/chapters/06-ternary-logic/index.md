@@ -4,17 +4,17 @@ title: Ternary logic and unknown values
 
 # Ternary logic and unknown values
 
-Ternary expressions evaluate conditions to one of three values: TRUE, UNKNOWN or FALSE, stored as the integers 1, 0 and -1. A ternary condition built with the `t_` methods (`t_gt`, `t_eq`, `t_is_in`, `t_and`, ...) says explicitly when it cannot decide, either because a value is null or because it matches a sentinel such as `-99999` that the data uses for "missing". A booleanizer then turns the three-valued result into an ordinary boolean, under a policy chosen at the point of use: strict, lenient, or "find the uncertain rows".
+Ternary expressions evaluate conditions to one of three values: TRUE, UNKNOWN or FALSE, stored as the integers 1, 0 and -1. A ternary condition built with the `t_` methods (`t_gt`, `t_eq`, `t_is_in`, `t_and`, ...) returns UNKNOWN when a value is null or matches a sentinel such as `-99999` that the data uses for "missing". A booleanizer then turns the three-valued result into an ordinary boolean, under a policy chosen at the point of use: strict, lenient, or "find the uncertain rows".
 
 Assumes: [Three-valued logic](../01-what-mountainash-does/index.md#three-valued-logic) and [Building expressions](../04-building-expressions/index.md), in particular [Operators](../04-building-expressions/index.md#operators).
 
 ## Ternary columns and sentinels
 
 <!-- concept:350 -->
-`ma.t_col(name)` is a column reference for ternary work. With no further arguments it behaves like `ma.col(name)`: in a ternary comparison a null value gives UNKNOWN (0). Any expression can start a ternary chain; `t_col` is needed only to declare sentinels.
+`ma.t_col(name)` is a column reference for ternary work. With no further arguments it behaves like `ma.col(name)`: in a ternary comparison a null value gives UNKNOWN (0). Any expression can start a ternary chain; use `t_col` when a column has sentinels to declare.
 
 <!-- concept:351 -->
-`ma.t_col(name, unknown={...})` names the values that mean "unknown" in this column. A value in the set gives UNKNOWN in every ternary comparison on that column. The set replaces the default rather than adding to it: once `unknown=` is given, null is UNKNOWN only if `None` is in the set. Without it, a null makes the comparison FALSE.
+`ma.t_col(name, unknown={...})` names the values that mean "unknown" in this column. A value in the set gives UNKNOWN in every ternary comparison on that column. The set replaces the default: once `unknown=` is given, null is UNKNOWN only if `None` is in the set, and otherwise a null makes the comparison FALSE.
 
 ```python
 import polars as pl
@@ -47,7 +47,7 @@ shape: (4, 6)
 └────────┴────────┴─────┴───────┴──────────┴───────────────┘
 ```
 
-Without a sentinel, `-99999 > 70` is simply FALSE. Include `None` in the set (`unknown={-99999, None}`) whenever nulls should stay UNKNOWN. The raw integers appear here because relation methods do not booleanize ternary results (see [Booleanization](#booleanization)); their integer width depends on the backend (32-bit on Polars, 8-bit on Ibis).
+On a plain column, `-99999 > 70` is FALSE. Include `None` in the set (`unknown={-99999, None}`) whenever nulls should stay UNKNOWN. Relation methods return ternary results as raw integers (see [Booleanization](#booleanization)); their integer width depends on the backend (32-bit on Polars, 8-bit on Ibis).
 
 <!-- concept:357 -->
 `ma.always_true()`, `ma.always_unknown()` and `ma.always_false()` are constant ternary expressions, 1, 0 and -1 on every row. They are useful as defaults in a `when(...).then(...).otherwise(...)` chain and as neutral starting points when combining a variable number of conditions. They take part in booleanization like any other ternary expression.
@@ -101,7 +101,7 @@ NOT (`a.t_not()`):
 |---|---|---|---|
 | result | FALSE | UNKNOWN | TRUE |
 
-FALSE AND UNKNOWN is FALSE and TRUE OR UNKNOWN is TRUE: the unknown input cannot change the outcome, so the result is definite. These tables were checked by evaluating every pair of the `always_*` constants.
+FALSE AND UNKNOWN is FALSE and TRUE OR UNKNOWN is TRUE: the known input already fixes the outcome, so the result is definite. Evaluating every pair of the `always_*` constants confirms these tables.
 
 ```python
 score = ma.t_col("score", unknown={-99999, None})
@@ -133,7 +133,7 @@ shape: (4, 7)
 ## Booleanization
 
 <!-- concept:354 -->
-Filters and most downstream code need booleans, not -1/0/1. A booleanizer maps a ternary result to `true` or `false`. `expr.compile(df)` applies one automatically to a ternary expression, using `"t_is_true"` unless told otherwise: only definite TRUE becomes `true`. Pass `booleanizer=` to choose another, a callable that takes and returns an expression for a custom rule, or `None` to keep the raw integers. Expressions that already end in a booleanizer are left alone.
+Filters and most downstream code expect booleans in place of -1/0/1. A booleanizer maps a ternary result to `true` or `false`. `expr.compile(df)` applies one automatically to a ternary expression, using `"t_is_true"` by default: only definite TRUE becomes `true`. Pass `booleanizer=` to choose another, a callable that takes and returns an expression for a custom rule, or `None` to keep the raw integers. An expression that already ends in a booleanizer compiles as it is.
 
 ```python
 passed = score.t_ge(70)
@@ -160,7 +160,7 @@ shape: (4, 4)
 ```
 
 !!! warning "Relations do not booleanize ternary results"
-    Automatic booleanization happens only in `expr.compile(df)`. Relation methods compile their expressions without it, so a ternary expression passed straight to `relation.filter(...)` reaches the engine as an integer column and the engine rejects it. In `with_columns` and `select` the result stays as raw -1/0/1. Call a booleanizer method explicitly in relation code.
+    `expr.compile(df)` is the one place that booleanizes automatically. Relation methods compile their expressions as they are, so a ternary expression passed straight to `relation.filter(...)` reaches the engine as an integer column, which the engine rejects. In `with_columns` and `select` the result stays as raw -1/0/1. In relation code, call a booleanizer method explicitly.
 
 ```python
 try:
@@ -230,7 +230,7 @@ There are six built-in booleanizers. Each is a method on a ternary expression an
 The choice decides where uncertain rows go. A strict data-quality rule that should pass only rows that clearly satisfy it uses `t_is_true`; a rule that should fail only rows that clearly break it uses `t_maybe_true`; `t_is_unknown` collects the rows to investigate.
 
 <!-- concept:356 -->
-Boolean and ternary expressions convert into each other automatically when they meet. A boolean expression passed to a ternary operator (`t_and`, `t_or`, `t_not`, `t_xor`) is wrapped with `to_ternary()`, which maps `true` to 1, `false` to -1 and null to 0. A ternary expression passed to a boolean operator (`&`, `|`, `and_`, `or_`) is wrapped with `t_is_true()`. The conversion happens while the expression is built, so the compiled plan never mixes the two encodings.
+Boolean and ternary expressions convert into each other automatically when they meet. A boolean expression passed to a ternary operator (`t_and`, `t_or`, `t_not`, `t_xor`) is wrapped with `to_ternary()`, which maps `true` to 1, `false` to -1 and null to 0. A ternary expression passed to a boolean operator (`&`, `|`, `and_`, `or_`) is wrapped with `t_is_true()`. The conversion happens while the expression is built, so every operator in the compiled plan receives operands in its own encoding.
 
 ```python
 flags = pl.DataFrame({"active": [True, False, None, True], "score": [80, 90, 75, None]})
@@ -259,7 +259,7 @@ shape: (4, 5)
 In the last row, `score > 70` is UNKNOWN, so the boolean `&` sees it as `false` after `t_is_true`.
 
 !!! warning "Bare boolean columns are not converted"
-    Automatic conversion applies to operation results, not to plain column references or literals. A boolean column used directly as a ternary operand is read as its storage value, so `false` behaves like UNKNOWN (0) and the results are wrong. Wrap the column with `.to_ternary()`, or compare it (`ma.col("active").eq(True)`), before using it in ternary logic.
+    Automatic conversion applies to operation results. Plain column references and literals pass through as they are. A boolean column used directly as a ternary operand is read as its storage value, so `false` behaves like UNKNOWN (0) and the results are wrong. Wrap the column with `.to_ternary()`, or compare it (`ma.col("active").eq(True)`), before using it in ternary logic.
 
 ```python
 print(ma.relation(flags).with_columns(
@@ -284,6 +284,6 @@ shape: (4, 4)
 
 ### Where the semantics are enforced
 
-The ternary operations are ordinary function keys in the Mountainash extension namespace, so they pass through the same build, visit and backend layers as every other operation (see [How expressions compile](../18-expression-compilation/index.md)). Each ternary function key is classified as terminal (the six booleanizers, which return booleans) or non-terminal (comparisons, logical operators, `to_ternary`, `list.t_contains` and the `always_*` constants, which return -1/0/1). Two frozensets in the function-key enums module, `MOUNTAINASH_TERNARY_TERMINAL` and `MOUNTAINASH_TERNARY_NON_TERMINAL`, record that split; `compile()` uses it to decide whether to booleanize, and the API builders use it to decide when to convert between encodings. Sentinel sets travel as options on the comparison node, and each backend's ternary expression system (`expsys_pl_ext_ma_scalar_ternary.py`, `expsys_nw_ext_ma_scalar_ternary.py`, `expsys_ib_ext_ma_scalar_ternary.py`) turns them into a "null or sentinel gives 0" condition in native code. A new ternary operation must be added to one of the two sets, or booleanization and coercion will not recognise it.
+The ternary operations are ordinary function keys in the Mountainash extension namespace, so they pass through the same build, visit and backend layers as every other operation (see [How expressions compile](../18-expression-compilation/index.md)). Each ternary function key is classified as terminal (the six booleanizers, which return booleans) or non-terminal (comparisons, logical operators, `to_ternary`, `list.t_contains` and the `always_*` constants, which return -1/0/1). Two frozensets in the function-key enums module, `MOUNTAINASH_TERNARY_TERMINAL` and `MOUNTAINASH_TERNARY_NON_TERMINAL`, record that split; `compile()` uses it to decide whether to booleanize, and the API builders use it to decide when to convert between encodings. Sentinel sets travel as options on the comparison node, and each backend's ternary expression system (`expsys_pl_ext_ma_scalar_ternary.py`, `expsys_nw_ext_ma_scalar_ternary.py`, `expsys_ib_ext_ma_scalar_ternary.py`) turns them into a "null or sentinel gives 0" condition in native code. A new ternary operation belongs in one of the two sets, because booleanization and coercion recognise only the operations listed there.
 
 [Validation](../13-validation/index.md) builds its rule outcomes on the same ternary expressions and booleanizers.

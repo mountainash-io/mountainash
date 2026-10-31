@@ -15,162 +15,162 @@
   },
   "chapter_state": {
     "01-what-mountainash-does": {
-      "content_hash": "sha256:eb130a620ccf522be9a9b99bc5a8016653ea4d404b358d55616e2dc463ec9fbb",
-      "word_count": 2343,
+      "content_hash": "sha256:283b3eee2d60fd4157672dd25d5e813cb4edb7d0a4738005515d196ea0c4d23d",
+      "word_count": 2272,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "02-installation-and-package-surface": {
-      "content_hash": "sha256:260268332322ca282ac5d94a4245db707cf91422a119e2c87f187729c50322a5",
-      "word_count": 2112,
+      "content_hash": "sha256:cc71680d1938c23f7bd9f0dffdac5380e2dea59f09807e6fb769b1d21881e3ae",
+      "word_count": 2111,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "03-dtypes": {
-      "content_hash": "sha256:8e9cdc49b122584681aa5b088c958b99d2bb755a777b2deccbe7fae080332841",
-      "word_count": 2062,
+      "content_hash": "sha256:bda5edf9e987cc337ad13c19377a3a23d087e0861a51cebf24f5ba7691b53ccc",
+      "word_count": 2041,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "04-building-expressions": {
-      "content_hash": "sha256:35ed70b1446b93d736813176cbbac831f277679ec49df369e6a26103a59d0fc0",
-      "word_count": 3538,
+      "content_hash": "sha256:c8e3ec5554bd25760ea2e8d12d05cf00ab27de32f842e35e0613acbed48ff04e",
+      "word_count": 3499,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "05-namespaces-aggregates-and-windows": {
-      "content_hash": "sha256:33d0029fad66fe6896f88001543e9f9b72bcbcff7f005df8fb82ae8d47382629",
-      "word_count": 2730,
+      "content_hash": "sha256:31ab1ad3843fd3af127354316af7bc8854c89a57e969305ab0b8ede19a0bc8ca",
+      "word_count": 2712,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "06-ternary-logic": {
-      "content_hash": "sha256:e6abaa3c3eba03e8fdfb48e04d240da94ddaab01792daae12b27cd595d113df3",
-      "word_count": 1951,
+      "content_hash": "sha256:5320a1c491b31f50df36167ce005a92199a0b81d7be520f6352b9f971c72f735",
+      "word_count": 1946,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "07-relations": {
-      "content_hash": "sha256:ae30dad0d8c39bf342145e8294eb25532be18c704991757ed9d9dddaec44651c",
-      "word_count": 3938,
+      "content_hash": "sha256:b3adbbf254f61d585138fdb9683be260150e23c6c2349c681599ef9722d2b38d",
+      "word_count": 3888,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "08-collecting-results": {
-      "content_hash": "sha256:c17d5dcd55557991a6a3fadcd86fef49aee3fd2027c95a2beb752e21279d5a37",
-      "word_count": 2072,
+      "content_hash": "sha256:08c9026be421fbb14ce6ec3585baa16bff3f01bceafd9a139f5817e9e2db6726",
+      "word_count": 2050,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "09-execution-targets-and-capabilities": {
-      "content_hash": "sha256:15b72b355f632c012c9dfa6ea94ecd70517f8d2bed3ca1aa3336d29d532c39fb",
-      "word_count": 2830,
+      "content_hash": "sha256:2396ff5045c0332599d36d7dfa47efcf753e41367fb2ab98a0e50568d17867ff",
+      "word_count": 2824,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "10-table-schemas-and-datapackage": {
-      "content_hash": "sha256:5f9aeac4d00abe6d0e3a3792b511f4da65effb6626f8820b319a2a94999a80b3",
-      "word_count": 3754,
+      "content_hash": "sha256:fab631f2ade33af439b4463410b4bb1f1c1fbd3f38361ae1164f1406660cdd5b",
+      "word_count": 3717,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "11-conforming-data": {
-      "content_hash": "sha256:b0133e1b79c7e37790169be283628032a9751a2f360d288a5ee2906989dfce10",
-      "word_count": 2923,
+      "content_hash": "sha256:4656bf77bf4087ca75f2b2359c1f8932b3a4b588391811ce195e26b1eebbee6a",
+      "word_count": 2894,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "12-data-contracts": {
-      "content_hash": "sha256:a7b2f15315b3046c59593fcc1017a7937a79229ce2a7b9fc66648e4606f2f69a",
-      "word_count": 2881,
+      "content_hash": "sha256:3dcc9e8d6eb7c6cce85165a13d8370e0858645f871d0c2870c92eec26843c73e",
+      "word_count": 2844,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "13-validation": {
-      "content_hash": "sha256:de89752408547bc78da827d50e12c0753b7b1c19aa27b06bbce6dca38f55dc0f",
-      "word_count": 3988,
+      "content_hash": "sha256:729eedfd99e004a0968b6771012f749942e2587af6389173629c38a4b5c12086",
+      "word_count": 3937,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "14-relationdag": {
-      "content_hash": "sha256:86dc13d69e7f7ac25ebdcc617ba7b30880d84d7265d3ae0d7ef74a7922145e3d",
-      "word_count": 2344,
+      "content_hash": "sha256:3d046ac5359eb04ca8d0e34a47fdbe4809e06cf1a67855b1873ec53dcfbb77b1",
+      "word_count": 2334,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "15-pipelines": {
-      "content_hash": "sha256:9484fa3e77449824ea9f938e254b19d4f7c323b04809b8fae44a87565cf3eafb",
-      "word_count": 2815,
+      "content_hash": "sha256:039a561a55e2dd7a5850597f7f374a59b5470a34ec9abfe75cf6c96cba9e8ff4",
+      "word_count": 2825,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "16-backend-support-and-limits": {
-      "content_hash": "sha256:9c4d232c62eec0dc4c2a1876d481c5c32d0ae28b7efe7435185ca954f87b804f",
-      "word_count": 8927,
+      "content_hash": "sha256:b50f47da9b110b54026e599e4ea317fd360e61e33d506b545091678bb60403ba",
+      "word_count": 8912,
       "has_concept_markers": true,
-      "last_generated": "2026-10-30",
+      "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "17-architecture": {
-      "content_hash": "sha256:2abfdd88746a1c630e824728a3fc474dd79bec499f38e0d74eea331d7088209b",
-      "word_count": 1968,
+      "content_hash": "sha256:41b6bdd65c854837d1e1a21b690f47e11e81d28fda1ac8ec06208ce91fce68ce",
+      "word_count": 1969,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "18-expression-compilation": {
-      "content_hash": "sha256:ae9c42de4f1fb4ac57e1f9529f26d8be3576ce829fdd18ef8805525db39576cc",
-      "word_count": 2579,
+      "content_hash": "sha256:5f4ae27b86708297183e17e54d4e3125e1a866433db13fa01056ee1e8bab9846",
+      "word_count": 2551,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "19-relation-compilation": {
-      "content_hash": "sha256:74ed573112c4bf538b452b36e3047c162cce86e1ad5c33c0fe39fc9c659ded06",
-      "word_count": 2453,
+      "content_hash": "sha256:100ca560cab2a76e69bf702b1bd65695631097ca35cb26b48f011888678476fd",
+      "word_count": 2418,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "20-capability-spine": {
-      "content_hash": "sha256:88f6e6ee24d345310f3f44910e0d11db9aff965e8dcf40db9ac50828dd78fdd3",
-      "word_count": 3081,
+      "content_hash": "sha256:379f1aae18f171c216e101cad770f15ef98f4b650e15312d2764e034d0805c35",
+      "word_count": 3061,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "21-backends": {
-      "content_hash": "sha256:88278cf2cf1731f4959d0ab5a6264807d8f5274a77aa292d40182998a66dbc30",
-      "word_count": 2024,
+      "content_hash": "sha256:01538a4f3f568848f15233574b4f7e6da9626c8afef69edde4af7d6ea5df3227",
+      "word_count": 2013,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "22-extending-mountainash": {
-      "content_hash": "sha256:6f1b53b39c0966d17bab8df2b29c8d3fa26fc1dad9a2783644e05a9141c15047",
-      "word_count": 2681,
+      "content_hash": "sha256:2efa4886e2754f6ff1c3e12d14e847d9b20b64feeb8ae764fd7807133b0e0525",
+      "word_count": 2662,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
     },
     "23-contributing-and-testing": {
-      "content_hash": "sha256:93d7414aaa60d7d0ea608b98be63e0faa56ecbf2289bba37a53aecf1a6a3a05c",
-      "word_count": 2171,
+      "content_hash": "sha256:8cf7fb570ad9ee5bab7ebb5f9b5f4fbd845dcaf2a34fe67962a292f5f9730a63",
+      "word_count": 2167,
       "has_concept_markers": true,
       "last_generated": "2026-10-31",
       "generator_version": "2.0.0"
@@ -184,11 +184,11 @@
   },
   "faq_state": {
     "question_count": 60,
-    "content_hash": "sha256:4651d33d4d8b074f61e9c29614f4f673143895f70797b68f43624401382d8ebf"
+    "content_hash": "sha256:1c187606f69a45d160c7947d3294e621f0647024893e27ea4f21689def9294b8"
   },
   "landing_state": {
     "index.md": {
-      "content_hash": "sha256:8e5b70f3a33e317693bdef7b6985150f24fd8906f4659fc190d1addc48efee8e",
+      "content_hash": "sha256:5e93ce5a93cff7563f628afbb3197ec29051a063c75ae9de8a703f0c18668926",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "pyproject.toml": "sha256:34ed41a98ebd4a84f6c479a7af0ae686c7c451dd920169ead82b9816cabb2096",
@@ -212,7 +212,7 @@
       "last_generated": "2026-10-31"
     },
     "about.md": {
-      "content_hash": "sha256:6eef5e4669e554f635b0053db9bdd37f27af69b904e1d9b9ade2c2386d3742d8",
+      "content_hash": "sha256:95b53c925ae14c734368be5d2b703f1789413b08d2f8e9d88363518299f11c23",
       "inputs": {
         "README.md": "sha256:6b9bc90671ac74362f3073c36fa5d2c35125ca070e74b7dc633f73c7d03ddf67",
         "LICENSE": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -278,6 +278,45 @@
       "learning_graph_nodes_updated": 213,
       "tokens_used": 0,
       "note": "Replacement rebuild (editorial brief confirmed 2026-10-30): retired the 15-chapter book at 00e99834 and its graph (IDs 1-200); new 23-chapter book, graph IDs 301-554, written from develop 0a625ad (src identical to profile 1d32ab4a). Previous chapter_state entries belonged to the retired chapters and were dropped. tokens_used not measured."
+    },
+    {
+      "date": "2026-10-31",
+      "from_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "to_commit": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+      "chapters_updated": [
+        "01-what-mountainash-does",
+        "02-installation-and-package-surface",
+        "03-dtypes",
+        "04-building-expressions",
+        "05-namespaces-aggregates-and-windows",
+        "06-ternary-logic",
+        "07-relations",
+        "08-collecting-results",
+        "09-execution-targets-and-capabilities",
+        "10-table-schemas-and-datapackage",
+        "11-conforming-data",
+        "12-data-contracts",
+        "13-validation",
+        "14-relationdag",
+        "15-pipelines",
+        "16-backend-support-and-limits",
+        "17-architecture",
+        "18-expression-compilation",
+        "19-relation-compilation",
+        "20-capability-spine",
+        "21-backends",
+        "22-extending-mountainash",
+        "23-contributing-and-testing"
+      ],
+      "sections_regenerated": [],
+      "faq_questions_updated": 60,
+      "landing_pages_updated": [
+        "index.md",
+        "about.md"
+      ],
+      "learning_graph_nodes_updated": [],
+      "tokens_used": null,
+      "note": "Editorial voice pass (humanizer plus active, positive restatement) over all chapters, FAQ, glossary and site pages. Prose only: code blocks, outputs, headings, concept markers, link targets, admonition headers and generated blocks byte-identical. Source unchanged."
     }
   ]
 }

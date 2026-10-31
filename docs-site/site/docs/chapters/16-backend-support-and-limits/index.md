@@ -4,7 +4,7 @@ title: Backend support and known limits
 
 # Backend support and known limits
 
-mountainash records what each backend family and dialect can do in its capability registry, and the cross-backend divergences it knows of in a generated catalogue. The support matrix and divergence tables below are computed from the coverage report the package generates from that registry and from the catalogue. Check a dialect here before relying on an operation there; the errors and policy controls that act on these declarations are described in [Capability errors and capability_policy](../09-execution-targets-and-capabilities/index.md#capability-errors-and-capability_policy).
+mountainash records what each backend family and dialect can do in its capability registry, and records known cross-backend divergences in a generated catalogue. The package generates a coverage report from that registry, and this page computes its support matrix and divergence tables from that report and from the catalogue. Check a dialect here before you rely on an operation there; the errors and policy controls that act on these declarations are explained in [Capability errors and capability_policy](../09-execution-targets-and-capabilities/index.md#capability-errors-and-capability_policy).
 
 Assumes: [Backend capabilities, families and dialects](../09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects).
 
@@ -14,18 +14,18 @@ Generated from source revision 0a625ad (develop, 0a625ad1d1cc8b436b9fc66b027ac80
 docs-site/scripts/support-matrix/generate.sh OUTDIR
 ```
 
-The script runs the package's own generators, `python -m mountainash.core.capabilities.render_markdown --output OUTDIR` (the coverage report: `expression-coverage.md`, `expression-coverage-scoped.md` and `expression-coverage.json` under `OUTDIR/docs/reference/`) and `scripts/generate_divergences_catalog.py` (the divergences catalogue). It then computes every table on this page from `expression-coverage.json` and from the catalogue's entry headings, with counts copied as computed, and rewrites this page. The only text changes are formatting for tables: dashes become semicolons and internal tracker references are removed from messages.
+The script runs the package's own generators, `python -m mountainash.core.capabilities.render_markdown --output OUTDIR` (the coverage report: `expression-coverage.md`, `expression-coverage-scoped.md` and `expression-coverage.json` under `OUTDIR/docs/reference/`) and `scripts/generate_divergences_catalog.py` (the divergences catalogue). It then computes every table on this page from `expression-coverage.json` and from the catalogue's entry headings, copies the counts as computed, and rewrites this page. The script edits message text in two ways only, to fit tables: it turns dashes into semicolons and strips internal tracker references.
 
 ## Support matrix
 
 <!-- concept:523 -->
-The support matrix crosses the operations mountainash registers with the backend families and dialects named in its capability declarations. Each family implements every registered operation; what differs is what the declarations say about each dialect. The report keeps three kinds of input apart:
+The support matrix crosses the operations mountainash registers with the backend families and dialects named in its capability declarations. Each family implements every registered operation, and the declarations then describe each dialect. The report keeps three kinds of input apart:
 
-- Implementation discovery: whether a family's backend implements an operation at all.
-- Information records: descriptive statements, at the native layer (what the engine itself does) or the public layer (what mountainash offers). Each has a level. `unsupported` means the operation, parameter or option value is not available; `literal only` means the argument must be a literal value, not an expression; `polymorphic` means it accepts a literal collection or an expression; `expression-capable` is an explicit dialect-level statement that expressions are accepted. Most native records concern single option values, such as one Substrait overflow or rounding mode, rather than whole operations.
-- Policies: executable rules. A gate refusal raises `BackendCapabilityError` before the call runs; the other policies enrich native errors or protect conformed results, as listed in [Backend capabilities, families and dialects](../09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects).
+- Implementation discovery: which operations a family's backend implements.
+- Information records: descriptive statements, at the native layer (what the engine itself does) or the public layer (what mountainash offers). Each has a level. `unsupported` marks an operation, parameter or option value the dialect lacks; `literal only` means the argument must be a literal value; `polymorphic` means it accepts a literal collection or an expression; `expression-capable` states explicitly that the dialect accepts expressions. Most native records describe a single option value, such as one Substrait overflow or rounding mode.
+- Policies: executable rules. A gate raises `BackendCapabilityError` before the call runs; the other policies enrich native errors or protect conformed results, as listed in [Backend capabilities, families and dialects](../09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects).
 
-A missing record means unknown, not supported. The "Cross-backend test suite" column is read from the backend registry in `tests/fixtures/backend_registry.py`, with each test backend mapped to its dialect by mountainash's own detection. "Full suite" dialects run the cross-backend tests; "transfer matrix only" dialects are exercised only as sources and destinations of operand transfer; for the rest, support rests on the declarations alone. Information cells read unsupported / literal only / polymorphic / expression-capable.
+An operation with no record for a dialect has unknown support. The "Cross-backend test suite" column comes from the backend registry in `tests/fixtures/backend_registry.py`, and mountainash's own detection maps each test backend to its dialect. "Full suite" dialects run the cross-backend tests; "transfer matrix only" dialects take part as sources and destinations of operand transfer; for the remaining dialects, the declarations are the evidence of support. Information cells read unsupported / literal only / polymorphic / expression-capable.
 
 <!-- BEGIN GENERATED: dialect summary from expression-coverage.json and tests/fixtures/backend_registry.py -->
 | Family | Dialect | Cross-backend test suite | Declaration segments | Native information | Public information | Gate refusals | Other policies |
@@ -49,7 +49,7 @@ A missing record means unknown, not supported. The "Cross-backend test suite" co
 | ibis | ibis-sqlite | full suite | 18 | 83 / 0 / 0 / 1 | 0 / 0 / 1 / 0 | 2 | materialization error 1 |
 <!-- END GENERATED -->
 
-Family-wide rows apply to every dialect of the family; a dialect row adds to them. Policies whose "Applies when" column names package or engine versions (for example the Ibis, SQLGlot and PostgreSQL versions on two PostgreSQL gates) act only when the running environment matches.
+Family-wide rows apply to every dialect of the family; a dialect row adds to them. A policy whose "Applies when" column names package or engine versions (for example the Ibis, SQLGlot and PostgreSQL versions on two PostgreSQL gates) acts when the running environment matches those versions.
 
 ### Implementation discovery
 
@@ -63,11 +63,11 @@ Registered operations: 344
 | ibis | 341 | 3 | 0 | 0 |
 <!-- END GENERATED -->
 
-"Implemented via handler" operations are dispatched by a dedicated handler rather than an expression-system method.
+A dedicated handler dispatches each "Implemented via handler" operation in place of an expression-system method.
 
 ### Coverage by operation domain
 
-Each cell counts information records and gate refusals for one domain across all of a family's scopes. Domains follow the operation's key family; "unclassified" collects key families the report does not assign to a domain.
+Each cell counts information records and gate refusals for one domain across all of a family's scopes. Domains follow the operation's key family; "unclassified" collects the key families the report leaves without a domain.
 
 <!-- BEGIN GENERATED: domain coverage from expression-coverage.json -->
 | Domain | Registered operations | polars: information / gate refusals | narwhals: information / gate refusals | ibis: information / gate refusals |
@@ -96,7 +96,7 @@ Each cell counts information records and gate refusals for one domain across all
 
 ### Policies by dialect
 
-Every executable policy, grouped by dialect. A condition of "always" applies to every call of the operation; otherwise the rule applies only to calls whose arguments match. The operation is shown as the function key that a `BackendCapabilityError` reports.
+Every executable policy, grouped by dialect. A condition of "always" applies to every call of the operation; any other condition applies to the calls whose arguments match it. Each operation appears as the function key that a `BackendCapabilityError` reports.
 
 <!-- BEGIN GENERATED: policies by dialect from expression-coverage.json -->
 ??? note "narwhals-dask (gate refusals: 14; other policies: 1)"
@@ -311,14 +311,14 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | materialization error / enrich | always | any version | SQLite cannot store IEEE NaN (stored as NULL), bind non-null Decimal values, or hold nested types; an owned table copy also cannot hold a decimal column |
 <!-- END GENERATED -->
 
-The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2086 lines, `expression-coverage-scoped.md` 1562 lines and `expression-coverage.json` 172878 lines; regenerate it with the command above for that detail.
+The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2086 lines, `expression-coverage-scoped.md` 1562 lines and `expression-coverage.json` 172878 lines; the command above regenerates it.
 
 ## Known divergences
 
 <!-- concept:524 -->
-A known divergence is a case where the same expression or relation fails or gives a different result on some backend, recorded instead of hidden. The package's consistency rule is that one plan produces the same logical result on every backend that supports it; where an engine cannot, the difference is declared, and where a declaration makes it a gate the call is refused instead of run. The divergences catalogue joins authored illustrations to the matching catalogue declarations. The catalogue itself states that its illustrations are render-only examples, not executable tests or newly verified observations, and that no version range is established by them.
+A known divergence is a recorded case where the same expression or relation fails or gives a different result on some backend. The package's consistency rule is that one plan produces the same logical result on every backend that supports it. Where an engine departs from that, mountainash declares the difference, and where the declaration is a gate, the gate refuses the call before it runs. The divergences catalogue joins authored illustrations to the matching catalogue declarations. The catalogue describes its illustrations as render-only examples: they are neither executable tests nor newly verified observations, and they establish no version range.
 
-Most catalogued divergences are refusals or errors. A smaller number change values without an error, and these need the most care. Examples from the catalogue include "sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges", "str.replace_slice() returns input unchanged." on Narwhals over pandas and Polars, and "Cyclic calculations and hash bucketing with negative dividends diverge" on Ibis DuckDB and SQLite, where the remainder takes the sign of the dividend.
+Most catalogued divergences are refusals or errors. A smaller number silently return different values, and these need the most care. Examples from the catalogue include "sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges", "str.replace_slice() returns input unchanged." on Narwhals over pandas and Polars, and "Cyclic calculations and hash bucketing with negative dividends diverge" on Ibis DuckDB and SQLite, where the remainder takes the sign of the dividend.
 
 <!-- BEGIN GENERATED: divergence summary from known-divergences.md -->
 Illustrated divergences: 455

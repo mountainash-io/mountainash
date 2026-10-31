@@ -4,11 +4,11 @@ title: Validation
 
 # Validation
 
-`mountainash.validation` is the engine that runs data checks against a relation on any supported backend and reports the outcome in one result model. Checks are plain declarations (a row expression, a dataset-level expression, a relation plan that returns failing rows, a logical value validator, or a foreign key). `ValidationRunner` compiles them through the ordinary expression and relation machinery and returns a `ValidationResult`: one summary row per check and a frame of failure cases keyed by row identity. [Data contracts](../12-data-contracts/index.md) and [DAG validation](../14-relationdag/index.md#validating-a-dag) both run on this engine; most users reach it through them and use the runner directly for ad hoc checks.
+`mountainash.validation` is the engine that runs data checks against a relation on any supported backend and reports the outcome in one result model. Checks are plain declarations (a row expression, a dataset-level expression, a relation plan that returns failing rows, a logical value validator, or a foreign key). `ValidationRunner` compiles them through the ordinary expression and relation machinery and returns a `ValidationResult`: one summary row per check and a frame of failure cases keyed by row identity. [Data contracts](../12-data-contracts/index.md) and [DAG validation](../14-relationdag/index.md#validating-a-dag) both run on this engine. Most users reach it through them and call the runner directly for ad hoc checks.
 
 Assumes: [Booleanization](../06-ternary-logic/index.md#booleanization), [Collect and terminals](../08-collecting-results/index.md#collect-and-terminals) and [TableSchema and fields](../10-table-schemas-and-datapackage/index.md#tableschema-and-fields).
 
-Status: `mountainash.validation` is a semi-public, evolving surface. Its exports serve data contracts, DAG validation and direct use, but the module does not yet mark which names are stable, so names and signatures may change between releases. The result model and the check types shown here are the parts other mountainash features build on.
+Status: `mountainash.validation` is a semi-public, evolving surface. Its exports serve data contracts, DAG validation and direct use. The module has yet to mark which names are stable, so names and signatures may change between releases. Other mountainash features build on the result model and the check types shown here.
 
 ```mermaid
 flowchart LR
@@ -23,7 +23,7 @@ flowchart LR
 ## Check IR and rule kinds
 
 <!-- concept:437 -->
-The check IR is a small set of frozen dataclasses, one per kind of check. Each declares what to test, not how to run it, and each carries an `id` and a `severity`. The union type is `ValidationCheck`:
+The check IR is a small set of frozen dataclasses, one per kind of check. Each declares what to test, leaving execution to the runner, and each carries an `id` and a `severity`. The union type is `ValidationCheck`:
 
 | Class | Kind | Tests | Counts |
 |---|---|---|---|
@@ -34,7 +34,7 @@ The check IR is a small set of frozen dataclasses, one per kind of check. Each d
 | `ForeignKeyRule` | `foreign_key` | Child key values present in a parent's key | orphan rows |
 | `DistributionRule` | reserved | Not implemented | |
 
-Row checks have three outcomes: pass, fail and unknown. A null in a boolean comparison gives unknown, as does UNKNOWN (0) from a ternary expression; nothing is silently dropped. The `booleanizer` on a row check does not change those counts. It names which outcomes count as passing, using the [booleanizer vocabulary](../06-ternary-logic/index.md#booleanization):
+Row checks have three outcomes: pass, fail and unknown. A null in a boolean comparison gives unknown, as does UNKNOWN (0) from a ternary expression, so every row lands in one of the three counts. The `booleanizer` on a row check leaves those counts as they are and names which outcomes count as passing, using the [booleanizer vocabulary](../06-ternary-logic/index.md#booleanization):
 
 | Booleanizer | Passing outcomes |
 |---|---|
@@ -45,12 +45,12 @@ Row checks have three outcomes: pass, fail and unknown. A null in a boolean comp
 | `t_is_unknown` | unknown |
 | `t_is_known` | pass, fail |
 
-A row check passes when every row has a passing outcome, or when the passing fraction of all rows reaches `mostly`. An expression that already ends in a booleanizer (`.t_is_true()`) is treated as boolean, so its rows are only pass or fail.
+A row check passes when every row has a passing outcome, or when the passing fraction of all rows reaches `mostly`. The runner treats an expression that already ends in a booleanizer (`.t_is_true()`) as boolean, so each of its rows is pass or fail.
 
-Declaration mistakes raise `CheckDeclarationError` (from `mountainash.exceptions`) before any data is read: an unknown severity or booleanizer, `mostly` outside (0, 1], duplicate field names, or a foreign key whose two sides have different arity. The runner's dispatch is closed: an object that is not one of the check classes raises `UnknownCheckTypeError` rather than being skipped.
+Declaration mistakes raise `CheckDeclarationError` (from `mountainash.exceptions`) before any data is read: an unknown severity or booleanizer, `mostly` outside (0, 1], duplicate field names, or a foreign key whose two sides have different arity. The runner's dispatch is closed: any object outside the check classes raises `UnknownCheckTypeError`.
 
 <!-- concept:438 -->
-Each kind is declared directly when using the runner without a contract. This set of checks over a small table is run in [Running checks](#running-checks):
+With the runner and no contract, you declare each kind directly. [Running checks](#running-checks) runs this set of checks over a small table:
 
 ```python
 import polars as pl
@@ -82,9 +82,9 @@ checks = [
 ]
 ```
 
-`RowRule` takes `expr`, `mostly`, `booleanizer`, `error_message` and `fields` (the columns copied into failure cases). `ScalarRule` takes an expression that reduces to one boolean; a null result counts as not passing. `RelationRule.plan` receives the relation under test and returns the rows that break the rule, so any join, group or window the relation API supports can express a check; the check passes when the plan returns no rows.
+`RowRule` takes `expr`, `mostly`, `booleanizer`, `error_message` and `fields` (the columns copied into failure cases). `ScalarRule` takes an expression that reduces to one boolean; a null result fails the check. `RelationRule.plan` receives the relation under test and returns the rows that break the rule, so any join, group or window the relation API supports can express a check. The check passes when the plan returns an empty relation.
 
-A data-contract `Rule` is not itself a check. `classify(rule)` turns it into a `ScalarRule` when the expression aggregates the whole dataset (an aggregate outside any window, with every column reference inside an aggregate), and into a `RowRule` otherwise. A window (`over`) re-broadcasts its aggregate, so it stays row-valued:
+A data-contract `Rule` becomes a check through `classify(rule)`, which turns it into a `ScalarRule` when the expression aggregates the whole dataset (an aggregate outside any window, with every column reference inside an aggregate), and into a `RowRule` otherwise. A window (`over`) re-broadcasts its aggregate, so it stays row-valued:
 
 ```python
 from mountainash.validation import classify
@@ -105,12 +105,12 @@ RowRule
 rule 'avg': mostly is meaningless for a scalar-valued expression (a single verdict has no pass rate)
 ```
 
-An expression with no column reference and no aggregate is rejected as a literal-only rule.
+`classify` rejects an expression with no column reference and no aggregate as a literal-only rule.
 
-`ValueRule` runs a validator from the closed `ValueValidatorKey` vocabulary on the logical Python value of each row after conformance: `TYPE_FORMAT`, `LENGTH`, `RANGE`, `STRING_FORMAT`, `XSD_PATTERN`, `MEMBERSHIP`, `UNIQUE`, `NESTED`, `JSON_SCHEMA`, `GEOJSON`, `GEOJSON_WINDING` and `TOPOJSON`. Options are checked against the validator when the rule is constructed (`MEMBERSHIP` needs a sequence `allowed`, `RANGE` at least one bound, and so on). Schema constraints compile to these: a field's `minimum` becomes a `RANGE` value rule named `<field>_range`, `enum` becomes `<field>_enum_membership`, and so on, while `required` becomes a row rule because it tests nulls after conformance. Value rules compare values by canonical logical equality, so structured values (lists, records) compare the same way on every backend. The vocabulary is closed: new value validators are added to the package, not registered by callers.
+`ValueRule` runs a validator from the closed `ValueValidatorKey` vocabulary on the logical Python value of each row after conformance: `TYPE_FORMAT`, `LENGTH`, `RANGE`, `STRING_FORMAT`, `XSD_PATTERN`, `MEMBERSHIP`, `UNIQUE`, `NESTED`, `JSON_SCHEMA`, `GEOJSON`, `GEOJSON_WINDING` and `TOPOJSON`. Constructing the rule checks its options against the validator (`MEMBERSHIP` needs a sequence `allowed`, `RANGE` at least one bound, and so on). Schema constraints compile to these: a field's `minimum` becomes a `RANGE` value rule named `<field>_range`, `enum` becomes `<field>_enum_membership`, and so on, while `required` becomes a row rule because it tests nulls after conformance. Value rules compare values by canonical logical equality, so structured values (lists, records) compare the same way on every backend. The vocabulary is closed: new value validators ship with the package, and callers use the existing set.
 
 <!-- concept:445 -->
-`DistributionRule` is a reserved slot for aggregate and statistical checks (distribution shape, drift between runs). It is part of the `ValidationCheck` union so that the IR has a place for it, but it is not implemented, and constructing one raises:
+`DistributionRule` is a reserved slot for aggregate and statistical checks (distribution shape, drift between runs). It sits in the `ValidationCheck` union to give the IR a place for it. It is unimplemented, and constructing one raises:
 
 ```python
 from mountainash.validation import DistributionRule
@@ -128,7 +128,7 @@ DistributionRule is a reserved check type (Tier B); it is not implemented yet.
 Dataset-level conditions that can be written as one aggregate expression (`ma.col("x").mean().lt(...)`, `ma.col("x").std()...`) are `ScalarRule`s today.
 
 <!-- concept:446 -->
-Nested JSON values are checked with JSON Schema. A field declared with `json_schema=` compiles to a `JSON_SCHEMA` value rule named `<field>_json_schema`, and a `ValueRule` can name one directly with `options={"schema": {...}}`. The JSON Schema uses the draft named by its `$schema` (Draft 2020-12 by default) and may not reference remote documents. In a table schema it is checked when the schema is compiled (see [Table schema semantic validation](#table-schema-semantic-validation)), so an invalid JSON Schema or a remote `$ref` is reported as a declaration issue instead of being fetched. Each violation becomes a failure case with JSON Pointer `instance_path` and `schema_path`, the JSON Schema keyword as `validator`, and the validator's message:
+JSON Schema checks nested JSON values. A field declared with `json_schema=` compiles to a `JSON_SCHEMA` value rule named `<field>_json_schema`, and a `ValueRule` can name one directly with `options={"schema": {...}}`. The JSON Schema uses the draft named by its `$schema` (Draft 2020-12 by default) and must be self-contained: remote document references are disallowed. In a table schema, compilation checks it (see [Table schema semantic validation](#table-schema-semantic-validation)) and reports an invalid JSON Schema or a remote `$ref` as a declaration issue, leaving the remote document unfetched. Each violation becomes a failure case with JSON Pointer `instance_path` and `schema_path`, the JSON Schema keyword as `validator`, and the validator's message:
 
 ```python
 import json
@@ -158,7 +158,7 @@ shape: (1, 5)
 └─────────────────────┴───────────────┴─────────────┴───────────┴───────────────────────────────┘
 ```
 
-The `plan=` argument runs a compiled schema: the runner conforms the relation to the schema, which decodes the JSON text into objects, and then runs the plan's checks.
+The `plan=` argument runs a compiled schema: the runner conforms the relation to the schema, which decodes the JSON text into objects, then runs the plan's checks.
 
 Geospatial values have three validators. `GEOJSON` validates an RFC 7946 GeoJSON object against a vendored GeoJSON schema and adds the rules that schema cannot express, such as closed polygon rings; `GEOJSON_WINDING` reports rings whose winding order differs from the RFC's recommendation; `TOPOJSON` validates a TopoJSON topology and its arc references. A field of type `geojson` compiles to `<field>_geojson` and a `warning`-severity `<field>_geojson_winding`.
 
@@ -187,15 +187,15 @@ shape: (1, 4)
 ```
 
 !!! warning "GeoJSON fields declared in a schema"
-    A field declared with `type=UniversalType.GEOJSON` currently conforms to JSON text, and the compiled `<field>_type_format` and `<field>_geojson` checks then fail on every non-null row, valid or not, because the text is not decoded back into an object. Until that is fixed, validate GeoJSON with a `ValueRule` over a column that already holds GeoJSON objects (a struct column, as above), and do not declare the column as `geojson` in the contract.
+    A field declared with `type=UniversalType.GEOJSON` currently conforms to JSON text and stays as text, so the compiled `<field>_type_format` and `<field>_geojson` checks fail on every non-null row, valid or not. Until that is fixed, validate GeoJSON with a `ValueRule` over a column that already holds GeoJSON objects (a struct column, as above), and declare the column in the contract with a type other than `geojson`.
 
 !!! warning "Backend limit"
-    Conforming GeoJSON text is available only on Polars; on other backends the conform step fails and the GeoJSON checks report `error` (`tests/validation/cross_backend/test_typespec_constraints.py`).
+    Conforming GeoJSON text works on Polars only; on other backends the conform step fails and the GeoJSON checks report `error` (`tests/validation/cross_backend/test_typespec_constraints.py`).
 
 ## Running checks
 
 <!-- concept:439 -->
-`ValidationRunner().validate_relation(relation, checks, ...)` runs a list of checks against one relation, or against a native dataframe that it wraps with `ma.relation`. It returns a `ValidationResult` and does not raise for failing or erroring checks. The main keyword arguments are:
+`ValidationRunner().validate_relation(relation, checks, ...)` runs a list of checks against one relation, or against a native dataframe that it wraps with `ma.relation`. It returns a `ValidationResult` and records failing or erroring checks there instead of raising. The main keyword arguments are:
 
 | Argument | Effect |
 |---|---|
@@ -232,7 +232,7 @@ shape: (5, 7)
 └───────────────────┴────────────┴────────┴──────────┴────────────┴────────────┴───────────────┘
 ```
 
-Both age checks see the same counts. `age_lenient` counts the null row as passing but still fails on -1; `age_non_negative` fails on both. The runner contains no backend-specific code, so the same checks over a DuckDB table through Ibis give the same summaries:
+Both age checks see the same counts. `age_lenient` counts the null row as passing and still fails on -1; `age_non_negative` fails on both. The runner is backend-neutral, so the same checks over a DuckDB table through Ibis give the same summaries:
 
 ```python
 import ibis
@@ -249,7 +249,7 @@ True
 ```
 
 !!! warning "Backend limit"
-    pandas, directly or through Narwhals, stores a missing number as NaN, and a comparison with NaN is false rather than null. A boolean row check therefore counts those rows as `fail`, not `unknown`, and `t_maybe_true` cannot exempt them. On Ibis over SQLite, a `ScalarRule` over an all-null column also gives a different verdict from Polars and Narwhals. Both are recorded as known divergences in `tests/validation/cross_backend/test_runner_semantics.py`; see [Backend support and known limits](../16-backend-support-and-limits/index.md).
+    pandas, directly or through Narwhals, stores a missing number as NaN, and a comparison with NaN returns false. A boolean row check therefore counts those rows as `fail`, and `t_maybe_true` cannot exempt them. On Ibis over SQLite, a `ScalarRule` over an all-null column also gives a different verdict from Polars and Narwhals. Both are recorded as known divergences in `tests/validation/cross_backend/test_runner_semantics.py`; see [Backend support and known limits](../16-backend-support-and-limits/index.md).
 
 ```python
 import pandas as pd
@@ -270,16 +270,16 @@ shape: (1, 4)
 └──────────────────┴────────────┴────────────┴───────────────┘
 ```
 
-`runner.validate_dag(dag, checks_by_resource, ...)` validates several resources of a `RelationDAG` in one session and then runs the foreign-key checks; it returns a `DAGValidationResult` (see [Foreign keys](#foreign-keys)). `RelationDAG.validate(specs)` is the usual entry point for that and is described in [Validating a DAG](../14-relationdag/index.md#validating-a-dag).
+`runner.validate_dag(dag, checks_by_resource, ...)` validates several resources of a `RelationDAG` in one session and then runs the foreign-key checks; it returns a `DAGValidationResult` (see [Foreign keys](#foreign-keys)). `RelationDAG.validate(specs)` is the usual entry point for that; [Validating a DAG](../14-relationdag/index.md#validating-a-dag) describes it.
 
 ### How the runner executes checks
 
-The runner prepares the input once. It compiles the relation (and the conform step, when a plan is given), materializes it for validation inside one [materialization scope](../09-execution-targets-and-capabilities/index.md#materialization-scopes-and-checkpoints), and runs every check against that prepared source rather than re-running the plan per check. Row rules stay native on the source backend: the rule expression is added as a temporary column with `with_columns` (never used as a filter, so null results cannot disappear as dropped rows), an outcome column of `pass`, `fail` or `unknown` is derived from it, and the counts are aggregated with the relation API. A non-terminal ternary expression reaches the backend as raw -1/0/1 values, because relation compilation applies no booleanization (see [the relation warning in chapter 6](../06-ternary-logic/index.md#booleanization)); the runner maps those values to outcomes itself. Only counts and the selected failure rows are converted to Polars. Value and foreign-key checks run on the logical values of the prepared snapshot.
+The runner prepares the input once. It compiles the relation (and the conform step, when a plan is given), materializes it for validation inside one [materialization scope](../09-execution-targets-and-capabilities/index.md#materialization-scopes-and-checkpoints), and runs every check against that prepared source, so the plan runs once for all checks. Row rules stay native on the source backend: the runner adds the rule expression as a temporary column with `with_columns` (a column, so rows with null results stay in the count), derives an outcome column of `pass`, `fail` or `unknown` from it, and aggregates the counts with the relation API. A non-terminal ternary expression reaches the backend as raw -1/0/1 values, because relation compilation applies no booleanization (see [the relation warning in chapter 6](../06-ternary-logic/index.md#booleanization)); the runner maps those values to outcomes itself. The runner converts only the counts and the selected failure rows to Polars. Value and foreign-key checks run on the logical values of the prepared snapshot.
 
-Each check runs in isolation: an exception while executing one check becomes a summary with status `error` and the exception text in `error`, and the other checks still run. A failure while preparing the shared input (most often a conform cast failure) turns every check into `error`. Declaration errors still raise. The expression and relation compilation the runner relies on is described in [How expressions compile](../18-expression-compilation/index.md) and [How relations compile](../19-relation-compilation/index.md).
+Each check runs in isolation: an exception while executing one check becomes a summary with status `error` and the exception text in `error`, and the other checks still run. A failure while preparing the shared input (most often a conform cast failure) turns every check into `error`. Declaration errors still raise. [How expressions compile](../18-expression-compilation/index.md) and [How relations compile](../19-relation-compilation/index.md) describe the compilation the runner relies on.
 
 <!-- concept:443 -->
-Severity is a closed vocabulary of two values, `"blocking"` (the default) and `"warning"`. A warning check runs exactly like a blocking one and keeps its true status in the summaries, but a failed warning does not make `passes` false. One rule decides what blocks:
+Severity is a closed vocabulary of two values, `"blocking"` (the default) and `"warning"`. A warning check runs exactly like a blocking one and keeps its true status in the summaries, and a failed warning leaves `passes` true. One rule decides what blocks:
 
 | Status | `blocking` severity | `warning` severity |
 |---|---|---|
@@ -288,7 +288,7 @@ Severity is a closed vocabulary of two values, `"blocking"` (the default) and `"
 | `error` | blocks | blocks |
 | `skipped` | does not block | does not block |
 
-A check that could not run always blocks, whatever its severity, because its outcome is unknown. `skipped` comes from rules a data contract's registry left out of the run. `fail_fast=True` stops after the first blocking summary, using the same rule:
+A check that errored always blocks, whatever its severity, because its outcome is unknown. `skipped` comes from rules a data contract's registry left out of the run. `fail_fast=True` stops after the first blocking summary, using the same rule:
 
 ```python
 quick = runner.validate_relation(ma.relation(people), checks, fail_fast=True)
@@ -311,7 +311,7 @@ In a schema, a field's `severity="warning"` makes every check compiled from that
 ## Results, row identity and failure cases
 
 <!-- concept:440 -->
-`ValidationResult` holds `passes`, `validator_name`, `datacontract_name`, `context`, `check_summaries`, `failure_cases`, `identity`, `identity_diagnostics` and `processor`. Checks execute on the data's backend, but both frames are Polars `DataFrame`s on every backend, so reporting code is the same everywhere.
+`ValidationResult` holds `passes`, `validator_name`, `datacontract_name`, `context`, `check_summaries`, `failure_cases`, `identity`, `identity_diagnostics` and `processor`. Checks execute on the data's backend, and both frames are Polars `DataFrame`s on every backend, so reporting code is the same everywhere.
 
 `check_summaries` has one row per check, the frame form of `CheckSummary` records:
 
@@ -328,10 +328,10 @@ print(result.failure_cases.columns)
 `status` is one of `passed`, `failed`, `error` and `skipped`. Row and value checks fill the three counts and `total_rows`; a relation check fills `fail_count` with its failing rows; a scalar check puts its value in `diagnostic` and leaves the counts null; a foreign-key check puts the orphan count in `diagnostic`. `error` holds the exception text of an errored check, and `elapsed` its run time in seconds. `DAGValidationResult` has `passes`, `results` (one `ValidationResult` per resource) and `fk_result` (a `ValidationResult` for the foreign-key phase).
 
 <!-- concept:441 -->
-Row identity says how a failure case points back to its source row. `RowIdentity(kind, key_fields)` has three tiers, resolved by `resolve_identity(natural_key=..., spec=..., row_identity=...)` in this order, with no silent fallback between them:
+Row identity says how a failure case points back to its source row. `RowIdentity(kind, key_fields)` has three tiers. `resolve_identity(natural_key=..., spec=..., row_identity=...)` resolves them in this order, with no silent fallback between them:
 
-- `keyed`: an explicit natural key, else the schema's `primary_key`. Key columns are added to every failure case. The key is checked first: a null or duplicate key raises `IdentityInvalidError` unless `allow_imperfect_key=True`, in which case the counts go to `identity_diagnostics`.
-- `row_number`: opt in with `row_identity="row_number"`. Failure cases carry the zero-based position of the row in the validated input. It is a diagnostic ordinal, not a key; it is not stable across reorderings and is never used to join back to the source.
+- `keyed`: an explicit natural key, else the schema's `primary_key`. Every failure case carries the key columns. The runner checks the key first: a null or duplicate key raises `IdentityInvalidError` unless `allow_imperfect_key=True`, in which case the counts go to `identity_diagnostics`.
+- `row_number`: opt in with `row_identity="row_number"`. Failure cases carry the zero-based position of the row in the validated input. It is a diagnostic ordinal: it changes when the input is reordered, so it is unsuitable as a key for joining back to the source.
 - `none`: the default. Failure cases carry only what the check itself provides.
 
 ```python
@@ -386,7 +386,7 @@ A data contract resolves identity from its `natural_key` or `primary_key`, and `
 | `row_number` | The row position, under `row_number` identity; null otherwise |
 | `row` | A struct of source values: the whole failing row for relation, value and foreign-key checks, the declared `fields` for row checks |
 
-The source row is nested in `row` so that source column names never collide with the reserved columns. Different checks contribute different fields, so the column is a struct with the union of all fields, null where a check did not provide one; in the output above, `age_non_negative` provides only `age`.
+Nesting the source row in `row` keeps source column names apart from the reserved columns. Different checks contribute different fields, so the column is a struct with the union of all fields, null where a check left one out; in the output above, `age_non_negative` provides only `age`.
 
 `failure_sample=n` keeps at most `n` failure rows per check (the summaries still count every row), and `error_message` is filled per row from the declared fields:
 
@@ -412,14 +412,14 @@ shape: (1, 4)
 └──────────────────┴─────────┴─────┴────────────────────┘
 ```
 
-When a data contract's `Validator` run does not pass, `result.processor` is a `ValidationResultProcessor` over the failure cases, with summaries such as `failure_count()`, `failure_count_by_rule()`, `failure_count_by_column()`, `passed_for_rule(rule_id)` and `failure_cases_for_rule(rule_id)`. Methods that join failures back to source rows (`pivot_key_fields()`, `enriched_failure_cases()` and message interpolation) need keyed identity and raise `IdentityRequiredError` otherwise. `result.processor` is `None` on a passing run and on results returned by the runner directly.
+When a data contract's `Validator` run fails, `result.processor` is a `ValidationResultProcessor` over the failure cases, with summaries such as `failure_count()`, `failure_count_by_rule()`, `failure_count_by_column()`, `passed_for_rule(rule_id)` and `failure_cases_for_rule(rule_id)`. Methods that join failures back to source rows (`pivot_key_fields()`, `enriched_failure_cases()` and message interpolation) need keyed identity and raise `IdentityRequiredError` otherwise. `result.processor` is `None` on a passing run and on results returned by the runner directly.
 
 ## Foreign keys
 
 <!-- concept:444 -->
-`ForeignKeyRule(id, child, parent, child_fields, parent_fields, exclude_null_child=True, severity="blocking")` checks that every child key appears among the parent's keys. The comparison uses canonical logical key values taken from each side's prepared snapshot, not a backend join, so keys of different physical types or structured keys compare by value. Null handling follows SQL `MATCH SIMPLE`: a child key with any null component is not an orphan, unless `exclude_null_child=False`. A child key component that could not be decoded is neither a match nor an orphan, and a parent row with a null or invalid component contributes no key. Orphans are reported as failure cases with the child row in `row`, and their number is the summary's `fail_count` and `diagnostic`.
+`ForeignKeyRule(id, child, parent, child_fields, parent_fields, exclude_null_child=True, severity="blocking")` checks that every child key appears among the parent's keys. The comparison uses canonical logical key values taken from each side's prepared snapshot instead of a backend join, so keys of different physical types or structured keys compare by value. Null handling follows SQL `MATCH SIMPLE`: a child key with any null component is exempt from the orphan check, unless `exclude_null_child=False`. A child key component that failed to decode is neither a match nor an orphan, and a parent row with a null or invalid component contributes no key. Orphans appear as failure cases with the child row in `row`, and their number is the summary's `fail_count` and `diagnostic`.
 
-Foreign keys are usually declared on a schema (see [Foreign keys](../10-table-schemas-and-datapackage/index.md#foreign-keys)), and the engine generates the rules. A self-reference (a reference with no resource) can be checked on a single relation by passing the compiled schema as `plan`:
+You usually declare foreign keys on a schema (see [Foreign keys](../10-table-schemas-and-datapackage/index.md#foreign-keys)), and the engine generates the rules. To check a self-reference (a reference with no resource) on a single relation, pass the compiled schema as `plan`:
 
 ```python
 from mountainash.typespec import ForeignKey, ForeignKeyReference
@@ -460,7 +460,7 @@ shape: (1, 3)
 └──────────────────────────────┴─────────┴───────────┘
 ```
 
-Generated ids have the form `fk__<child>__<fields>__<parent>`. The null `manager_id` of the first row is excluded under `MATCH SIMPLE`. A reference to another resource needs that resource's data, so on a single relation it raises `RelationDAGRequired` (from `mountainash.exceptions`). Cross-table keys are validated over a `RelationDAG`, where the runner prepares each resource once and runs the foreign-key phase after the per-resource checks:
+Generated ids have the form `fk__<child>__<fields>__<parent>`. `MATCH SIMPLE` excludes the null `manager_id` of the first row. A reference to another resource needs that resource's data, so on a single relation it raises `RelationDAGRequired` (from `mountainash.exceptions`). Validate cross-table keys over a `RelationDAG`, where the runner prepares each resource once and runs the foreign-key phase after the per-resource checks:
 
 ```python
 from mountainash.validation import ForeignKeyRule
@@ -488,12 +488,12 @@ shape: (1, 3)
 └─────────────────┴─────────┴───────────┘
 ```
 
-`build_fk_checks(dag, specs)` is the one place that generates foreign-key rules. It reads the DAG's constraint metadata and the `foreign_keys` of each resource's schema, removes duplicates, and returns the rules together with `error` summaries for declarations that cannot be checked (an unknown parent, mismatched arity, or key fields missing from either side). Those are reported, not raised and not skipped. `RelationDAG.validate` calls it for you; see [Validating a DAG](../14-relationdag/index.md#validating-a-dag).
+`build_fk_checks(dag, specs)` is the one place that generates foreign-key rules. It reads the DAG's constraint metadata and the `foreign_keys` of each resource's schema, removes duplicates, and returns the rules together with `error` summaries for uncheckable declarations (an unknown parent, mismatched arity, or key fields missing from either side). The function reports them in place of raising or skipping them. `RelationDAG.validate` calls it for you; see [Validating a DAG](../14-relationdag/index.md#validating-a-dag).
 
 ## Table schema semantic validation
 
 <!-- concept:447 -->
-Validating data assumes the schema itself makes sense. `validate_table_schema_semantics(schema)` checks a `TableSchema` declaration without touching data and returns a tuple of `TableSchemaIssue(path, code, message)`, sorted by JSON Pointer path. It checks, among other things, that primary keys, unique keys and foreign keys name declared fields, that `fields_match` is a supported mode, that missing-value declarations are well formed, that constraints suit the field type, and, when given `package_resource_names` and `package_schemas`, that foreign keys point at real resources and fields.
+Validating data assumes the schema itself makes sense. `validate_table_schema_semantics(schema)` checks a `TableSchema` declaration on its own, with no data, and returns a tuple of `TableSchemaIssue(path, code, message)`, sorted by JSON Pointer path. It checks, among other things, that primary keys, unique keys and foreign keys name declared fields, that `fields_match` is a supported mode, that missing-value declarations are well formed, that constraints suit the field type, and, when given `package_resource_names` and `package_schemas`, that foreign keys point at real resources and fields.
 
 ```python
 from mountainash.validation import validate_table_schema_semantics
@@ -521,4 +521,4 @@ except InvalidTypeSpecSemantics as exc:
 InvalidTypeSpecSemantics
 ```
 
-`require_valid_table_schema(schema)` runs the same checks and raises one `InvalidTypeSpecSemantics` listing every issue. Compiling a schema into a validation plan (`compile_datacontract`, and therefore every data contract) calls it first, so a contract with an inconsistent schema fails before any data is read instead of producing misleading check results.
+`require_valid_table_schema(schema)` runs the same checks and raises one `InvalidTypeSpecSemantics` listing every issue. Compiling a schema into a validation plan (`compile_datacontract`, and therefore every data contract) calls it first, so a contract with an inconsistent schema fails before any data is read.

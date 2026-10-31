@@ -6,43 +6,43 @@ Definitions of the public classes, functions, parameters and domain terms used a
 
 ### Abstract syntax tree (AST)
 
-A tree of nodes that records a computation as data, with each operation as a node and its inputs as children. Expressions and relations hold an AST that names what to compute and leaves out how any engine computes it.
+A tree of nodes that records a computation as data, with each operation as a node and its inputs as children. Expressions and relations hold an AST that records what to compute. Compilation supplies how each engine computes it.
 
 See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-plans-and-the-ast).
 
 ### Aggregate expression
 
-An expression that reduces many rows to one value, such as `sum`, `mean`, `count` or `n_unique`, or the free functions `ma.count_records`, `ma.corr`, `ma.median` and `ma.quantile`. It is evaluated per group in `group_by(...).agg(...)` or broadcast to rows with `over`.
+An expression that reduces many rows to one value, such as `sum`, `mean`, `count` or `n_unique`, or the free functions `ma.count_records`, `ma.corr`, `ma.median` and `ma.quantile`. `group_by(...).agg(...)` evaluates it per group, and `over` broadcasts it to rows.
 
 See [Aggregates](chapters/05-namespaces-aggregates-and-windows/index.md#aggregates).
 
 ### `always_true`, `always_false`, `always_unknown`
 
-Constant ternary expressions that produce 1, -1 and 0 on every row. They act as defaults in conditional chains and as neutral starting values when a variable number of ternary conditions is combined.
+Constant ternary expressions that produce 1, -1 and 0 on every row. They act as defaults in conditional chains and as neutral starting values when combining a variable number of ternary conditions.
 
 See [Ternary columns and sentinels](chapters/06-ternary-logic/index.md#ternary-columns-and-sentinels).
 
 ### API builder
 
-A class in the API builder layer that holds the public methods for one operation category and turns each call into AST nodes keyed by function keys. Builders supply the flat methods and namespaces of an expression object; they never touch a backend.
+A class in the API builder layer that holds the public methods for one operation category and turns each call into AST nodes keyed by function keys. Builders supply the flat methods and namespaces of an expression object and stay backend-free.
 
 See [API builders and expression systems](chapters/17-architecture/index.md#api-builders-and-expression-systems).
 
 ### Arguments and options
 
-The two parameter channels of a function node. Arguments are child nodes that the visitor compiles into native expressions; options are raw Python values passed unchanged to the backend. A parameter that every backend needs as a literal is an option.
+The two parameter channels of a function node. Arguments are child nodes that the visitor compiles into native expressions; options are raw Python values that the backend receives unchanged. A parameter that every backend needs as a literal is an option.
 
 See [Expression AST nodes](chapters/18-expression-compilation/index.md#expression-ast-nodes).
 
 ### Arrow exchange
 
-The use of Apache Arrow tables as the common format for moving data between backend families. Each relation system can export a native value to a `pyarrow.Table` and import one, which operand transfer, `ma.from_arrow` and `to_pyarrow()` rely on.
+The use of Apache Arrow tables as the common format for moving data between backend families. Each relation system can export a native value to a `pyarrow.Table` and import one; operand transfer, `ma.from_arrow` and `to_pyarrow()` rely on this.
 
 See [Arrow import and export](chapters/21-backends/index.md#arrow-import-and-export).
 
 ### As-of join
 
-A join, built with `join_asof`, that matches each left row to the nearest right row on an ordered key rather than an equal one. `strategy` picks the backward, forward or nearest match, `by` requires equal group values and `tolerance` limits the distance.
+A join, built with `join_asof`, that matches each left row to the nearest right row on an ordered key. `strategy` picks the backward, forward or nearest match, `by` requires equal group values and `tolerance` limits the distance.
 
 See [Joins](chapters/07-relations/index.md#joins).
 
@@ -56,25 +56,25 @@ See [Backend capabilities, families and dialects](chapters/09-execution-targets-
 
 ### Backend detection
 
-The selection of a backend family from the Python type of the dataframe or table passed to `ma.relation` or `compile`. Polars objects map to Polars, Ibis tables to Ibis, and anything Narwhals accepts to Narwhals; there is no backend argument.
+The step that picks a backend family from the Python type of the dataframe or table passed to `ma.relation` or `compile`. Polars objects map to Polars, Ibis tables to Ibis, and anything Narwhals accepts to Narwhals. The object's type is the whole selection; neither call takes a backend argument.
 
 See [Backend detection](chapters/02-installation-and-package-surface/index.md#backend-detection).
 
 ### Backend family
 
-One of the three APIs mountainash compiles plans to: Polars, Narwhals or Ibis. Each family has one expression system and one relation system, and reaches one or more engines, which are distinguished as dialects.
+One of the three APIs mountainash compiles plans to: Polars, Narwhals or Ibis. Each family has one expression system and one relation system, and reaches one or more engines, each one a dialect.
 
 See [Backend capabilities, families and dialects](chapters/09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects).
 
 ### Backend identity
 
-The pair of backend family and dialect that selects which capability declarations apply to a call. It is derived from the execution location of the call, not from the original source; a dialect of `None` means only family-wide declarations apply.
+The pair of backend family and dialect that selects which capability declarations apply to a call. It comes from the execution location of the call, which can differ from the original source. A dialect of `None` means family-wide declarations alone apply.
 
 See [Backend capabilities, families and dialects](chapters/09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects).
 
 ### Backend registration
 
-The process by which a backend's composed expression system and relation system are recorded in keyed registries under the family name, through the `@register_expression_system` and `@register_relation_system` decorators. Ibis registers only when its extra is installed.
+The step that records a backend's composed expression system and relation system in keyed registries under the family name, through the `@register_expression_system` and `@register_relation_system` decorators. Ibis registers only when its extra is installed.
 
 See [Composition and registration](chapters/21-backends/index.md#composition-and-registration).
 
@@ -92,13 +92,13 @@ See [Declaring a contract](chapters/12-data-contracts/index.md#declaring-a-contr
 
 ### Boolean-ternary coercion
 
-The automatic conversion applied when boolean and ternary expressions meet. A boolean passed to a ternary operator is wrapped with `to_ternary()`, and a ternary passed to a boolean operator is wrapped with `t_is_true()`, while the expression is being built.
+The automatic conversion applied when boolean and ternary expressions meet. While the expression is built, `to_ternary()` wraps a boolean passed to a ternary operator, and `t_is_true()` wraps a ternary passed to a boolean operator.
 
 See [Booleanization](chapters/06-ternary-logic/index.md#booleanization).
 
 ### Booleanizer
 
-A rule that maps a ternary result (1, 0, -1) to a boolean. Six are built in, such as `t_is_true` (the default) and `t_maybe_true`. `compile()` applies one to ternary expressions; relation methods do not, so filters need an explicit booleanizer.
+A rule that maps a ternary result (1, 0, -1) to a boolean. Six are built in, such as `t_is_true` (the default) and `t_maybe_true`. `compile()` applies one to ternary expressions automatically. Relation methods take ternary values as they are, so a filter needs an explicit booleanizer.
 
 See [Booleanization](chapters/06-ternary-logic/index.md#booleanization).
 
@@ -136,7 +136,7 @@ See [Bound calls and value classes](chapters/20-capability-spine/index.md#bound-
 
 ### Build then compile
 
-The rule that building an expression or relation creates a backend-agnostic AST without data or a backend, and a separate compile step, triggered by `compile(df)` or a terminal, detects the backend and produces native expressions or plans.
+The rule that building an expression or relation creates a backend-agnostic AST, with data and backend supplied later, and a separate compile step, triggered by `compile(df)` or a terminal, detects the backend and produces native expressions or plans.
 
 See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-plans-and-the-ast).
 
@@ -144,7 +144,7 @@ See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-pla
 
 ### Canonical dtype
 
-A member of `ma.MountainashDtype`, the package's backend-neutral type vocabulary with short Substrait-style names such as `i64`, `fp64`, `string` and `timestamp`. Schemas, casts and conversions to every type target are expressed in it.
+A member of `ma.MountainashDtype`, the package's backend-neutral type vocabulary with short Substrait-style names such as `i64`, `fp64`, `string` and `timestamp`. Schemas, casts and conversions to every type target use it.
 
 See [Canonical dtypes](chapters/03-dtypes/index.md#canonical-dtypes).
 
@@ -156,13 +156,13 @@ See [Bootstrap and the registry](chapters/20-capability-spine/index.md#bootstrap
 
 ### Capability gate
 
-An executable capability policy whose consumer is `gate`: it refuses a bound call with `BackendCapabilityError` before the backend lowers or runs it. Gates are checked during preflight and during compilation, against the canonical node.
+An executable capability policy whose consumer is `gate`: it refuses a bound call with `BackendCapabilityError` before the backend lowers or runs it. Preflight and compilation check gates against the canonical node.
 
 See [Gates and preflight](chapters/20-capability-spine/index.md#gates-and-preflight).
 
 ### Capability information
 
-A descriptive capability record (`CapabilityInformation`) giving a support level at the native or public layer, a message and an optional workaround and upstream issue. It has no executable consumer, so it never changes what runs.
+A descriptive capability record (`CapabilityInformation`) giving a support level at the native or public layer, a message and an optional workaround and upstream issue. It is purely descriptive: with no executable consumer, it leaves execution unchanged.
 
 See [Information and policy](chapters/20-capability-spine/index.md#information-and-policy).
 
@@ -174,7 +174,7 @@ See [Capability errors and capability_policy](chapters/09-execution-targets-and-
 
 ### Capability policy rule
 
-An executable capability record (`CapabilityPolicyRule`) that names a consumer (gate, immediate error, materialization error or result protection) and an action (block, permit, enrich or detect non-null to null). It is declared under a concrete dialect only.
+An executable capability record (`CapabilityPolicyRule`) that names a consumer (gate, immediate error, materialization error or result protection) and an action (block, permit, enrich or detect non-null to null). It always belongs to a concrete dialect.
 
 See [Information and policy](chapters/20-capability-spine/index.md#information-and-policy).
 
@@ -192,7 +192,7 @@ See [Segments and scopes](chapters/20-capability-spine/index.md#segments-and-sco
 
 ### Capability spine
 
-The internal pipeline that carries capability declarations from segment modules through bootstrap and the registry to their consumers: preflight, compile-time gates, error enrichment, result protection and the coverage report. It never implements an operation.
+The internal pipeline that carries capability declarations from segment modules through bootstrap and the registry to their consumers: preflight, compile-time gates, error enrichment, result protection and the coverage report. It carries declarations only; backends implement the operations.
 
 See [Information and policy](chapters/20-capability-spine/index.md#information-and-policy).
 
@@ -204,13 +204,13 @@ See [Bootstrap and the registry](chapters/20-capability-spine/index.md#bootstrap
 
 ### Cast safety
 
-A classification of a conversion between two canonical dtypes as safe (no information can be lost) or unsafe, answered from a fixed table by `is_safe_cast` and `classify_cast`. It is separate from whether a particular cast succeeds.
+A classification of a conversion between two canonical dtypes as safe (lossless) or unsafe, answered from a fixed table by `is_safe_cast` and `classify_cast`. Whether a particular cast succeeds is a separate question.
 
 See [Casting, cast safety and nulls](chapters/04-building-expressions/index.md#casting-cast-safety-and-nulls).
 
 ### Check IR
 
-The intermediate representation of validation checks: frozen dataclasses (`RowRule`, `ScalarRule`, `RelationRule`, `ValueRule`, `ForeignKeyRule` and the reserved `DistributionRule`) that each declare what to test, with an id and a severity, but not how to run it.
+The intermediate representation of validation checks: frozen dataclasses (`RowRule`, `ScalarRule`, `RelationRule`, `ValueRule`, `ForeignKeyRule` and the reserved `DistributionRule`) that each declare what to test, with an id and a severity. The runner decides how to run each one.
 
 See [Check IR and rule kinds](chapters/13-validation/index.md#check-ir-and-rule-kinds).
 
@@ -222,13 +222,13 @@ See [Results, row identity and failure cases](chapters/13-validation/index.md#re
 
 ### Checkpoint (materialization scope)
 
-A completed stage of an iterative computation marked with `scope.checkpoint(rel, replaces=...)`. Under the scope's `ma.CheckpointPolicy` the stage is copied, cutting the plan so later stages build on the stored result instead of a growing chain.
+A completed stage of an iterative computation marked with `scope.checkpoint(rel, replaces=...)`. Under the scope's `ma.CheckpointPolicy`, the scope copies the stage and cuts the plan there, so later stages build on the stored result and the chain stays short.
 
 See [Materialization scopes and checkpoints](chapters/09-execution-targets-and-capabilities/index.md#materialization-scopes-and-checkpoints).
 
 ### Checkpoint (pipeline)
 
-A store that records, per pipeline unit, the results produced under each identity together with source progress, so that a later run reuses unchanged units and resumes sources. `MemoryCheckpoint` and `FileCheckpoint` are the built-in stores.
+A store that records, per pipeline unit, the results produced under each identity together with source progress, so a later run reuses unchanged units and resumes sources. `MemoryCheckpoint` and `FileCheckpoint` are the built-in stores.
 
 See [Values, identity and checkpoints](chapters/15-pipelines/index.md#values-identity-and-checkpoints).
 
@@ -240,7 +240,7 @@ See [Combining columns](chapters/04-building-expressions/index.md#combining-colu
 
 ### `col`
 
-The function `ma.col(name)` that builds an expression referencing one column by name. The name is checked only when the expression is compiled against data; `"*"` and anchored regular expressions pass through to the backend as selectors.
+The function `ma.col(name)` that builds an expression referencing one column by name. Compilation against data checks the name; `"*"` and anchored regular expressions pass through to the backend as selectors.
 
 See [Columns, literals and conditions](chapters/04-building-expressions/index.md#columns-literals-and-conditions).
 
@@ -252,13 +252,13 @@ See [Drift reporting](chapters/11-conforming-data/index.md#drift-reporting).
 
 ### Compilation reuse
 
-The guarantee that, within one terminal call, a relation object appearing several times in a plan is compiled and transferred once. Reuse is by object identity, and nothing is cached across terminal calls.
+The guarantee that, within one terminal call, a relation object appearing several times in a plan is compiled and transferred once. Reuse works by object identity, and the cache lasts for one terminal call.
 
 See [Compilation reuse](chapters/09-execution-targets-and-capabilities/index.md#compilation-reuse).
 
 ### `compile` (expression)
 
-The method `expr.compile(df)` that turns an expression into the native expression of the backend detected from `df`, applying the default booleanizer to ternary results unless `booleanizer=` says otherwise.
+The method `expr.compile(df)` that turns an expression into the native expression of the backend detected from `df`, applying the default booleanizer to ternary results, or the one `booleanizer=` names.
 
 See [Compiling an expression](chapters/04-building-expressions/index.md#compiling-an-expression).
 
@@ -276,37 +276,37 @@ See [Relation conform](chapters/11-conforming-data/index.md#relation-conform).
 
 ### Conform contract
 
-The policy (`ConformContract`) that tells conform how to treat each divergence between schema and data, along four dimensions: `extra_columns`, `missing_columns`, `data_type` and `keys`. It is resolved from the `fields_match` preset, the schema's `contract` and the `contract=` argument.
+The policy (`ConformContract`) that tells conform how to treat each divergence between schema and data, along four dimensions: `extra_columns`, `missing_columns`, `data_type` and `keys`. Conform resolves it from the `fields_match` preset, the schema's `contract` and the `contract=` argument.
 
 See [ConformContract dimensions and presets](chapters/11-conforming-data/index.md#conformcontract-dimensions-and-presets).
 
 ### Conform error
 
-An error derived from `ConformError` that reports a conform step the contract does not allow, such as an `exact` field mismatch, missing or extra columns or a frozen type change (`SchemaDriftError`). Most are raised at the terminal.
+An error derived from `ConformError` that reports a conform step the contract forbids, such as an `exact` field mismatch, missing or extra columns or a frozen type change (`SchemaDriftError`). Most surface at the terminal.
 
 See [Conform errors](chapters/11-conforming-data/index.md#conform-errors).
 
 ### Constraint edge
 
-A graph edge that records a relationship between the data of two nodes, such as a foreign key, with optional metadata. Constraint edges never affect execution order; `RelationDAG` uses them to generate foreign-key checks.
+A graph edge that records a relationship between the data of two nodes, such as a foreign key, with optional metadata. `RelationDAG` uses constraint edges to generate foreign-key checks, and dependency edges alone set execution order.
 
 See [The graph kernel](chapters/14-relationdag/index.md#the-graph-kernel).
 
 ### Cross-backend test
 
-A test parametrised over every backend in `tests/fixtures/backend_registry.py` that asserts the same result for each, so that a behaviour is checked once for all families and dialects rather than per backend.
+A test parametrised over every backend in `tests/fixtures/backend_registry.py` that asserts the same result for each, so one test checks a behaviour for all families and dialects.
 
 See [Cross-backend testing](chapters/23-contributing-and-testing/index.md#cross-backend-testing).
 
 ### Cross-family DAG collection
 
-The collection of a `RelationDAG` whose named relations live in different backends. A relation combining them runs in the backend of its anchor (its first input), and each foreign dependency is materialized in its own backend and transferred.
+The collection of a `RelationDAG` whose named relations live in different backends. A relation combining them runs in the backend of its anchor (its first input), and the DAG materializes each foreign dependency in its own backend and transfers it.
 
 See [Collecting a DAG](chapters/14-relationdag/index.md#collecting-a-dag).
 
 ### Cross-type join
 
-A join whose right side comes from a different library from the left: another relation, a native frame, a dict or a list of dicts. The left side decides where the join runs, and the right side is transferred there at execution time.
+A join whose right side comes from a different library from the left: another relation, a native frame, a dict or a list of dicts. The left side decides where the join runs, and the plan transfers the right side there at execution time.
 
 See [Joins](chapters/07-relations/index.md#joins).
 
@@ -338,7 +338,7 @@ See [Pipelines and units](chapters/15-pipelines/index.md#pipelines-and-units).
 
 ### Data contract
 
-A declaration of a table's fields (as `FieldDefinition` values) together with the validation checks those fields imply and any extra rules. A contract only declares; the validation engine casts the data to the declared types and runs the checks.
+A declaration of a table's fields (as `FieldDefinition` values) together with the validation checks those fields imply and any extra rules. The contract is declarative; the validation engine casts the data to the declared types and runs the checks.
 
 See [Declaring a contract](chapters/12-data-contracts/index.md#declaring-a-contract).
 
@@ -368,7 +368,7 @@ See [The graph kernel](chapters/14-relationdag/index.md#the-graph-kernel).
 
 ### Descriptor reference
 
-A schema or dialect given as a string in a Data Package descriptor, naming another JSON document. It is resolved against the package's base URI when `to_table_schema()` or `to_dialect()` runs, confined to the package root unless remote access is allowed.
+A schema or dialect given as a string in a Data Package descriptor, naming another JSON document. `to_table_schema()` or `to_dialect()` resolves it against the package's base URI, within the package root by default; remote access needs explicit permission.
 
 See [DataPackage, resources and dialects](chapters/10-table-schemas-and-datapackage/index.md#datapackage-resources-and-dialects).
 
@@ -386,7 +386,7 @@ See [Backend capabilities, families and dialects](chapters/09-execution-targets-
 
 ### `DistributionRule`
 
-A reserved check class in the validation check IR for distribution and statistical checks. It is not implemented, and constructing one raises; dataset-level conditions expressible as one aggregate are written as `ScalarRule`.
+A reserved check class in the validation check IR for distribution and statistical checks. It is reserved and unimplemented, so constructing one raises. Write a dataset-level condition expressible as one aggregate as a `ScalarRule`.
 
 See [Check IR and rule kinds](chapters/13-validation/index.md#check-ir-and-rule-kinds).
 
@@ -424,25 +424,25 @@ See [Running a pipeline](chapters/15-pipelines/index.md#running-a-pipeline).
 
 ### Execution location
 
-The place a relation node runs, resolved from the plan without reading rows: a backend family, a dialect, an evaluation form (eager, lazy or deferred) and a binding, such as an Ibis connection. Sources sit where their data lives.
+The place a relation node runs, resolved from the plan alone before any row is read: a backend family, a dialect, an evaluation form (eager, lazy or deferred) and a binding, such as an Ibis connection. Sources sit where their data lives.
 
 See [Execution targets and locations](chapters/09-execution-targets-and-capabilities/index.md#execution-targets-and-locations).
 
 ### Execution target
 
-An explicit request for where work runs: `execute_on=` on a join chooses which input it runs at, and `target=` on `collect()` chooses where the plan's root runs. Without one, placement follows the data.
+An explicit request for where work runs: `execute_on=` on a join chooses which input it runs at, and `target=` on `collect()` chooses where the plan's root runs. By default, placement follows the data.
 
 See [Execution targets and locations](chapters/09-execution-targets-and-capabilities/index.md#execution-targets-and-locations).
 
 ### `explain`
 
-A relation method that returns a description of the compiled plan without executing it: the engine's query plan or SQL, or, when the plan crosses locations, the relation tree with each node's location and each transfer.
+A relation method that describes the compiled plan ahead of execution: the engine's query plan or SQL, or, when the plan crosses locations, the relation tree with each node's location and each transfer.
 
 See [Explain, fingerprint and snapshots](chapters/08-collecting-results/index.md#explain-fingerprint-and-snapshots).
 
 ### Expression AST node
 
-An immutable Pydantic model that holds one element of an expression tree, such as `ScalarFunctionNode`, `FieldReferenceNode` or `LiteralNode`, and only an `accept(visitor)` method. New scalar operations add function keys, not node classes.
+An immutable Pydantic model that holds one element of an expression tree, such as `ScalarFunctionNode`, `FieldReferenceNode` or `LiteralNode`, with `accept(visitor)` as its one method. A new scalar operation adds a function key and reuses the existing node classes.
 
 See [Expression AST nodes](chapters/18-expression-compilation/index.md#expression-ast-nodes).
 
@@ -454,7 +454,7 @@ See [Namespaces](chapters/05-namespaces-aggregates-and-windows/index.md#namespac
 
 ### Expression object
 
-The value returned by expression entry points such as `ma.col`, an instance of `ma.BaseExpressionAPI` (concretely `BooleanExpressionAPI`). It wraps one AST node and holds no data and no backend.
+The value returned by expression entry points such as `ma.col`, an instance of `ma.BaseExpressionAPI` (concretely `BooleanExpressionAPI`). It wraps one AST node; data and backend arrive at compile time.
 
 See [Expression objects](chapters/04-building-expressions/index.md#expression-objects).
 
@@ -486,25 +486,25 @@ See [ConformContract dimensions and presets](chapters/11-conforming-data/index.m
 
 ### `filter`
 
-The relation method that keeps rows where every given boolean predicate is true, dropping rows where a predicate is null. Ternary predicates must be booleanized explicitly first.
+The relation method that keeps rows where every given boolean predicate is true and drops rows where a predicate is null. A ternary predicate needs an explicit booleanizer first.
 
 See [Filtering, selecting and sorting](chapters/07-relations/index.md#filtering-selecting-and-sorting).
 
 ### `fingerprint`
 
-A relation method that summarises content as a small Polars frame of hashes per value column, keyed by a declared logical key, so that two relations in different engines can be compared without moving their data.
+A relation method that summarises content as a small Polars frame of hashes per value column, keyed by a declared logical key, so you can compare two relations in different engines while their data stays in place.
 
 See [Explain, fingerprint and snapshots](chapters/08-collecting-results/index.md#explain-fingerprint-and-snapshots).
 
 ### Foreign key
 
-A schema declaration (`ForeignKey` with a `ForeignKeyReference`) that the values of some fields must appear in fields of a referenced table. Declaring one checks no data; `RelationDAG` records it as a constraint edge.
+A schema declaration (`ForeignKey` with a `ForeignKeyReference`) that the values of some fields must appear in fields of a referenced table. The declaration itself is metadata: validation checks it against data, and `RelationDAG` records it as a constraint edge.
 
 See [Foreign keys](chapters/10-table-schemas-and-datapackage/index.md#foreign-keys).
 
 ### `ForeignKeyRule`
 
-The validation check that every child key appears among the parent's keys, comparing canonical logical key values rather than running a backend join. A child key with a null component is not an orphan by default (SQL `MATCH SIMPLE`).
+The validation check that every child key appears among the parent's keys, comparing canonical logical key values directly in place of a backend join. By default a child key with a null component satisfies the key (SQL `MATCH SIMPLE`).
 
 See [Foreign keys](chapters/13-validation/index.md#foreign-keys).
 
@@ -545,7 +545,7 @@ LiteralNode None
 
 ### Function registry
 
-The registry (`ExpressionFunctionRegistry`) that maps each function key to an `ExpressionFunctionDef` describing the protocol method to call and its parameters. The expression visitor dispatches only through it.
+The registry (`ExpressionFunctionRegistry`) that maps each function key to an `ExpressionFunctionDef` describing the protocol method to call and its parameters. The expression visitor dispatches every call through it.
 
 See [The function registry](chapters/18-expression-compilation/index.md#the-function-registry).
 
@@ -553,19 +553,19 @@ See [The function registry](chapters/18-expression-compilation/index.md#the-func
 
 ### Gate then lower
 
-The ordering rule that an operation stays as its canonical AST node until capability gates have inspected it, and only then is lowered into backend primitives, so a refusal names the operation the user wrote.
+The ordering rule that capability gates inspect an operation as its canonical AST node first, and the visitor lowers it into backend primitives afterwards, so a refusal names the operation the user wrote.
 
 See [The unified expression visitor](chapters/18-expression-compilation/index.md#the-unified-expression-visitor).
 
 ### Graph kernel
 
-The small graph container `Graph` in `mountainash.graph`, shared by `RelationDAG` and pipelines. It stores named nodes with separate dependency and constraint edge sets and provides ordering, layering and ancestry, but never executes anything.
+The small graph container `Graph` in `mountainash.graph`, shared by `RelationDAG` and pipelines. It stores named nodes with separate dependency and constraint edge sets and provides ordering, layering and ancestry, leaving execution to its consumers.
 
 See [The graph kernel](chapters/14-relationdag/index.md#the-graph-kernel).
 
 ### `group_by`
 
-The relation method that returns a `GroupedRelation`; its `agg(*expressions)` produces one row per distinct key combination, with the key columns followed by one column per named aggregate. Group order is not defined.
+The relation method that returns a `GroupedRelation`; its `agg(*expressions)` produces one row per distinct key combination, with the key columns followed by one column per named aggregate. Group order is unspecified.
 
 See [Grouping and reshaping](chapters/07-relations/index.md#grouping-and-reshaping).
 
@@ -587,7 +587,7 @@ See [Horizontal functions](chapters/05-namespaces-aggregates-and-windows/index.m
 
 ### Ibis family
 
-The backend family that compiles expressions to deferred Ibis expressions and relations to Ibis tables, run as SQL by the bound connection. It is installed with the `ibis` extra and covers each SQL engine as an `ibis-` dialect.
+The backend family that compiles expressions to deferred Ibis expressions and relations to Ibis tables, which the bound connection runs as SQL. The `ibis` extra installs it, and each SQL engine it covers is an `ibis-` dialect.
 
 See [Ibis and SQL dialects](chapters/21-backends/index.md#ibis-and-sql-dialects).
 
@@ -599,13 +599,13 @@ See [Values, identity and checkpoints](chapters/15-pipelines/index.md#values-ide
 
 ### Ingress
 
-The conversion of Python data (dicts, lists of records, dataclasses, Pydantic models, tuples and similar) into a Polars frame, chosen by input shape. `ma.relation` uses it for Python inputs; `ma.PydataIngress` exposes it with schemas.
+The conversion of Python data (dicts, lists of records, dataclasses, Pydantic models, tuples and similar) into a Polars frame, with the input's shape picking the conversion. `ma.relation` uses it for Python inputs; `ma.PydataIngress` exposes it with schemas.
 
 See [Relations from Python data](chapters/07-relations/index.md#relations-from-python-data).
 
 ### `is_in`
 
-The expression method that tests whether each value appears in a fixed set of members, with `is_not_in` as its complement. It never coerces types, and a null value is reported as neither in nor not in the set.
+The expression method that tests whether each value appears in a fixed set of members, with `is_not_in` as its complement. It compares values at their own types, with no coercion, and reports a null value as neither in nor not in the set.
 
 See [Membership](chapters/05-namespaces-aggregates-and-windows/index.md#membership).
 
@@ -627,7 +627,7 @@ See [The function registry](chapters/18-expression-compilation/index.md#the-func
 
 ### Known divergence
 
-A recorded case where the same expression or relation fails or gives a different result on some backend. It is declared in capability records or tests instead of hidden, and becomes a gate where a declaration refuses the call.
+A recorded case where the same expression or relation fails or gives a different result on some backend. Capability records or tests declare it openly, and it becomes a gate where a declaration refuses the call.
 
 See [Known divergences](chapters/16-backend-support-and-limits/index.md#known-divergences).
 
@@ -635,19 +635,19 @@ See [Known divergences](chapters/16-backend-support-and-limits/index.md#known-di
 
 ### Lazy evaluation
 
-Describing work first and executing it later as one unit. mountainash relations record operations without touching data, and run only when a terminal is called, which lets the engine optimise the whole plan.
+Describing work first and executing it later as one unit. mountainash relations record operations and run when a terminal is called, which lets the engine optimise the whole plan.
 
 See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-plans-and-the-ast).
 
 ### Lazy top-level import
 
-The loading strategy of `import mountainash as ma`, which imports no dataframe backend. Expression, relation, DAG and capability names are attached with `lazy_loader` and import their subpackage, which registers available backends, on first access.
+The loading strategy of `import mountainash as ma`, which leaves every dataframe backend unloaded at import. `lazy_loader` attaches the expression, relation, DAG and capability names, and each one imports its subpackage on first access; the subpackage registers the available backends.
 
 See [The top-level namespace](chapters/02-installation-and-package-surface/index.md#the-top-level-namespace).
 
 ### `lit`
 
-The function `ma.lit(value)` that builds an expression for a constant, optionally typed with `dtype=`. Plain Python values next to operators and methods are wrapped automatically, so it is needed mainly when the constant comes first or stands alone.
+The function `ma.lit(value)` that builds an expression for a constant, optionally typed with `dtype=`. Operators and methods wrap plain Python values automatically, so `lit` is needed mainly when the constant comes first or stands alone.
 
 See [Columns, literals and conditions](chapters/04-building-expressions/index.md#columns-literals-and-conditions).
 
@@ -667,7 +667,7 @@ See [Materialization scopes and checkpoints](chapters/09-execution-targets-and-c
 
 ### Missing values
 
-Text sentinels, declared with `missing_values` on a schema or field, that stand for null in lexical data such as CSV. They are compared as strings before type conversion and may carry a reason through `LabeledValue`.
+Text sentinels, declared with `missing_values` on a schema or field, that stand for null in lexical data such as CSV. Matching happens on strings, before type conversion, and each sentinel may carry a reason through `LabeledValue`.
 
 See [Missing values and temporals](chapters/10-table-schemas-and-datapackage/index.md#missing-values-and-temporals).
 
@@ -679,7 +679,7 @@ See [Errors](chapters/02-installation-and-package-surface/index.md#errors).
 
 ### `mountainash.exceptions`
 
-The module that re-exports typed error classes from the modules that own them, following the `polars.exceptions` convention. Some errors, including pipeline and execution-location errors, are imported from their owning modules instead.
+The module that re-exports typed error classes from the modules that own them, following the `polars.exceptions` convention. Some errors, including pipeline and execution-location errors, are imported from their owning modules.
 
 See [Errors](chapters/02-installation-and-package-surface/index.md#errors).
 
@@ -699,7 +699,7 @@ See [Narwhals and its providers](chapters/21-backends/index.md#narwhals-and-its-
 
 ### `native`
 
-The function `ma.native(expr)` that wraps a backend-native expression so it can be combined with portable operations. It passes through unchanged, so the containing expression runs only on that backend and needs an explicit alias.
+The function `ma.native(expr)` that wraps a backend-native expression so it combines with portable operations. Compilation passes it through as it is, so the containing expression runs on that backend only and needs an explicit alias.
 
 See [Escaping to native expressions](chapters/04-building-expressions/index.md#escaping-to-native-expressions).
 
@@ -719,19 +719,19 @@ See [Type and schema adapters](chapters/22-extending-mountainash/index.md#type-a
 
 ### Operand transfer
 
-The movement of a subtree's result from its own execution location to the location of the operation that consumes it, planned before execution and shown in `explain()`. Data crosses families as an Arrow table.
+The movement of a subtree's result from its own execution location to the location of the operation that consumes it, planned before execution and shown by `explain()`. Data crosses families as an Arrow table.
 
 See [Operand transfer and owned copies](chapters/09-execution-targets-and-capabilities/index.md#operand-transfer-and-owned-copies).
 
 ### Operand type resolution
 
-The compile-time lookup of the types of an operation's operands from the native input's schema metadata, without executing data, for operations and capability rules that declare they need those types.
+The compile-time lookup of the types of an operation's operands from the native input's schema metadata alone, ahead of execution, for operations and capability rules that declare they need those types.
 
 See [The unified expression visitor](chapters/18-expression-compilation/index.md#the-unified-expression-visitor).
 
 ### Optimisation pass
 
-A transform registered by another package with `register_optimisation(node_type, transform_fn)` and applied to relation trees containing that node type before preparation. mountainash itself ships none and leaves optimisation to the engines.
+A transform registered by another package with `register_optimisation(node_type, transform_fn)` and applied to relation trees containing that node type before preparation. mountainash ships no passes of its own and leaves optimisation to the engines.
 
 See [Optimisation passes](chapters/19-relation-compilation/index.md#optimisation-passes).
 
@@ -749,7 +749,7 @@ See [Windows with over](chapters/05-namespaces-aggregates-and-windows/index.md#w
 
 ### Owned copy
 
-An independent native value that mountainash created and is responsible for cleaning up, such as a snapshot, checkpoint copy or durable transfer result. On an Ibis connection it is a `ma_owned_` table dropped once unreachable.
+An independent native value that mountainash created and is responsible for cleaning up, such as a snapshot, checkpoint copy or durable transfer result. On an Ibis connection it is a `ma_owned_` table that mountainash drops once it is unreachable.
 
 See [Operand transfer and owned copies](chapters/09-execution-targets-and-capabilities/index.md#operand-transfer-and-owned-copies).
 
@@ -799,19 +799,19 @@ See [One logic, many engines](chapters/01-what-mountainash-does/index.md#one-log
 
 ### Preflight
 
-The check that runs capability gates over a whole relation plan after execution locations are resolved and before any source is read or any data is transferred. Gates that need compiler metadata are left to compilation.
+The check that runs capability gates over a whole relation plan after execution locations are resolved and before the first source read or data transfer. Compilation checks the gates that need compiler metadata.
 
 See [Gates and preflight](chapters/20-capability-spine/index.md#gates-and-preflight).
 
 ### Protocol
 
-A `typing.Protocol` class listing the methods, with exact signatures, that one operation domain requires of an API builder or a backend system. Every backend must implement each protocol method and add no undeclared operations.
+A `typing.Protocol` class listing the methods, with exact signatures, that one operation domain requires of an API builder or a backend system. Every backend implements each protocol method, and every operation a backend offers is declared in a protocol.
 
 See [Protocols as contracts](chapters/17-architecture/index.md#protocols-as-contracts).
 
 ### Protocol alignment test
 
-A test that discovers protocols and their implementations by introspection and fails when a method, key or parameter is missing or mismatched in any backend, unless it is listed as a known gap with a reason.
+A test that discovers protocols and their implementations by introspection and fails when any backend lacks or mismatches a method, key or parameter; a listed known gap with a reason is exempt.
 
 See [Cross-backend testing](chapters/23-contributing-and-testing/index.md#cross-backend-testing).
 
@@ -825,7 +825,7 @@ See [Pipelines and units](chapters/15-pipelines/index.md#pipelines-and-units).
 
 ### Relation
 
-A `Relation` object holding a tree of relational operations over one or more sources. Each chainable method returns a new relation with one more node, reading and compiling nothing until a terminal is called.
+A `Relation` object holding a tree of relational operations over one or more sources. Each chainable method returns a new relation with one more node, and a terminal call does the reading and compiling.
 
 See [Relation objects](chapters/07-relations/index.md#relation-objects).
 
@@ -867,7 +867,7 @@ See [Check IR and rule kinds](chapters/13-validation/index.md#check-ir-and-rule-
 
 ### Resource read
 
-The deferred reading of a Data Package resource when a resource relation is collected: inline data becomes an in-memory frame, local CSV or Parquet is scanned natively, and other sources go through `mountainash-transport`.
+The deferred reading of a Data Package resource when a resource relation is collected: inline data becomes an in-memory frame, the backend scans local CSV or Parquet natively, and other sources go through `mountainash-transport`.
 
 See [Resources and DataPackage](chapters/14-relationdag/index.md#resources-and-datapackage).
 
@@ -879,7 +879,7 @@ See [Resources and DataPackage](chapters/14-relationdag/index.md#resources-and-d
 
 ### Retry configuration
 
-The `RetryConfig` passed to a pipeline `Runner` that retries a failing unit up to `max_attempts` times with exponential backoff. Exceptions derived from `NonRetryable` are never retried.
+The `RetryConfig` passed to a pipeline `Runner` that retries a failing unit up to `max_attempts` times with exponential backoff. An exception derived from `NonRetryable` fails the unit on its first attempt.
 
 See [Running a pipeline](chapters/15-pipelines/index.md#running-a-pipeline).
 
@@ -903,7 +903,7 @@ See [Rules and guarded rules](chapters/12-data-contracts/index.md#rules-and-guar
 
 ### `Runner`
 
-The pipeline executor, `Runner(pipeline, checkpoint=None, workers=1, retry=None)`. `plan()` orders units and computes identities without running anything; `execute()` runs layers, reusing checkpointed results; `run()` does both.
+The pipeline executor, `Runner(pipeline, checkpoint=None, workers=1, retry=None)`. `plan()` orders units and computes identities ahead of any run; `execute()` runs layers, reusing checkpointed results; `run()` does both.
 
 See [Running a pipeline](chapters/15-pipelines/index.md#running-a-pipeline).
 
@@ -941,7 +941,7 @@ See [Extracting and converting schemas](chapters/10-table-schemas-and-datapackag
 
 ### Schema inference
 
-The determination of a relation's output columns and types, through `rel.schema`, from the plan, source schemas and native metadata without executing the plan. Types that cannot be established are `SchemaTypeStatus.UNKNOWN`.
+The determination of a relation's output columns and types, through `rel.schema`, from the plan, source schemas and native metadata, ahead of execution. Types it cannot establish are `SchemaTypeStatus.UNKNOWN`.
 
 See [Schema inference and resolution](chapters/09-execution-targets-and-capabilities/index.md#schema-inference-and-resolution).
 
@@ -965,19 +965,19 @@ See [Ternary columns and sentinels](chapters/06-ternary-logic/index.md#ternary-c
 
 ### Severity
 
-The closed classification of a validation check as `"blocking"` (the default) or `"warning"`. A failed warning check keeps its status in summaries but does not make the result fail; a check that errors always blocks.
+The closed classification of a validation check as `"blocking"` (the default) or `"warning"`. A failed warning check keeps its status in summaries while the overall result can still pass; a check that errors always blocks.
 
 See [How the runner executes checks](chapters/13-validation/index.md#how-the-runner-executes-checks).
 
 ### Sink unit
 
-A pipeline unit, subclassing `SinkUnit`, that writes its single upstream value to an external destination and returns a `LocatorReference` (a locator and a record count) instead of the data. `ParquetDirectorySink` and `IbisTableSink` are built in.
+A pipeline unit, subclassing `SinkUnit`, that writes its single upstream value to an external destination and returns a `LocatorReference` (a locator and a record count) that points to the written data. `ParquetDirectorySink` and `IbisTableSink` are built in.
 
 See [Pipelines and units](chapters/15-pipelines/index.md#pipelines-and-units).
 
 ### Snapshot
 
-A relation over an independent native copy of a plan's result, taken now with `snapshot()`. Later changes to the source do not reach it; on a database the copy is a temporary table that mountainash owns.
+A relation over an independent native copy of a plan's result, taken now with `snapshot()`. It stays fixed when the source changes later; on a database the copy is a temporary table that mountainash owns.
 
 See [Explain, fingerprint and snapshots](chapters/08-collecting-results/index.md#explain-fingerprint-and-snapshots).
 
@@ -989,7 +989,7 @@ See [Pipelines and units](chapters/15-pipelines/index.md#pipelines-and-units).
 
 ### Structured field transport
 
-The way conform carries a field declared `array` or `object`: native lists and structs are converted in place, JSON text is decoded at the end, and unknown types are carried opaquely, chosen from the source type alone.
+The way conform carries a field declared `array` or `object`: it converts native lists and structs in place, decodes JSON text at the end, and carries unknown types opaquely, choosing the route from the source type alone.
 
 See [Transform stages](chapters/11-conforming-data/index.md#transform-stages).
 
@@ -1001,7 +1001,7 @@ See [Lazy plans and the AST](chapters/01-what-mountainash-does/index.md#lazy-pla
 
 ### Substrait and mountainash extensions
 
-The split of operations by origin at every layer: `FKEY_SUBSTRAIT_*` keys and `substrait/` directories for operations Substrait defines, and `FKEY_MOUNTAINASH_*` keys and `extensions_mountainash/` directories for operations it does not, such as ternary logic.
+The split of operations by origin at every layer: `FKEY_SUBSTRAIT_*` keys and `substrait/` directories for operations Substrait defines, and `FKEY_MOUNTAINASH_*` keys and `extensions_mountainash/` directories for mountainash's own operations, such as ternary logic.
 
 See [Function keys](chapters/18-expression-compilation/index.md#function-keys).
 
@@ -1027,7 +1027,7 @@ See [TableSchema and fields](chapters/10-table-schemas-and-datapackage/index.md#
 
 ### Table schema semantic validation
 
-The checking of a `TableSchema` declaration without data by `validate_table_schema_semantics`, returning `TableSchemaIssue` records for problems such as keys naming undeclared fields or constraints unsuited to a field type.
+The data-free check of a `TableSchema` declaration by `validate_table_schema_semantics`, returning `TableSchemaIssue` records for problems such as keys naming undeclared fields or constraints unsuited to a field type.
 
 See [Table schema semantic validation](chapters/13-validation/index.md#table-schema-semantic-validation).
 
@@ -1045,7 +1045,7 @@ See [TableSchema and fields](chapters/10-table-schemas-and-datapackage/index.md#
 
 ### Terminal
 
-A relation method that executes the plan and returns a result, such as `collect()`, `to_polars()`, `to_dicts()` or `item()`. Building never executes; each terminal call runs the plan again.
+A relation method that executes the plan and returns a result, such as `collect()`, `to_polars()`, `to_dicts()` or `item()`. Building only records the plan; each terminal call runs it again.
 
 See [Collect and terminals](chapters/08-collecting-results/index.md#collect-and-terminals).
 
@@ -1069,13 +1069,13 @@ See [Three-layer separation](chapters/17-architecture/index.md#three-layer-separ
 
 ### Three-valued logic
 
-A logic with an explicit third outcome, UNKNOWN, beside TRUE and FALSE, so missing data is not silently treated as false. mountainash encodes ternary results as integers: TRUE is 1, UNKNOWN is 0 and FALSE is -1.
+A logic with an explicit third outcome, UNKNOWN, beside TRUE and FALSE, so missing data stays visible as its own outcome. mountainash encodes ternary results as integers: TRUE is 1, UNKNOWN is 0 and FALSE is -1.
 
 See [Three-valued logic](chapters/01-what-mountainash-does/index.md#three-valued-logic).
 
 ### `today` and `now`
 
-Functions, `ma.today()` and `ma.now()`, that produce the current date and timestamp as a constant column. The value is taken at compile time; on Ibis, `now()` uses the database server's clock.
+Functions, `ma.today()` and `ma.now()`, that produce the current date and timestamp as a constant column. Compilation takes the value; on Ibis, `now()` uses the database server's clock.
 
 See [Columns, literals and conditions](chapters/04-building-expressions/index.md#columns-literals-and-conditions).
 
@@ -1115,7 +1115,7 @@ See [Frictionless descriptors](chapters/10-table-schemas-and-datapackage/index.m
 
 ### `ValidationPlan`
 
-A sequence of named validation steps, each a validator with its data, run in order with a shared context. `execute()` returns a `PlanResult`; `fail_fast=True` stops after the first step that does not pass.
+A sequence of named validation steps, each a validator with its data, run in order with a shared context. `execute()` returns a `PlanResult`; `fail_fast=True` stops after the first unsuccessful step.
 
 See [Validator and validation plans](chapters/12-data-contracts/index.md#validator-and-validation-plans).
 
@@ -1127,7 +1127,7 @@ See [Results, row identity and failure cases](chapters/13-validation/index.md#re
 
 ### `ValidationRunner`
 
-The engine that runs a list of validation checks against one relation or native dataframe with `validate_relation`, returning a `ValidationResult` without raising for failing or erroring checks.
+The engine that runs a list of validation checks against one relation or native dataframe with `validate_relation`, and records failing or erroring checks in the returned `ValidationResult`.
 
 See [Running checks](chapters/13-validation/index.md#running-checks).
 
@@ -1145,7 +1145,7 @@ See [Bound calls and value classes](chapters/20-capability-spine/index.md#bound-
 
 ### Value classification
 
-The identification of a scalar's kind without coercing it: `ma.value_kind(value)` returns a `ma.ValueKind` (`ABSENT`, `BOOLEAN`, `INTEGER`, `FLOAT`, `TEXT` or `UNSUPPORTED`), checking exact types so `True` is never read as 1.
+The identification of a scalar's kind at its exact type: `ma.value_kind(value)` returns a `ma.ValueKind` (`ABSENT`, `BOOLEAN`, `INTEGER`, `FLOAT`, `TEXT` or `UNSUPPORTED`), checking exact types so `True` classifies as `BOOLEAN`.
 
 See [Value classification](chapters/02-installation-and-package-surface/index.md#value-classification).
 
@@ -1163,7 +1163,7 @@ See [Check IR and rule kinds](chapters/13-validation/index.md#check-ir-and-rule-
 
 ### Visit handler
 
-A function registered in `RelationVisitRegistry` for a custom `RelationNode` subclass. The relation visitor calls it before any operation-key lookup, so packages outside mountainash can add relation nodes without changing the package.
+A function registered in `RelationVisitRegistry` for a custom `RelationNode` subclass. The relation visitor calls it ahead of operation-key lookup, so other packages can add relation nodes while mountainash itself stays unchanged.
 
 See [Custom relation nodes](chapters/22-extending-mountainash/index.md#custom-relation-nodes).
 
@@ -1171,6 +1171,6 @@ See [Custom relation nodes](chapters/22-extending-mountainash/index.md#custom-re
 
 ### `when`
 
-The function `ma.when(condition).then(value)` that starts a conditional expression; further `when`/`then` pairs add branches tested in order and `.otherwise(value)` completes it. Plain values in `then` are literals, not column names.
+The function `ma.when(condition).then(value)` that starts a conditional expression; further `when`/`then` pairs add branches tested in order and `.otherwise(value)` completes it. `then` reads a plain value as a literal; use `ma.col` for a column.
 
 See [Columns, literals and conditions](chapters/04-building-expressions/index.md#columns-literals-and-conditions).

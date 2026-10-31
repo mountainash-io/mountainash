@@ -76,7 +76,7 @@ The base install pulls in Polars 2, Narwhals, PyArrow, Pydantic, `lazy_loader`, 
 | `dbos` | `dbos>=1.0.0` | nothing used by the current source |
 | `all` | every extra above | everything above |
 
-Which backends work depends on what is importable, not only on extras:
+Which backends work depends on what is importable as well as on extras:
 
 | Backend | What to install |
 |---|---|
@@ -116,7 +116,7 @@ Typed errors other than the root live in `mountainash.exceptions` (see [Errors](
 
 <!-- concept:312 -->
 
-Importing `mountainash` imports no dataframe backend. The package root loads only lightweight names eagerly: dtypes, the error root, schema and DataPackage models, value classification and the version. The expression, relation, DAG, ingress and capability-policy names are attached lazily with `lazy_loader`. The first access to one of them imports its subpackage, and that subpackage registers the backends it can import:
+Importing `mountainash` loads only lightweight names eagerly: dtypes, the error root, schema and DataPackage models, value classification and the version. Dataframe backends load later. The expression, relation, DAG, ingress and capability-policy names are attached lazily with `lazy_loader`. The first access to one of them imports its subpackage, and that subpackage registers the backends it can import:
 
 ```python
 import sys
@@ -144,13 +144,13 @@ print("col" in dir(ma))
 True
 ```
 
-Touching `ma.col` loads the expression subpackage, which registers Polars and Narwhals and, because Ibis is installed in this environment, Ibis. Without Ibis installed, the Ibis backend is skipped rather than failing. Lazy names still appear in `dir(ma)` and in tab completion. Scripts that only read schemas or descriptors therefore never pay for a backend import.
+Touching `ma.col` loads the expression subpackage, which registers Polars and Narwhals and, because Ibis is installed in this environment, Ibis. Without Ibis installed, registration skips the Ibis backend and carries on. Lazy names still appear in `dir(ma)` and in tab completion. Scripts that only read schemas or descriptors therefore skip the cost of a backend import.
 
 ## Backend detection
 
 <!-- concept:313 -->
 
-The backend is chosen by the type of the dataframe or table you pass to `ma.relation(...)` or to an expression's `.compile(...)`. There is no backend argument. Detection maps an object to one of the three backend families from [What mountainash does](../01-what-mountainash-does/index.md#one-logic-many-engines):
+The type of the dataframe or table you pass to `ma.relation(...)` or to an expression's `.compile(...)` picks the backend, so neither call takes a backend argument. Detection maps an object to one of the three backend families from [What mountainash does](../01-what-mountainash-does/index.md#one-logic-many-engines):
 
 | Object | Family |
 |---|---|
@@ -159,9 +159,9 @@ The backend is chosen by the type of the dataframe or table you pass to `ma.rela
 | Ibis table | Ibis |
 | Anything `narwhals.from_native` accepts (pandas, PyArrow, Dask, DuckDB relations and so on) | Narwhals |
 
-Python data (dictionaries, lists of records, dataclasses, Pydantic models) is not detected as a backend. `ma.relation` converts it to a Polars frame first, as described in [Relations from Python data](../07-relations/index.md#relations-from-python-data).
+`ma.relation` converts Python data (dictionaries, lists of records, dataclasses, Pydantic models) to a Polars frame before detection, as described in [Relations from Python data](../07-relations/index.md#relations-from-python-data).
 
-The function the package uses is `identify_backend`, in `mountainash.core.backend_detection`. You rarely need to call it, but it shows the decision:
+The function the package uses is `identify_backend`, in `mountainash.core.backend_detection`. Most code leaves the call to the package; calling it directly shows the decision:
 
 ```python
 import polars as pl
@@ -201,7 +201,7 @@ Cannot identify backend for type <class 'dict'>. Module: builtins, Class: dict. 
 Detection also resolves a dialect within the family where it can, such as `narwhals-pandas` or, for an Ibis table bound to a connection, `ibis-duckdb`. The dialect selects which capability declarations apply; [Backend capabilities, families and dialects](../09-execution-targets-and-capabilities/index.md#backend-capabilities-families-and-dialects) covers identity and dialects, and [Backends](../21-backends/index.md) covers how each family is wired in.
 
 !!! warning "Backend limit"
-    A Narwhals frame that wraps an Ibis table is rejected. Pass the Ibis table itself instead (unwrap it with `.to_native()`).
+    Backend detection rejects a Narwhals frame that wraps an Ibis table. Pass the Ibis table itself (unwrap it with `.to_native()`).
 
     ```python
     import ibis
@@ -240,11 +240,11 @@ UnknownDtypeError True
 'int' is not a frictionless Table Schema type. Valid: ['any', 'array', 'boolean', 'date', 'datetime', 'duration', 'geojson', 'geopoint', 'integer', 'list', 'number', 'object', 'string', 'time', 'year', 'yearmonth']
 ```
 
-Catch `MountainashError` to handle any mountainash failure in one place, a domain base such as `ConformError` to handle one area, or a specific class when the recovery is specific. Not every exception you see passes through the hierarchy. Backend detection raises a plain `ValueError` (shown above), and errors raised by the backend engine itself during execution reach you as that engine's exception type. Conventions for adding typed errors are in [Typed error conventions](../23-contributing-and-testing/index.md#typed-error-conventions).
+Catch `MountainashError` to handle any mountainash failure in one place, a domain base such as `ConformError` to handle one area, or a specific class when the recovery is specific. Some exceptions come from outside the hierarchy. Backend detection raises a plain `ValueError` (shown above), and errors raised by the backend engine itself during execution reach you as that engine's exception type. Conventions for adding typed errors are in [Typed error conventions](../23-contributing-and-testing/index.md#typed-error-conventions).
 
 <!-- concept:315 -->
 
-Only the root is exported from the package top level. Every other typed error is imported from `mountainash.exceptions`, which follows the `polars.exceptions` convention: it defines nothing and re-exports each class from the module that owns it, so `mountainash.exceptions.DtypeError` is the same object the dtype code raises.
+The package top level exports only the root. Import every other typed error from `mountainash.exceptions`, which follows the `polars.exceptions` convention: it re-exports each class from the module that owns it and defines none of its own, so `mountainash.exceptions.DtypeError` is the same object the dtype code raises.
 
 ```python
 from mountainash.exceptions import DtypeError
@@ -259,13 +259,13 @@ except DtypeError as exc:
 ['UnknownDtypeError', 'DtypeError', 'MountainashError', 'ValueError', 'Exception', 'BaseException', 'object']
 ```
 
-Some typed errors are not yet re-exported by the facade, for example the pipeline errors (in `mountainash.pipelines.errors`) and the execution-location errors (in `mountainash.relations.core.errors`). They are still `MountainashError` subclasses, so a broad catch covers them.
+The facade does not yet re-export some typed errors, for example the pipeline errors (in `mountainash.pipelines.errors`) and the execution-location errors (in `mountainash.relations.core.errors`). They are still `MountainashError` subclasses, so a broad catch covers them.
 
 ## Value classification
 
 <!-- concept:316 -->
 
-Value classification answers "what kind of scalar is this?" without coercing it. `ma.value_kind(value)` returns a `ma.ValueKind`: `ABSENT`, `BOOLEAN`, `INTEGER`, `FLOAT`, `TEXT` or `UNSUPPORTED`. It checks exact types and never calls `bool()`, `str()` or comparison on the value, so `True` is never read as the integer 1. NumPy scalars and pandas missing markers are recognised when those libraries are already loaded. Other types, including dates and `Decimal`, are `UNSUPPORTED`.
+Value classification answers "what kind of scalar is this?" and leaves the value uncoerced. `ma.value_kind(value)` returns a `ma.ValueKind`: `ABSENT`, `BOOLEAN`, `INTEGER`, `FLOAT`, `TEXT` or `UNSUPPORTED`. It inspects exact types only and calls no `bool()`, `str()` or comparison on the value, so `True` classifies as a boolean and never as the integer 1. NumPy scalars and pandas missing markers are recognised when those libraries are already loaded. Other types, including dates and `Decimal`, are `UNSUPPORTED`.
 
 ```python
 from datetime import date
