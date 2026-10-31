@@ -79,6 +79,10 @@ Recipes take these tables, or a subset of them, wherever they need data.
 
 | Recipe | Question |
 |---|---|
+| [Table schemas](table_schemas/) | How do I declare a schema, extract one from data and write it as a Frictionless descriptor? |
+| [Conform and drift](conform_and_drift/) | How do I conform messy input to a schema and see what changed? |
+| [Data contracts](data_contracts/) | How do I declare a contract on a table and read the result for each check? |
+| [Validation rules](validation_rules/) | How do I run row, scalar and relation rules and check a foreign key? |
 
 ## Multi-table work
 
