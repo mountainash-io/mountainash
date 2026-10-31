@@ -34,7 +34,8 @@ def main() -> None:
           type(on_polars.collect()).__module__.split(".")[0])
 
     # A limit: exact-count sampling with a seed is refused on Ibis.
-    sampled = ma.relation(orders_db).sample(n=3, seed=7)
+    numbers = con.create_table("numbers", pl.DataFrame({"n": range(100)}).to_arrow())
+    sampled = ma.relation(numbers).sample(n=5, seed=7)
     try:
         sampled.to_polars()
     except BackendCapabilityError as exc:
@@ -43,17 +44,20 @@ def main() -> None:
     else:
         raise AssertionError("seeded exact sampling should be refused on Ibis")
 
-    # A policy that does not protect this issue class lets the call run.
+    # The refusal gate is classed UNCLASSIFIED, so a policy that protects only
+    # AVAILABILITY does not cover it and the call runs. The price: the seed is
+    # no longer honoured, so repeated runs draw different rows.
     only_availability = ma.CapabilityPolicy(
         protection=frozenset({ma.CapabilityIssueClass.AVAILABILITY})
     )
     with ma.capability_policy(only_availability):
-        rows = sampled.to_dicts()
-    print("rows under a narrower policy:", len(rows))
+        draws = {tuple(row["n"] for row in sampled.to_dicts()) for _ in range(20)}
+    print("rows per draw under a narrower policy:", {len(d) for d in draws})
+    print("seed honoured (draws identical):", len(draws) == 1)
 
     assert "root: JoinRelNode on ibis-duckdb" in on_duckdb.explain()
     assert "root: JoinRelNode on polars" in on_polars.explain()
-    assert len(rows) == 3
+    assert len(draws) > 1
     con.disconnect()
 
 

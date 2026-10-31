@@ -23,12 +23,16 @@ def main() -> None:
     polars_plan = large(orders)
     sql_plan = large(orders_db)
 
-    print("polars plan:")
-    for line in polars_plan.explain().splitlines():
-        print("  " + line)
-    print("sql plan:")
-    for line in sql_plan.explain().splitlines():
-        print("  " + line)
+    # Engine-formatted plan text can change with a dependency upgrade, so check
+    # its shape and print only facts that hold across versions.
+    polars_text = polars_plan.explain()
+    sql_text = sql_plan.explain()
+    print("polars explain names the columns:", "amount" in polars_text)
+    print("sql explain is a SELECT on orders:", sql_text.lstrip().startswith("SELECT") and "orders" in sql_text)
+
+    # Across engines, explain() prints mountainash's own placement tree.
+    customers = pl.DataFrame({"customer_id": [10, 11, 12], "name": ["Avery", "Blake", "Casey"]})
+    print(ma.relation(orders_db).join(ma.relation(customers), on="customer_id").explain())
 
     keys, values = ["order_id"], ["amount", "customer_id"]
     local = ma.relation(orders).fingerprint(keys=keys, columns=values)

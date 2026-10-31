@@ -24,9 +24,10 @@ transfer root/left: ibis-duckdb (bound) -> polars (bound)
 result types: ibis polars
 refused: [ibis] Ibis exact-count sampling with a seed is unsupported; omit seed or use fractional sampling where supported.
 dialect and parameter: ibis-duckdb seed
-rows under a narrower policy: 3
+rows per draw under a narrower policy: {5}
+seed honoured (draws identical): False
 ```
 
-A join runs at its left input by default, so the DuckDB table stays in DuckDB and the Polars customers move there. `execute_on="right"` flips the placement, and `explain()` prints the node locations and the transfer. Exact-count sampling with a seed is refused on Ibis, and the script prints the `BackendCapabilityError` message. A `ma.capability_policy` that protects only availability lets the same call run, so use a narrower policy only when you accept what the refusal protected.
+A join runs at its left input by default, so the DuckDB table stays in DuckDB and the Polars customers move there. `execute_on="right"` flips the placement, and `explain()` prints the node locations and the transfer. Exact-count sampling with a seed is refused on Ibis, and the script prints the `BackendCapabilityError` message. The refusal gate is classed as unclassified, so a `ma.capability_policy` that protects only the availability class does not cover it and the call runs. The cost is that the seed is no longer honoured: twenty runs give different rows, and the script prints that the draws are not identical. Use a narrower policy only when you accept what the refusal protected.
 
 Book: [Execution targets and locations](https://docs.mountainash.io/mountainash/chapters/09-execution-targets-and-capabilities/#execution-targets-and-locations) and [Capability errors and capability_policy](https://docs.mountainash.io/mountainash/chapters/09-execution-targets-and-capabilities/#capability-errors-and-capability_policy). Next: [table_schemas](../table_schemas/).
