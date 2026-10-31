@@ -9,6 +9,9 @@ description: 'Why mountainash exists, the design ideas behind it, where it fits,
 
 **Polars, Narwhals and Ibis execute your data logic. mountainash decides how that logic is described, checked and carried between them.**
 
+!!! warning "Experimental"
+    mountainash 0.1.0 is experimental and not yet ready for production use. Its APIs can change between versions, and it is not yet published on PyPI.
+
 ## Why it exists
 
 Polars, Narwhals and Ibis each solve part of the portability problem. Polars gives a clear expression API and a fast engine. Narwhals puts a Polars-like API over pandas, PyArrow, Dask, DuckDB and others. Ibis compiles a dataframe API to SQL for many databases. A team that stays on one of them is well served.

@@ -157,5 +157,5 @@ A capability registry records what each backend and SQL dialect can do. When a d
 - The [chapter list](chapters/index.md) shows everything the documentation covers.
 - [About](about.md) has the design ideas, authorship, the license and the link to the code repository.
 
-!!! note "Release status"
-    mountainash has no supported public PyPI release yet, and its APIs can change between versions. Work from a source checkout as described in [Installation and the package surface](chapters/02-installation-and-package-surface/index.md#base-install-and-extras).
+!!! warning "Experimental"
+    mountainash 0.1.0 is experimental and not yet ready for production use. Its APIs can change between versions, and it is not yet published on PyPI. Work from a source checkout as described in [Installation and the package surface](chapters/02-installation-and-package-surface/index.md#base-install-and-extras).
