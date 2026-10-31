@@ -95,3 +95,4 @@ Recipes take these tables, or a subset of them, wherever they need data.
 
 | Recipe | Question |
 |---|---|
+| [Custom validation rule](custom_validation_rule/) | How do I write a reusable check and run it on more than one backend? |

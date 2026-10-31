@@ -59,3 +59,16 @@ def test_readmes_have_no_dashes() -> None:
         if any(token in text for token in ("—", "–", " -- ")):
             offenders.append(str(readme.relative_to(ROOT)))
     assert not offenders, f"dashes found in: {offenders}"
+
+
+def test_readme_links_resolve() -> None:
+    link = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+    dangling = []
+    for readme in EXAMPLES.rglob("README.md"):
+        for target in link.findall(readme.read_text(encoding="utf-8")):
+            if target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            path = target.split("#", 1)[0]
+            if not (readme.parent / path).exists():
+                dangling.append(f"{readme.relative_to(ROOT)} -> {target}")
+    assert not dangling, f"dangling README links: {dangling}"

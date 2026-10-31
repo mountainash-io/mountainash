@@ -64,6 +64,8 @@ pip install "mountainash[all]"
 !!! note "Release status"
     mountainash and its sibling packages are not yet published on public PyPI, so the commands above resolve only once those releases exist. Until then, work from a source checkout using the Hatch environments described in [Contributing and testing](../23-contributing-and-testing/index.md), which resolve the sibling packages from local checkouts.
 
+Runnable recipes with their expected output live in the [examples folder](https://github.com/mountainash-io/mountainash/tree/develop/examples).
+
 The base install pulls in Polars 2, Narwhals, PyArrow, Pydantic, `lazy_loader`, `universal-pathlib`, the JSON Schema and date-parsing libraries used by schema validation, and `mountainash-transport`. Narwhals is pinned to the 2.27 series because the backend capability declarations are qualified against that release.
 
 | Extra | Pulls in | Adds |
