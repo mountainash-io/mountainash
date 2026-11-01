@@ -156,4 +156,5 @@ A capability registry records what each backend and SQL dialect can do. When a d
 - Start with [What mountainash does](chapters/01-what-mountainash-does/index.md). It assumes Python 3.12 and dataframe basics (columns, rows, filters, joins, group-by), and introduces lazy plans and three-valued logic where they first appear.
 - [Installation and the package surface](chapters/02-installation-and-package-surface/index.md) lists the extras each backend needs.
 - The [chapter list](chapters/index.md) shows everything the documentation covers.
+- The [examples folder](https://github.com/mountainash-io/mountainash/tree/develop/examples) holds runnable recipes with their expected output.
 - [About](about.md) has the design ideas, authorship, the license and the link to the code repository.

@@ -1,0 +1,12 @@
+{
+  "name": "shop",
+  "resources": [
+    {"name": "customers", "path": "customers.csv", "format": "csv",
+     "schema": {"fields": [{"name": "customer_id", "type": "integer"}, {"name": "name", "type": "string"}, {"name": "region", "type": "string"}],
+                "primaryKey": ["customer_id"]}},
+    {"name": "orders", "path": "orders.csv", "format": "csv",
+     "schema": {"fields": [{"name": "order_id", "type": "integer"}, {"name": "customer_id", "type": "integer"}, {"name": "amount", "type": "number"}, {"name": "status", "type": "string"}],
+                "primaryKey": ["order_id"],
+                "foreignKeys": [{"fields": ["customer_id"], "reference": {"resource": "customers", "fields": ["customer_id"]}}]}}
+  ]
+}

@@ -21,6 +21,10 @@ rules:
     select: ["tests/datacontracts"]
   - match: "src/mountainash/validation/"
     select: ["tests/validation"]
+  # 2026-11-01: a change to the runnable examples/ recipes runs their harness
+  # (source changes reach them through the full CI run).
+  - match: "examples/"
+    select: ["tests/examples"]
 
 cross_cutting:
   - "src/mountainash/core/dtypes/"
