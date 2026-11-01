@@ -1,6 +1,7 @@
 """Execute the recipes users run and check their documented output."""
 
 from pathlib import Path
+import os
 import re
 import shutil
 import subprocess
@@ -28,6 +29,15 @@ def _tree(work: Path) -> list[tuple[Path, bytes | None]]:
     )
 
 
+# Recipes run as plain user scripts: drop pytest-cov's subprocess hooks so a
+# recipe never starts its own coverage measurement (its data cannot be
+# combined with the parent's branch data, and it slows every recipe).
+_RECIPE_ENV = {
+    key: value for key, value in os.environ.items()
+    if not key.startswith(("COV_CORE_", "COVERAGE_"))
+}
+
+
 @pytest.mark.parametrize("recipe", RECIPES, ids=lambda path: path.parent.name)
 def test_recipe_prints_documented_output(recipe: Path, tmp_path: Path) -> None:
     work = tmp_path / "examples"
@@ -41,6 +51,7 @@ def test_recipe_prints_documented_output(recipe: Path, tmp_path: Path) -> None:
         result = subprocess.run(
             [sys.executable, "-I", script], cwd=cwd,
             capture_output=True, text=True, timeout=120, check=False,
+            env=_RECIPE_ENV,
         )
         assert result.returncode == 0, result.stdout + result.stderr
         outputs.append(result.stdout)
