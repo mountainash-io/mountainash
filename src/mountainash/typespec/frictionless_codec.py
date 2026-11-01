@@ -25,7 +25,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.spec import TableSchema
 from mountainash.typespec.errors import (
-    clean_cause,
+    raise_with_cause,
     DescriptorReferenceNotFound,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -113,29 +113,29 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
         absolute_path = candidate.resolve()
         text = absolute_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as exc:
-        raise InvalidDescriptorSyntax(
+        raise_with_cause(InvalidDescriptorSyntax(
             "package descriptor text is not valid UTF-8 JSON",
             descriptor_kind="package",
             descriptor_path="$",
             rejected_value=path,
             required_form="UTF-8 JSON text",
-        ) from clean_cause(exc, path)
+        ), exc, path)
     except (TypeError, ValueError) as exc:
-        raise _structure_error(
+        raise_with_cause(_structure_error(
             "package descriptor path must be a local path",
             descriptor_path="$path",
             rejected_value=path,
             required_form="local filesystem path",
             descriptor_kind="package",
-        ) from clean_cause(exc, path)
+        ), exc, path)
     except (FileNotFoundError, OSError) as exc:
-        raise DescriptorReferenceNotFound(
+        raise_with_cause(DescriptorReferenceNotFound(
             "package descriptor path does not exist",
             descriptor_kind="package",
             descriptor_path="$path",
             rejected_value=path,
             required_form="existing local JSON file",
-        ) from clean_cause(exc, path)
+        ), exc, path)
     return absolute_path, text
 
 
@@ -226,14 +226,14 @@ def _validate_metadata_models(
         try:
             validated = model.model_validate(item)
         except ValidationError as exc:
-            raise _structure_error(
+            raise_with_cause(_structure_error(
                 "metadata object has an invalid shape",
                 descriptor_path=item_path,
                 rejected_value=item,
                 required_form=f"valid {model.__name__[1:-10].lower()} object",
                 descriptor_kind=kind,
                 resource_name=resource_name,
-            ) from clean_cause(exc)
+            ), exc)
         if model is _ContributorDescriptor and validated.roles is not None and not validated.roles:
             raise _structure_error(
                 "contributor roles must not be empty",
