@@ -228,7 +228,7 @@ def test_storage_resolver_reads_allowed_scheme(monkeypatch: pytest.MonkeyPatch) 
         "https://EXAMPLE.com:443/a/../schema.json?profile=v2",
         base_uri=None,
         expected_kind=DescriptorKind.SCHEMA,
-        policy=LocationPolicy(allowed_remote={"https": frozenset()}),
+        policy=LocationPolicy(allowed_remote={"https": frozenset({"*"})}),
     )
     assert result == {"fields": []}
     assert calls == ["https://example.com/schema.json?profile=v2"]
@@ -267,7 +267,7 @@ def test_storage_resolver_translates_transport_missing_object(
             "https://example.com/missing.json",
             base_uri=None,
             expected_kind=DescriptorKind.SCHEMA,
-            policy=LocationPolicy(allowed_remote={"https": frozenset()}),
+            policy=LocationPolicy(allowed_remote={"https": frozenset({"*"})}),
         )
     assert isinstance(caught.value.__cause__, transport_errors.PathNotFoundError)
 
