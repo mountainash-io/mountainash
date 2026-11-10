@@ -29,6 +29,10 @@ Verify requested behavior with targeted tests and runtime checks; fix actual
 runtime/import failures in scope. This policy supersedes type-checking gates
 in older plans and checklists.
 
+## Excluded backend: Ibis-Polars
+
+Exclude `ibis-polars` from investigation, implementation, testing, qualification and completion gates; do not investigate or fix its issues. Use direct Polars instead. This overrides older backend-coverage requirements for `ibis-polars` only; other Ibis backends remain in scope.
+
 
 ## Superpowers Specs & Plans Location
 
