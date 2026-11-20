@@ -17,7 +17,7 @@ def test_full_scope_is_entire_registry():
 
 def test_pr_scope_is_one_per_family():
     pr = resolve_backend_scope("pr")
-    assert pr == ["polars", "narwhals-polars", "ibis-duckdb"]
+    assert pr == ["polars", "narwhals-pyarrow", "ibis-duckdb"]
     families = {REGISTRY[name].family for name in pr}
     assert families == {"polars-eager", "narwhals", "ibis"}
 
@@ -36,7 +36,8 @@ def test_deselect_logic_pr_scope():
     assert deselect_backend_under_scope("polars-lazy", "pr") is True
     assert deselect_backend_under_scope("ibis-sqlite", "pr") is True
     assert deselect_backend_under_scope("polars", "pr") is False
-    assert deselect_backend_under_scope("narwhals-polars", "pr") is False
+    assert deselect_backend_under_scope("narwhals-pyarrow", "pr") is False
+    assert deselect_backend_under_scope("narwhals-polars", "pr") is True
     assert deselect_backend_under_scope("ibis-duckdb", "pr") is False
     # full scope keeps everything; unknown/None params never deselected
     assert deselect_backend_under_scope("polars-lazy", "full") is False
@@ -91,7 +92,7 @@ def pytest_collection_modifyitems(config, items):
         def test_matrix(backend_name):
             if backend_name == "ibis-duckdb":
                 pytest.xfail("known: ibis-duckdb")
-            assert backend_name in ("polars", "narwhals-polars")
+            assert backend_name in ("polars", "narwhals-pyarrow")
         """
     )
     result = pytester.runpytest_subprocess("--ma-backend-scope", "pr", "-q")

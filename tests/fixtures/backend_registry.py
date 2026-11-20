@@ -144,7 +144,7 @@ MATRIX_BACKENDS: dict[str, BackendSpec] = {**REGISTRY, **{s.name: s for s in (
     _spec("ibis-polars",     "ibis",         "deferred", _build_ibis_polars, _typed_ibis("polars")),
 )}}
 
-PR_BACKENDS: list[str] = ["polars", "narwhals-polars", "ibis-duckdb"]
+PR_BACKENDS: list[str] = ["polars", "narwhals-pyarrow", "ibis-duckdb"]
 
 
 def resolve_backend_scope(scope: str) -> list[str]:
