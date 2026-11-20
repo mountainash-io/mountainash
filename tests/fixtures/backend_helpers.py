@@ -9,6 +9,7 @@ Provides:
 from typing import Any, Dict, List
 import polars as pl
 import pandas as pd
+import pyarrow as pa
 import narwhals as nw
 import ibis
 
@@ -52,7 +53,7 @@ class BackendResultHelper:
             return df.count().execute()
         elif backend_name in ("polars-lazy", "narwhals-lazy"):
             return df.collect().shape[0]
-        elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas"]:
+        elif backend_name in ["polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"]:
             return df.shape[0]
         else:
             return len(df)
@@ -84,7 +85,7 @@ class BackendResultHelper:
             return df.select(column).collect()[column].to_list()
         elif backend_name == "pandas":
             return df[column].tolist()
-        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
+        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"):
             return df[column].to_list()
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
@@ -133,7 +134,7 @@ class BackendResultHelper:
             return result[column_alias].to_list()
 
         elif backend_name in (
-            "polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas",
+            "polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow",
         ):
             # Polars/Narwhals/Pandas: use .alias(), then to_list()
             # (pandas is routed through narwhals in factory)
@@ -180,7 +181,7 @@ class BackendResultHelper:
             return result
         elif backend_name == "pandas":
             return result
-        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas"):
+        elif backend_name in ("narwhals", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"):
             return result
         else:
             raise ValueError(f"Unknown backend: {backend_name}")
@@ -297,6 +298,9 @@ class BackendDataFrameFactory:
         elif backend_name == "narwhals-pandas":
             # Narwhals wrapping a pandas frame
             return nw.from_native(pd.DataFrame(data), eager_only=True)
+        elif backend_name == "narwhals-pyarrow":
+            # Narwhals wrapping a pyarrow table
+            return nw.from_native(pa.table(data), eager_only=True)
         elif backend_name == "ibis-duckdb":
             conn = ibis.duckdb.connect()
             return conn.create_table("test_table", data, overwrite=True)

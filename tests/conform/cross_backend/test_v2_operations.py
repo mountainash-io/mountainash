@@ -40,6 +40,7 @@ _SYSTEM_SPECS = {
     "narwhals-pandas": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pandas"),
     "narwhals-polars": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-lazy": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-lazy"),
+    "narwhals-pyarrow": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pyarrow"),
     "ibis-duckdb": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-duckdb"),
     "ibis-sqlite": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-sqlite"),
 }

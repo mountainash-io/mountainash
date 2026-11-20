@@ -52,6 +52,8 @@ def _frame(backend, kind, values, *, index=None):
     if backend == "narwhals-lazy":
         return nw.from_native(frame.lazy())
     table = pa.table({"x": pa.array(values, type=_ARROW_TYPES[kind])})
+    if backend == "narwhals-pyarrow":
+        return nw.from_native(table, eager_only=True)
     if backend == "ibis-duckdb":
         return ibis.duckdb.connect().create_table("value_input", table, overwrite=True)
     if backend == "ibis-sqlite":

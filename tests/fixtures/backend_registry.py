@@ -133,14 +133,14 @@ REGISTRY: dict[str, BackendSpec] = {s.name: s for s in (
     _spec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite, _typed_ibis("sqlite")),
     _spec("narwhals-lazy",   "narwhals",     "lazy",     _build_narwhals_polars_lazy,
           lambda t, _n: nw.from_native(pl.from_arrow(t).lazy())),
-)}
-
-# Transfer-matrix-only backends: sources/destinations for the fidelity matrix,
-# not yet qualified across the cross-backend suite (backlog 389), so they are
-# not in REGISTRY / ALL_BACKENDS.
-MATRIX_BACKENDS: dict[str, BackendSpec] = {**REGISTRY, **{s.name: s for s in (
     _spec("narwhals-pyarrow", "narwhals",    "eager",    _build_narwhals_pyarrow,
           lambda t, _n: nw.from_native(t, eager_only=True)),
+)}
+
+# Transfer-matrix-only backend: source/destination for the fidelity matrix,
+# deliberately not qualified across the cross-backend suite (owner decision,
+# backlog 389), so it is not in REGISTRY / ALL_BACKENDS.
+MATRIX_BACKENDS: dict[str, BackendSpec] = {**REGISTRY, **{s.name: s for s in (
     _spec("ibis-polars",     "ibis",         "deferred", _build_ibis_polars, _typed_ibis("polars")),
 )}}
 

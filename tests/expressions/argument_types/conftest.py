@@ -33,6 +33,9 @@ def make_df(
     if backend == "narwhals-pandas":
         import narwhals as nw
         return nw.from_native(pdf.to_pandas(), eager_only=True)
+    if backend == "narwhals-pyarrow":
+        import narwhals as nw
+        return nw.from_native(pdf.to_arrow(), eager_only=True)
     raise ValueError(f"Unknown backend: {backend}")
 
 
