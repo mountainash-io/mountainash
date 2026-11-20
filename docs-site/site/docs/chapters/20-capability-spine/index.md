@@ -143,7 +143,7 @@ Polars declares no policy for the operation, so the answer is `None`. An unknown
 
 ### Applicability regions
 
-A record can be limited to environments. `Applicability` is a union of `Region`s, each a conjunction of `CoordinateConstraint`s over packages, engines, adapters, platforms or the interpreter; `unbounded` applies everywhere. Matching is three-valued. The narwhals-pandas gate on dynamic regex patterns was observed at one exact environment point and is declared for that point only:
+A record can be limited to environments. `Applicability` is a union of `Region`s, each a conjunction of `CoordinateConstraint`s over packages, engines, adapters, platforms or the interpreter; `unbounded` applies everywhere. Matching is three-valued. Version constraints are open-ended lower bounds: a limitation is declared from the version where it was observed (`>=`) and stays in force until a release that fixes it is observed, at which point an upper bound closes the region. The narwhals-pandas gate on dynamic regex patterns was observed at narwhals 2.27.1 with pandas 3.0.6:
 
 ```python
 from mountainash.core.capabilities.applicability import prepare_environment
@@ -171,7 +171,7 @@ for packages in ({"narwhals": "2.27.1", "pandas": "3.0.6"},
 
 ```text
 pattern literal_only frozenset({<CapabilityIssueClass.ARGUMENT_CONTRACT: 'argument_contract'>})
-[('package', 'narwhals', '==2.27.1'), ('package', 'pandas', '==3.0.6')]
+[('package', 'narwhals', '>=2.27.1'), ('package', 'pandas', '>=3.0.6')]
 {'narwhals': '2.27.1', 'pandas': '3.0.6'} applicable
 {'narwhals': '2.27.1', 'pandas': '3.0.3'} not_applicable
 {'narwhals': '2.27.1'} indeterminate

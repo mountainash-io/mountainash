@@ -18,9 +18,9 @@ from fixtures.call_expectations import expect_call_failure
 # inputs also fail with pandas 3 and are not covered by this expectation.
 _IBIS_PYTHON_TIMEDELTA = Applicability((Region((
     CoordinateConstraint("package", "pandas", specifier=">=2.2,<3"),
-    CoordinateConstraint("package", "ibis-framework", specifier="==12.0.0"),
-    CoordinateConstraint("package", "duckdb", specifier="==1.5.6"),
-    CoordinateConstraint("package", "sqlglot", specifier="==30.17.0"),
+    CoordinateConstraint("package", "ibis-framework", specifier=">=12.0.0"),
+    CoordinateConstraint("package", "duckdb", specifier=">=1.5.6"),
+    CoordinateConstraint("package", "sqlglot", specifier=">=30.17.0"),
 )),))
 
 

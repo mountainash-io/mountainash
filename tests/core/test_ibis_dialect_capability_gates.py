@@ -58,7 +58,7 @@ def test_qualified_missing_translator_is_refused(dialect, kind, policy):
 @pytest.mark.parametrize(
     "version,policy",
     [
-        ("12.0.1", ma.CapabilityPolicy.checked()),
+        ("11.0.0", ma.CapabilityPolicy.checked()),
         (None, ma.CapabilityPolicy.checked()),
         ("12.0.0", ma.CapabilityPolicy.trusted()),
     ],
@@ -127,7 +127,7 @@ def test_postgres_regex_supported_neighbors_retain_native_compilation(shape, sen
 
 
 @pytest.mark.parametrize("coordinate,value", [
-    (0, "12.0.1"), (1, "29.0.2"), (2, "16.16"), (0, None), (1, None), (2, None),
+    (0, "11.0.0"), (1, "29.0.0"), (2, "16.14"), (0, None), (1, None), (2, None),
 ])
 def test_postgres_unqualified_stack_skips_native_inspection(monkeypatch, coordinate, value):
     versions = ["12.0.0", "29.0.1", "16.15"]
@@ -185,7 +185,7 @@ def test_postgres_strict_decimal_remains_available(rounding):
 
 
 @pytest.mark.parametrize("coordinate,value", [
-    (0, "12.0.1"), (1, "29.0.2"), (2, "16.16"), (0, None), (1, None), (2, None),
+    (0, "11.0.0"), (1, "29.0.0"), (2, "16.14"), (0, None), (1, None), (2, None),
 ])
 def test_postgres_decimal_unqualified_stack_retains_native_lowering(coordinate, value):
     versions = ["12.0.0", "29.0.1", "16.15"]

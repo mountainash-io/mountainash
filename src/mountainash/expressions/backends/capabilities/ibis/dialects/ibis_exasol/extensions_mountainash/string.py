@@ -27,7 +27,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 _SCOPE = Scope(CONST_BACKEND.IBIS, Dialect("ibis-exasol"))
 _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS, "*")
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "ibis-framework", specifier="==12.0.0"),
+    CoordinateConstraint("package", "ibis-framework", specifier=">=12.0.0"),
 )),))
 _MESSAGE = "Ibis 12.0.0 Exasol lacks RegexSearch translation for literal and dynamic regex patterns."
 

@@ -27,8 +27,8 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 _SCOPE = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pyarrow"))
 _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST, "*")
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
-    CoordinateConstraint("package", "pyarrow", specifier="==26.0.0"),
+    CoordinateConstraint("package", "narwhals", specifier=">=2.27.1"),
+    CoordinateConstraint("package", "pyarrow", specifier=">=26.0.0"),
 )),))
 _MESSAGE = "Mountainash has no Narwhals PyArrow Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702."
 

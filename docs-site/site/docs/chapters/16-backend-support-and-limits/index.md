@@ -123,7 +123,7 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | narwhals==2.27.1, duckdb==1.5.6 | Mountainash has no Narwhals DuckDB Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | narwhals>=2.27.1, duckdb>=1.5.6 | Mountainash has no Narwhals DuckDB Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702. |
     | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_MAX` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
@@ -167,37 +167,37 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | narwhals==2.27.1, pandas==3.0.6 | Narwhals pandas regex matching requires a literal pattern; per-row patterns are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas regex matching requires a literal pattern; per-row patterns are unsupported. |
     | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | any version | Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702). |
     | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_MAX` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.CUM_MAX` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.CUM_MAX` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_MIN` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.CUM_MIN` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.CUM_MIN` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_PROD` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.CUM_PROD` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.CUM_PROD` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_SUM` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.CUM_SUM` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.CUM_SUM` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.DIFF` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.DIFF` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.DIFF` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `FKEY_MOUNTAINASH_WINDOW.RANK_MAX` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.LAG` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `SUBSTRAIT_ARITHMETIC_WINDOW.LAG` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `SUBSTRAIT_ARITHMETIC_WINDOW.LAG` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.LEAD` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `SUBSTRAIT_ARITHMETIC_WINDOW.LEAD` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `SUBSTRAIT_ARITHMETIC_WINDOW.LEAD` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
-    | `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals==2.27.1, pandas==3.0.6; narwhals==2.27.1, pandas==3.1.0 | Narwhals pandas-like orders multi-key windows by the last key only. |
+    | `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE` | gate / block | `__window__.multi_key` eq `True` | narwhals>=2.27.1, pandas>=3.0.6 | Narwhals pandas-like orders multi-key windows by the last key only. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.RANK` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION` | result protection / detect non null to null | always | any version | Invalid XSD duration lexicals silently become null during native parsing. |
@@ -233,8 +233,8 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | narwhals==2.27.1, pyarrow==26.0.0 | Narwhals PyArrow regex matching requires a literal pattern; per-row patterns are unsupported. |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | narwhals==2.27.1, pyarrow==26.0.0 | Mountainash has no Narwhals PyArrow Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702. |
+    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow regex matching requires a literal pattern; per-row patterns are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Mountainash has no Narwhals PyArrow Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702. |
     | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
     | `FKEY_MOUNTAINASH_WINDOW.CUM_MAX` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
@@ -266,8 +266,8 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | ibis-framework==12.0.0 | Ibis 12.0.0 Exasol lacks RegexSearch translation for literal and dynamic regex patterns. |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework==12.0.0 | Ibis 12.0.0 Exasol lacks RegexReplace translation required by Decimal text normalization. |
+    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | ibis-framework>=12.0.0 | Ibis 12.0.0 Exasol lacks RegexSearch translation for literal and dynamic regex patterns. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework>=12.0.0 | Ibis 12.0.0 Exasol lacks RegexReplace translation required by Decimal text normalization. |
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | gate / block | always | any version | owned temporary-table adoption is unsupported on this SQL dialect |
     | `RKEY_MOUNTAINASH_REL.SAMPLE` | gate / block | `n` is set and `seed` is set | any version | Ibis exact-count sampling with a seed is unsupported; omit seed or use fractional sampling where supported. |
 
@@ -275,7 +275,7 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework==12.0.0 | Ibis 12.0.0 MySQL lacks RegexReplace translation required by Decimal text normalization. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework>=12.0.0 | Ibis 12.0.0 MySQL lacks RegexReplace translation required by Decimal text normalization. |
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | gate / block | always | any version | owned temporary-table adoption is unsupported on this SQL dialect |
     | `RKEY_MOUNTAINASH_REL.SAMPLE` | gate / block | `n` is set and `seed` is set | any version | Ibis exact-count sampling with a seed is unsupported; omit seed or use fractional sampling where supported. |
 
@@ -290,15 +290,15 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | `case_sensitivity` eq `CASE_INSENSITIVE` and `pattern` is dynamic | ibis-framework==12.0.0, sqlglot==29.0.1, postgres==16.15 | Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 loses pattern-concatenation grouping for dynamic case-insensitive regex matching. |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | `failure_behavior` eq `null` | ibis-framework==12.0.0, sqlglot==29.0.1, postgres==16.15 | Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 lowers TryCast to a strict cast; Decimal failure_behavior='null' cannot return null for invalid text. This mode is refused even for valid inputs; use failure_behavior='throw' for strict conversion. |
+    | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | `case_sensitivity` eq `CASE_INSENSITIVE` and `pattern` is dynamic | ibis-framework>=12.0.0, sqlglot>=29.0.1, postgres>=16.15 | Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 loses pattern-concatenation grouping for dynamic case-insensitive regex matching. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | `failure_behavior` eq `null` | ibis-framework>=12.0.0, sqlglot>=29.0.1, postgres>=16.15 | Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 lowers TryCast to a strict cast; Decimal failure_behavior='null' cannot return null for invalid text. This mode is refused even for valid inputs; use failure_behavior='throw' for strict conversion. |
     | `RKEY_MOUNTAINASH_REL.SAMPLE` | gate / block | `n` is set and `seed` is set | any version | Ibis exact-count sampling with a seed is unsupported; omit seed or use fractional sampling where supported. |
 
 ??? note "ibis-singlestoredb (gate refusals: 3; other policies: 0)"
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
-    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework==12.0.0 | Ibis 12.0.0 SingleStoreDB lacks RegexReplace translation required by Decimal text normalization. |
+    | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | ibis-framework>=12.0.0 | Ibis 12.0.0 SingleStoreDB lacks RegexReplace translation required by Decimal text normalization. |
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | gate / block | always | any version | owned temporary-table adoption is unsupported on this SQL dialect |
     | `RKEY_MOUNTAINASH_REL.SAMPLE` | gate / block | `n` is set and `seed` is set | any version | Ibis exact-count sampling with a seed is unsupported; omit seed or use fractional sampling where supported. |
 
@@ -311,7 +311,7 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | materialization error / enrich | always | any version | SQLite cannot store IEEE NaN (stored as NULL), bind non-null Decimal values, or hold nested types; an owned table copy also cannot hold a decimal column |
 <!-- END GENERATED -->
 
-The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2086 lines, `expression-coverage-scoped.md` 1562 lines and `expression-coverage.json` 172878 lines; the command above regenerates it.
+The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2086 lines, `expression-coverage-scoped.md` 1562 lines and `expression-coverage.json` 172046 lines; the command above regenerates it.
 
 ## Known divergences
 
