@@ -79,7 +79,7 @@ def test_decimal_refusal_does_not_block_ordinary_conversion(provider_frame, qual
     [("narwhals-pyarrow", "regex"), ("narwhals-pyarrow", "decimal"), ("narwhals-duckdb", "decimal")],
     indirect=["provider_frame"],
 )
-@pytest.mark.parametrize("selection", ["trusted", "newer-version", "unknown-version"])
+@pytest.mark.parametrize("selection", ["trusted", "older-version", "unknown-version"])
 def test_unselected_provider_gate_preserves_native_failure(provider_frame, kind, selection, monkeypatch):
     import importlib.metadata
 
@@ -91,7 +91,7 @@ def test_unselected_provider_gate_preserves_native_failure(provider_frame, kind,
             if name == "narwhals":
                 if selection == "unknown-version":
                     raise importlib.metadata.PackageNotFoundError(name)
-                return "2.28.0"
+                return "2.26.0"
             return original_version(name)
 
         monkeypatch.setattr(importlib.metadata, "version", observed_version)

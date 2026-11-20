@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
+from packaging.version import Version
+
 
 
 import pytest
@@ -1785,7 +1787,8 @@ if OP_SPECS:
         ):
             error_type = (
                 BackendCapabilityError
-                if version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+                if Version(version("narwhals")) >= Version("2.27.1")
+                and Version(version("pandas")) >= Version("3.0.6")
                 else TypeError
             )
             with expect_call_failure(

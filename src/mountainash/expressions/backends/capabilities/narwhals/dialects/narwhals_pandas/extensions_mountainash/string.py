@@ -27,8 +27,8 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 _SCOPE = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
 _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS, "pattern")
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
-    CoordinateConstraint("package", "pandas", specifier="==3.0.6"),
+    CoordinateConstraint("package", "narwhals", specifier=">=2.27.1"),
+    CoordinateConstraint("package", "pandas", specifier=">=3.0.6"),
 )),))
 _MESSAGE = "Narwhals pandas regex matching requires a literal pattern; per-row patterns are unsupported."
 

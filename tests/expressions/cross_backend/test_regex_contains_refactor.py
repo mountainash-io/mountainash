@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
+from packaging.version import Version
+
 import pytest
 
 import mountainash as ma
@@ -96,7 +98,8 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sen
     unsupported = backend_name in {"pandas", "narwhals-pandas", }
     error_type = TypeError
     if backend_name in {"pandas", "narwhals-pandas"} and (
-        version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+        Version(version("narwhals")) >= Version("2.27.1")
+        and Version(version("pandas")) >= Version("3.0.6")
     ):
         error_type = BackendCapabilityError
     with expect_call_failure(

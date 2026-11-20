@@ -31,8 +31,8 @@ SEGMENT = CapabilitySegment(
                 "normalization or runtime refusal is applied."
             ),
             applicability=Applicability((Region((
-                CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
-                CoordinateConstraint("package", "pandas", specifier="==3.0.6"),
+                CoordinateConstraint("package", "narwhals", specifier=">=2.27.1"),
+                CoordinateConstraint("package", "pandas", specifier=">=3.0.6"),
             )),)),
         ),
     ),
