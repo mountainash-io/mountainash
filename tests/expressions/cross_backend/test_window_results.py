@@ -27,6 +27,15 @@ from polars.exceptions import ShapeError
 from fixtures.call_expectations import expect_call_failure
 
 
+def _nw_pyarrow_partitioned_window(backend_name):
+    """NW-WIN-06: narwhals-pyarrow refuses a non-aggregating window under .over(partition_by=...)."""
+    return expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason="NW-WIN-06: Narwhals PyArrow .over(partition_by=...) accepts only elementary aggregations",
+        errors=(BackendCapabilityError,),
+    )
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWindowRank:
@@ -36,31 +45,34 @@ class TestWindowRank:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        result = (
-            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).sort("group", "score").to_dict()
-        )
-        # A: scores [10,20,30] -> ranks [1,2,3]; B: scores [15,25] -> ranks [1,2]
-        assert result["rnk"] == [1, 2, 3, 1, 2]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).sort("group", "score").to_dict()
+            )
+            # A: scores [10,20,30] -> ranks [1,2,3]; B: scores [15,25] -> ranks [1,2]
+            assert result["rnk"] == [1, 2, 3, 1, 2]
 
     def test_rank_with_ties(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 20, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        result = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        # Tied scores get same rank; next rank skips: [1, 2, 2, 4]
-        assert result["rnk"] == [1, 2, 2, 4]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            # Tied scores get same rank; next rank skips: [1, 2, 2, 4]
+            assert result["rnk"] == [1, 2, 2, 4]
 
     def test_rank_single_row_partition(self, backend_name, backend_factory):
         data = {"group": ["A"], "score": [99]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        result = ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).to_dict()
-        assert result["rnk"] == [1]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).to_dict()
+            assert result["rnk"] == [1]
 
 
 @pytest.mark.cross_backend
@@ -72,26 +84,28 @@ class TestWindowDenseRank:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
-        result = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), expr.alias("drnk"))
-            .sort("group", "score")
-            .to_dict()
-        )
-        assert result["drnk"] == [1, 2, 3, 1, 2]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), expr.alias("drnk"))
+                .sort("group", "score")
+                .to_dict()
+            )
+            assert result["drnk"] == [1, 2, 3, 1, 2]
 
     def test_dense_rank_with_ties(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 20, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
-        result = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        # Dense rank: no gaps -> [1, 2, 2, 3]
-        assert result["drnk"] == [1, 2, 2, 3]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            # Dense rank: no gaps -> [1, 2, 2, 3]
+            assert result["drnk"] == [1, 2, 2, 3]
 
 
 @pytest.mark.cross_backend
@@ -103,19 +117,21 @@ class TestWindowRowNumber:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
-        result = (
-            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
-        )
-        assert result["rn"] == [1, 2, 3, 1, 2]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
+            )
+            assert result["rn"] == [1, 2, 3, 1, 2]
 
     def test_row_number_single_partition(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A"], "score": [30, 10, 20]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
-        result = (
-            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
-        )
-        assert result["rn"] == [1, 2, 3]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
+            )
+            assert result["rn"] == [1, 2, 3]
 
 
 @pytest.mark.cross_backend
@@ -127,7 +143,7 @@ class TestWindowLead:
         data = {"group": ["A", "A", "A", "B", "B", "B"], "score": [10, 20, 30, 15, 25, 35]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lead(1).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -144,7 +160,7 @@ class TestWindowLead:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 40]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lead(2).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -167,7 +183,7 @@ class TestWindowLag:
         data = {"group": ["A", "A", "A", "B", "B", "B"], "score": [10, 20, 30, 15, 25, 35]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lag(1).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -184,7 +200,7 @@ class TestWindowLag:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 40]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lag(2).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -207,7 +223,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"], "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(1).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -224,7 +240,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"], "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(-1).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -241,7 +257,7 @@ class TestWindowShift:
         data = {"group": ["A", "A", "A", "A", "A"], "score": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(2).over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -305,7 +321,7 @@ class TestWindowNtile:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").ntile(2).over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow', 'pandas'),
             reason=(('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
             errors=(((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (NotImplementedError,))),
         ):
@@ -322,9 +338,9 @@ class TestWindowNtile:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").ntile(3).over("group")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') or backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('ntile() is unsupported off Polars' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else ('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
-            errors=((NotImplementedError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else ((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,))),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') or backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('ntile() is unsupported off Polars' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') else ('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
+            errors=((NotImplementedError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') else ((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,))),
         ):
             result = (
                 ma.relation(df)
@@ -358,7 +374,7 @@ class TestWindowCumSum:
         data = {"group": ["A", "A", "A", "B", "B"], "val": [1, 2, 3, 10, 20]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").cum_sum().over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name == 'narwhals-lazy',
             reason=('order-dependent window operations raise on narwhals-lazy'),
             errors=((InvalidOperationError,)),
@@ -467,7 +483,7 @@ class TestWindowDiff:
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
             errors=((NotImplementedError,)),
         ):
@@ -488,19 +504,20 @@ class TestWindowRankDescending:
         df = backend_factory.create(data, backend_name)
         expr_asc = ma.col("score").rank(method="min").over("group")
         expr_desc = ma.col("score").rank(method="min", descending=True).over("group")
-        result_asc = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_asc.alias("rnk"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        result_desc = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_desc.alias("rnk"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        assert result_asc["rnk"] != result_desc["rnk"]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result_asc = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_asc.alias("rnk"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            result_desc = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_desc.alias("rnk"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            assert result_asc["rnk"] != result_desc["rnk"]
 
 
 @pytest.mark.cross_backend
@@ -512,13 +529,14 @@ class TestWindowRankMethodDense:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="dense").over("group")
-        result = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        assert result["drnk"] == [1, 2, 3, 3]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            assert result["drnk"] == [1, 2, 3, 3]
 
 
 @pytest.mark.cross_backend
@@ -530,13 +548,14 @@ class TestWindowRankMethodOrdinal:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="ordinal").over("group")
-        result = (
-            ma.relation(df)
-            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rn"))
-            .sort("group", "score", "id")
-            .to_dict()
-        )
-        assert result["rn"] == [1, 2, 3, 4]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rn"))
+                .sort("group", "score", "id")
+                .to_dict()
+            )
+            assert result["rn"] == [1, 2, 3, 4]
 
 
 @pytest.mark.cross_backend
@@ -548,7 +567,7 @@ class TestWindowRankMethodAverage:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="average").over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason="rank(method='average'|'max') raises on Ibis",
             errors=(BackendCapabilityError,),
@@ -571,7 +590,7 @@ class TestWindowRankMethodMax:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="max").over("group")
-        with expect_call_failure(
+        with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
             when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason="rank(method='average'|'max') raises on Ibis",
             errors=(BackendCapabilityError,),
@@ -606,7 +625,7 @@ class TestWindowPercentRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").percent_rank().over("group", order_by="score")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
             errors=((NotImplementedError,)),
         ):
@@ -630,7 +649,7 @@ class TestWindowCumeDist:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").cume_dist().over("group", order_by="score")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
             errors=((NotImplementedError,)),
         ):
@@ -657,9 +676,9 @@ class TestWindowNthValue:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").nth_value(2).over("group")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name in ('polars', 'polars-lazy'),
-            reason=(('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else 'nth_value().over() raises on eager and lazy Polars')),
-            errors=(((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else (ShapeError,))),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow') or backend_name in ('polars', 'polars-lazy'),
+            reason=(('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow') else 'nth_value().over() raises on eager and lazy Polars')),
+            errors=(((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow') else (ShapeError,))),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("nth")).sort("group", "score").to_dict()
@@ -680,7 +699,7 @@ class TestWindowOverScalar:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("salary").add(ma.lit(0)).over("dept")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow', 'pandas'),
             reason=('scalar_expr.over(...) raises off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'scalar_expr.over(...) raises off Polars'),
             errors=((IbisTypeError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (InvalidOperationError,)),
         ):
@@ -706,23 +725,25 @@ class TestWindowMultiPartition:
         }
         df = backend_factory.create(data, backend_name)
         expr = ma.col("salary").rank(method="min").over("dept", "level")
-        result = (
-            ma.relation(df)
-            .select(
-                ma.col("dept"),
-                ma.col("level"),
-                ma.col("salary"),
-                expr.alias("rnk"),
+        with _nw_pyarrow_partitioned_window(backend_name):
+            result = (
+                ma.relation(df)
+                .select(
+                    ma.col("dept"),
+                    ma.col("level"),
+                    ma.col("salary"),
+                    expr.alias("rnk"),
+                )
+                .sort("dept", "level", "salary")
+                .to_dict()
             )
-            .sort("dept", "level", "salary")
-            .to_dict()
-        )
-        # eng/jr: 90,100 -> 1,2; eng/sr: 120 -> 1; sales/jr: 80 -> 1; sales/sr: 110 -> 1
-        assert result["rnk"] == [1, 2, 1, 1, 1]
+            # eng/jr: 90,100 -> 1,2; eng/sr: 120 -> 1; sales/jr: 80 -> 1; sales/sr: 110 -> 1
+            assert result["rnk"] == [1, 2, 1, 1, 1]
 
 
-# pandas-backed Narwhals cannot rank by several keys: refused by a declared fact.
+# pandas-backed Narwhals and narwhals-pyarrow cannot rank by several keys: refused by a declared fact.
 _NW_PANDAS_LIKE = ("pandas", "narwhals-pandas")
+_MULTI_KEY_REFUSED = (*_NW_PANDAS_LIKE, "narwhals-pyarrow")
 
 
 @pytest.mark.cross_backend
@@ -752,7 +773,7 @@ class TestWindowMultiKeyOrder:
         kwargs = {"method": method} if method is not None else {}
         expr = getattr(ma.col("a"), fn)(**kwargs).over("g", order_by=order_by)
         df = backend_factory.create(self.DATA, backend_name)
-        if backend_name in _NW_PANDAS_LIKE:
+        if backend_name in _MULTI_KEY_REFUSED:
             with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
                 ma.relation(df).with_columns(expr.alias("r")).to_dict()
             return
@@ -769,7 +790,7 @@ class TestWindowMultiKeyOrder:
         data = {"g": [1] * size, "a": list(range(size)), "b": [0] * size, "c": [0] * size}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").dense_rank().over("g", order_by=["a", "b", "c"])
-        if backend_name in _NW_PANDAS_LIKE:
+        if backend_name in _MULTI_KEY_REFUSED:
             with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
                 ma.relation(df).with_columns(expr.alias("r")).to_dict()
             return
@@ -779,15 +800,16 @@ class TestWindowMultiKeyOrder:
     def test_single_descending_key(self, backend_name, backend_factory):
         expr = ma.col("a").row_number().over("g", order_by="-b")
         df = backend_factory.create(self.DATA, backend_name)
-        out = ma.relation(df).with_columns(expr.alias("r")).sort("b", "a").to_dict()
-        # b descending: the two b=2 rows take 1-2, the two b=1 rows take 3-4
-        assert sorted(out["r"][:2]) == [3, 4]
-        assert sorted(out["r"][2:]) == [1, 2]
+        with _nw_pyarrow_partitioned_window(backend_name):
+            out = ma.relation(df).with_columns(expr.alias("r")).sort("b", "a").to_dict()
+            # b descending: the two b=2 rows take 1-2, the two b=1 rows take 3-4
+            assert sorted(out["r"][:2]) == [3, 4]
+            assert sorted(out["r"][2:]) == [1, 2]
 
     def test_row_number_null_key_completes(self, backend_name, backend_factory):
         df = backend_factory.create({"g": [1, 1, 1], "a": [2, None, 1], "b": [1, 2, 3]}, backend_name)
         expr = ma.col("a").row_number().over("g", order_by=["a", "b"])
-        if backend_name in _NW_PANDAS_LIKE:
+        if backend_name in _MULTI_KEY_REFUSED:
             with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
                 ma.relation(df).with_columns(expr.alias("r")).to_dict()
             return
@@ -803,7 +825,7 @@ def test_integral_rank_dtype(backend_name, backend_factory, fn):
     """Integral ranking functions return integers (backlog 367)."""
     df = backend_factory.create({"g": [1, 1], "a": [2, 1]}, backend_name)
     expr = getattr(ma.col("a"), fn)().over("g")
-    with expect_call_failure(
+    with _nw_pyarrow_partitioned_window(backend_name), expect_call_failure(
         when=backend_name in ("pandas", "narwhals-pandas"),
         reason="backlog 367: pandas NumPy rank returns float64 (declared divergence)",
         errors=(AssertionError,),

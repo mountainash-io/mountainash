@@ -126,7 +126,7 @@ The first list per module is typed errors to add to the facade; the second is er
 ## Cross-backend testing
 
 <!-- concept:551 -->
-The cross-backend suite is the primary test suite: one test per behaviour, parametrised over backends, with the same assertion for each. The backends are defined once, in `tests/fixtures/backend_registry.py`. Each `BackendSpec` names a family, a materialisation (eager, lazy or deferred) and a builder for the native object. `ALL_BACKENDS` lists every registry entry; `MATRIX_BACKENDS` adds two backends used only as sources and destinations in the operand-transfer matrix; `PR_BACKENDS` picks one backend per engine family ([Polars](../21-backends/index.md#polars), [Narwhals](../21-backends/index.md#narwhals-and-its-providers) and [Ibis](../21-backends/index.md#ibis-and-sql-dialects)).
+The cross-backend suite is the primary test suite: one test per behaviour, parametrised over backends, with the same assertion for each. The backends are defined once, in `tests/fixtures/backend_registry.py`. Each `BackendSpec` names a family, a materialisation (eager, lazy or deferred) and a builder for the native object. `ALL_BACKENDS` lists every registry entry; `MATRIX_BACKENDS` adds one backend used only as a source and destination in the operand-transfer matrix; `PR_BACKENDS` picks one backend per engine family ([Polars](../21-backends/index.md#polars), [Narwhals](../21-backends/index.md#narwhals-and-its-providers) and [Ibis](../21-backends/index.md#ibis-and-sql-dialects)). The Narwhals representative is `narwhals-pyarrow`, so the PR run exercises a Narwhals provider that is not Polars underneath.
 
 ```python
 sys.path.insert(0, "tests")  # run from the repository root
@@ -138,9 +138,9 @@ print(PR_BACKENDS)
 ```
 
 ```text
-['polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'ibis-duckdb', 'ibis-sqlite', 'narwhals-lazy']
-['ibis-polars', 'narwhals-pyarrow']
-['polars', 'narwhals-polars', 'ibis-duckdb']
+['polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'ibis-duckdb', 'ibis-sqlite', 'narwhals-lazy', 'narwhals-pyarrow']
+['ibis-polars']
+['polars', 'narwhals-pyarrow', 'ibis-duckdb']
 ```
 
 A test creates its frame with `backend_factory.create(data, backend_name)` and extracts results with `collect_expr(df, expr)` or `collect_col(df, name)`. Both go through the relation API's egress, the path users take, which keeps null and NaN apart where ad hoc `.execute()` or `.to_list()` calls confuse them. `select_and_extract` is kept only for tests that pass an explicit booleanizer to `.compile()`. A test file looks like this:

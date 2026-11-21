@@ -105,6 +105,10 @@ def test_parameterized_literal_family(backend_name, backend_factory, dtype, valu
     if rows == 0 and not null and backend_name in {"pandas", "narwhals-pandas"} and isinstance(dtype, (ListDtype, ArrayDtype, StructDtype)):
         request.applymarker(pytest.mark.xfail(strict=True, raises=ValueError,
             reason="348: Narwhals constructs a one-element nested literal against an empty pandas index"))
+    if rows == 0 and not null and backend_name == "narwhals-pyarrow" and isinstance(dtype, (ListDtype, ArrayDtype)):
+        import pyarrow as pa
+        request.applymarker(pytest.mark.xfail(strict=True, raises=pa.ArrowInvalid,
+            reason="NW-TYPE-01: Narwhals PyArrow cannot broadcast a nested literal to an empty frame"))
 
     source = backend_factory.create({"id": [1, 2]}, backend_name)
     value = None if null else value

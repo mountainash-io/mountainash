@@ -185,7 +185,7 @@ _DECIMAL_CAST_NW_XFAIL = pytest.mark.xfail(
     raises=BackendCapabilityError,
     reason="Narwhals has no round mode / non-strict cast: NW-MATH-11 (narwhals#3698), NW-CAST-01 (narwhals#3702)",
 )
-_DECIMAL_CAST_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas"}
+_DECIMAL_CAST_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
 
 
 def _params():

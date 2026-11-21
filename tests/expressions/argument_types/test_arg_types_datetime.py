@@ -13,6 +13,7 @@ import pytest
 import mountainash as ma
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 from mountainash.expressions.core.datetime_components import (
     BooleanComponent,
     DatetimeComponent,
@@ -438,7 +439,12 @@ if OP_SPECS:
             }
         )
         unavailable_zone = backend == "ibis" and op.function_key is FK_DT.LOCAL_TIMESTAMP
-        if literal_offset or unavailable_zone:
+        pyarrow_calendar_offset = (
+            backend == "narwhals-pyarrow"
+            and input_type in ("raw", "lit")
+            and op.function_key in {FK_MA_DT.ADD_MONTHS, FK_MA_DT.ADD_YEARS}
+        )
+        if literal_offset or unavailable_zone or pyarrow_calendar_offset:
             with pytest.raises(BackendCapabilityError) as error:
                 run_argument_matrix(op, backend, input_type)
             assert error.value.function_key is op.function_key
@@ -562,10 +568,19 @@ _NARWHALS_DECLARED = {
 }
 
 
+_NARWHALS_PYARROW_CALENDAR_UNITS = {"1y", "1mo", "1q", "year", "month", "quarter"}
+
+
 def _unit_disposition(op: str, value: str, backend: str) -> str:
     """Mirror the verified matrix: honored or declared_unsupported per cell."""
     if backend in ("polars", "ibis"):
         return "honored"  # both fully honor every value now (item 74).
+    if (
+        backend == "narwhals-pyarrow"
+        and op in {"round_dt", "ceil_dt"}
+        and value in _NARWHALS_PYARROW_CALENDAR_UNITS
+    ):
+        return "declared_unsupported"  # NW-DT-08: dt.offset_by rejects year/month.
     # narwhals-polars and narwhals-pandas share the same per-dialect fact sets.
     return "declared_unsupported" if value in _NARWHALS_DECLARED[op] else "honored"
 
@@ -577,7 +592,9 @@ def _unit_backing_mode(op: str, value: str, backend: str) -> str:
 def _unit_reason(op: str, value: str, backend: str) -> str:
     if _unit_disposition(op, value, backend) == "honored":
         return "native backend honors the unit on this op"
-    # narwhals -- the only remaining declared cell (week).
+    if backend == "narwhals-pyarrow" and value in _NARWHALS_PYARROW_CALENDAR_UNITS:
+        return "narwhals dt.offset_by rejects year/month offsets on PyArrow datetimes (NW-DT-08)"
+    # narwhals -- the remaining declared cell (week).
     return "narwhals dt.truncate rejects the week unit '1w' (and its friendly alias 'week') on both dialects"
 
 
@@ -1514,6 +1531,12 @@ _EXTRACT_DECLARED = {
         }
     ),
     "narwhals-pandas": frozenset(
+        {
+            "ISO_YEAR", "US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "ISO_WEEK",
+            "US_WEEK", "PICOSECOND", "UNIX_TIME", "TIMEZONE_OFFSET",
+        }
+    ),
+    "narwhals-pyarrow": frozenset(
         {
             "ISO_YEAR", "US_YEAR", "MONDAY_WEEK", "SUNDAY_WEEK", "ISO_WEEK",
             "US_WEEK", "PICOSECOND", "UNIX_TIME", "TIMEZONE_OFFSET",

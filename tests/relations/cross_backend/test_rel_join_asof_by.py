@@ -5,6 +5,8 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from fixtures.call_expectations import expect_call_failure
+from mountainash.core.types import BackendCapabilityError
 
 
 def test_join_asof_by_groups_polars():
@@ -37,16 +39,21 @@ def test_asof_schema_matches_execution(backend_name, backend_factory, by, expect
         {"g": ["a", "a"], "h": [1, 2], "t": [1, 3], "v": [100, 200], "x": ["x", "y"]},
         backend_name,
     )
-    joined = ma.relation(left).join_asof(right, on="t", by=by, strategy=strategy)
-    actual = joined.to_polars().sort("t")
-    assert actual.columns == expected_columns
-    values = {
-        "backward": [100, 200],
-        "forward": [None, None] if isinstance(by, list) else [200, None],
-        "nearest": [100, 200] if isinstance(by, list) else [200, 200],
-    }
-    assert actual["v_right"].to_list() == values[strategy]
-    assert joined.select(*joined.columns).to_polars().sort("t").equals(actual)
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason="NW-REL-06: Narwhals has no join_asof implementation for the PyArrow backend",
+        errors=(BackendCapabilityError,),
+    ):
+        joined = ma.relation(left).join_asof(right, on="t", by=by, strategy=strategy)
+        actual = joined.to_polars().sort("t")
+        assert actual.columns == expected_columns
+        values = {
+            "backward": [100, 200],
+            "forward": [None, None] if isinstance(by, list) else [200, None],
+            "nearest": [100, 200] if isinstance(by, list) else [200, 200],
+        }
+        assert actual["v_right"].to_list() == values[strategy]
+        assert joined.select(*joined.columns).to_polars().sort("t").equals(actual)
 
 
 def test_asof_empty_output_keeps_grouped_schema(backend_name, backend_factory):
@@ -54,7 +61,12 @@ def test_asof_empty_output_keeps_grouped_schema(backend_name, backend_factory):
         {"g": ["a"], "t": [2], "v": [10]},
         {"g": ["a"], "t": [1], "v": [100]}, backend_name,
     )
-    joined = ma.relation(left).head(0).join_asof(right, on="t", by="g")
-    assert joined.columns == ["g", "t", "v", "v_right"]
-    actual = joined.select(*joined.columns).to_polars()
-    assert actual.to_dict(as_series=False) == {"g": [], "t": [], "v": [], "v_right": []}
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason="NW-REL-06: Narwhals has no join_asof implementation for the PyArrow backend",
+        errors=(BackendCapabilityError,),
+    ):
+        joined = ma.relation(left).head(0).join_asof(right, on="t", by="g")
+        assert joined.columns == ["g", "t", "v", "v_right"]
+        actual = joined.select(*joined.columns).to_polars()
+        assert actual.to_dict(as_series=False) == {"g": [], "t": [], "v": [], "v_right": []}

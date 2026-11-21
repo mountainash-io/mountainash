@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 from _pytest.outcomes import Failed
 from ibis.common.exceptions import UnsupportedBackendType
+from pyarrow.lib import ArrowNotImplementedError
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
@@ -18,6 +19,11 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 
 LIST_BACKENDS = ("polars", "polars-lazy", "ibis-duckdb")
+
+_NW_STRUCT_BROADCAST = (
+    "NW-CAST-03: Narwhals PyArrow nw.struct treats length-1 operands as broadcast "
+    "scalars, so one-row struct construction fails."
+)
 
 
 @pytest.mark.cross_backend
@@ -217,9 +223,14 @@ def test_struct_float32_conversion_preserves_values_and_null_parents(
         with pytest.raises(BackendCapabilityError, match="cannot preserve null input structs"):
             ma.relation(source).select(expression).to_polars()
         return
-    result = ma.relation(source).select(expression).to_polars()
-    assert result.to_series().to_list() == values
-    assert result.to_series().dtype == pl.Struct({"v": pl.Float32})
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow" and route == "converted-child" and not nullable_parent,
+        reason=_NW_STRUCT_BROADCAST,
+        errors=(ArrowNotImplementedError,),
+    ):
+        result = ma.relation(source).select(expression).to_polars()
+        assert result.to_series().to_list() == values
+        assert result.to_series().dtype == pl.Struct({"v": pl.Float32})
 
 
 @pytest.mark.cross_backend
@@ -254,6 +265,11 @@ def test_struct_float32_out_of_range_member_follows_native_cast(backend_name, ba
         with pytest.raises(BackendCapabilityError, match="cannot preserve null input structs"):
             ma.relation(source).select(expression).to_polars()
         return
+    if backend_name == "narwhals-pyarrow" and route == "converted-child":
+        # The one-row struct broadcast defect fires before the overflow behaviour
+        # under test can be observed.
+        with expect_call_failure(reason=_NW_STRUCT_BROADCAST, errors=(ArrowNotImplementedError,)):
+            ma.relation(source).select(expression).to_polars()
     with expect_call_failure(
         when=backend_name != "ibis-duckdb",
         reason="Native Float64 -> Float32 struct cast yields infinity instead of rejecting overflow.",

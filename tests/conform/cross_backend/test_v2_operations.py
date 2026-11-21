@@ -32,6 +32,12 @@ from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressi
 from mountainash.core.types import BackendCapabilityError
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
+_NW_PYARROW_GEOPOINT_OBJECT_REASON = (
+    "narwhals-pyarrow: object/native geopoint is not implemented on the "
+    "Narwhals PyArrow path (backlog 428)"
+)
 
 _SYSTEM_SPECS = {
     "polars": (PolarsExpressionSystem, CONST_BACKEND.POLARS, "polars"),
@@ -40,6 +46,7 @@ _SYSTEM_SPECS = {
     "narwhals-pandas": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pandas"),
     "narwhals-polars": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-lazy": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-lazy"),
+    "narwhals-pyarrow": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pyarrow"),
     "ibis-duckdb": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-duckdb"),
     "ibis-sqlite": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-sqlite"),
 }
@@ -287,7 +294,10 @@ def test_list_parse_matrix_covers_every_item_type(
     if (
         backend_name == "ibis-sqlite"
         or (
-            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and item_type in {"datetime", "time"}
         )
     ):
@@ -359,7 +369,10 @@ def test_list_parse_invalid_item_is_complete_value_failure(
     if (
         backend_name == "ibis-sqlite"
         or (
-            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and (
                 item_type in {"datetime", "time"}
                 or failure_behavior is CaseFailureBehaviour.NULL
@@ -563,7 +576,10 @@ def test_categorical_cast_preserves_supported_base_values(
     if (
         (backend_name == "ibis-sqlite" and value_type == "integer")
         or (
-            backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and value_type == "integer"
             and failure_behavior is CaseFailureBehaviour.NULL
         )
@@ -749,7 +765,8 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
         if backend_name in {"polars", "polars-lazy"}:
             pass
         elif backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow", "ibis-sqlite",
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -773,10 +790,14 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
     elif (format_name, source_representation) == ("object", "native"):
         if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
-        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+        }:
             with pytest.raises(NotImplementedError):
                 _compile_for(backend_name, expr)
             return
+        elif backend_name == "narwhals-pyarrow":
+            pass  # strict expected failure follows (backlog 428)
         else:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -789,7 +810,15 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
         ("array", "native"): [[1.0, 2.0]],
         ("object", "native"): [{"lon": 1.0, "lat": 2.0}],
     }[(format_name, source_representation)]
-    values = _extract(backend_name, {"point": [*valid, None]}, _compile_for(backend_name, expr), "point")
+    with expect_call_failure(
+        when=(
+            backend_name == "narwhals-pyarrow"
+            and (format_name, source_representation) == ("object", "native")
+        ),
+        reason=_NW_PYARROW_GEOPOINT_OBJECT_REASON,
+        errors=(NotImplementedError,),
+    ):
+        values = _extract(backend_name, {"point": [*valid, None]}, _compile_for(backend_name, expr), "point")
     expected = (
         [[1.0, -250.0]]
         if (format_name, source_representation) == ("array", "lexical")
@@ -830,7 +859,8 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
         if backend_name in {"polars", "polars-lazy"}:
             pass
         elif backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow", "ibis-sqlite",
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -854,10 +884,14 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     elif (format_name, source_representation) == ("object", "native"):
         if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
-        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+        }:
             with pytest.raises(NotImplementedError):
                 _compile_for(backend_name, expr)
             return
+        elif backend_name == "narwhals-pyarrow":
+            pass  # strict expected failure follows (backlog 428)
         else:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -874,12 +908,21 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
             None,
         ],
     }[(format_name, source_representation)]
+    with expect_call_failure(
+        when=(
+            backend_name == "narwhals-pyarrow"
+            and (format_name, source_representation) == ("object", "native")
+        ),
+        reason=_NW_PYARROW_GEOPOINT_OBJECT_REASON,
+        errors=(NotImplementedError,),
+    ):
+        compiled = _compile_for(backend_name, expr)
     if failure_behavior is CaseFailureBehaviour.THROW:
         with pytest.raises(Exception):
             _extract(
                 backend_name,
                 {"point": invalid_values},
-                _compile_for(backend_name, expr),
+                compiled,
                 "point",
             )
         return
@@ -887,7 +930,7 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     values = _extract(
         backend_name,
         {"point": invalid_values},
-        _compile_for(backend_name, expr),
+        compiled,
         "point",
     )
     assert all(value is None or bool(pd.isna(value)) for value in values)

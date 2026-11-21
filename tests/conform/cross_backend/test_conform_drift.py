@@ -41,7 +41,9 @@ from fixtures.call_expectations import expect_call_failure
 # expsys_base.py CONST_BACKEND.PANDAS routing) and therefore hit
 # the same "Narwhals Expr.cast has no strict/failure-behavior parameter"
 # capability gap as tests/expressions/cross_backend/test_cast.py.
-_NARWHALS_ROUTED_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+_NARWHALS_ROUTED_BACKENDS = {
+    "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow",
+}
 
 
 def _as_float_list(values):
@@ -128,6 +130,7 @@ class TestDiscardValuePolicy:
             when=backend_name in (
                 "ibis-sqlite",
                 "narwhals-lazy",
+                "narwhals-pyarrow",
                 "narwhals-polars",
                 "narwhals-pandas",
                 "pandas",
@@ -165,6 +168,7 @@ class TestDiscardRowPolicy:
             when=backend_name in (
                 "ibis-sqlite",
                 "narwhals-lazy",
+                "narwhals-pyarrow",
                 "narwhals-polars",
                 "narwhals-pandas",
                 "pandas",

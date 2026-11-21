@@ -862,16 +862,17 @@ issues:
 - id: NW-STR-03
   project: narwhals
   category: string-ops
-  summary: str.replace requires literal values for substring and replacement on pandas
+  summary: str.replace requires literal values for substring and replacement on pandas; PyArrow str.replace/contains/starts_with/ends_with/regexp_replace require literal str arguments
   root_cause: parameter_width
   affected_backends:
   - narwhals-pandas
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: error_enrichment
-  notes: 'Check if covered by #3581.'
-  last_verified: '2026-05-11'
+  notes: 'Check if covered by #3581. Backlog 389: on Narwhals 2.27.1 with PyArrow 26.0.0 the PyArrow str.replace, str.contains, str.starts_with, str.ends_with and regexp str.replace accept only literal str pattern/prefix/suffix/replacement values and raise TypeError for column-valued ones; declared as literal-only gates on narwhals-pyarrow.'
+  last_verified: '2026-11-21'
 - id: NW-STR-04
   project: narwhals
   category: string-ops
@@ -1045,6 +1046,7 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
@@ -1362,6 +1364,7 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
@@ -2390,3 +2393,176 @@ issues:
     conversion, retaining nullable-child, null-container, masked-row and UInt64
     boundary controls, after an upstream repair.
   last_verified: '2026-10-24'
+- id: NW-WIN-06
+  project: narwhals
+  category: window-ops
+  summary: PyArrow .over(partition_by=...) accepts only elementary aggregations
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. On Narwhals 2.27.1 with PyArrow 26.0.0, a non-aggregating
+    window (row_number/rank/dense_rank/lag/lead/shift, cum_*, diff, fills)
+    under .over(partition_by=...) raises NotImplementedError ("Only elementary
+    aggregations are supported for `.over` in PyArrow backend when
+    `partition_by` is specified"); unpartitioned windows and partitioned
+    aggregates (sum/first/last) compute. Refused by a declared capability fact
+    keyed on the bound window shape (__window__.partitioned); the polars,
+    pandas and DuckDB Narwhals dialects compute these windows.
+  last_verified: '2026-11-20'
+- id: NW-REL-06
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals has no join_asof implementation for the PyArrow backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("'join_asof' is not implemented for PYARROW") for every strategy, grouped
+    or not. Refused by a declared capability fact before dispatch; the other
+    Narwhals dialects implement join_asof (tolerance remains refused family-wide).
+  last_verified: '2026-11-20'
+- id: NW-REL-07
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals has no pivot implementation for the PyArrow backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("'pivot' is not implemented for PYARROW"). Refused by a declared
+    capability fact before dispatch; polars and pandas Narwhals dialects
+    implement pivot.
+  last_verified: '2026-11-20'
+- id: NW-DT-08
+  project: narwhals
+  category: datetime-ops
+  summary: Calendar year/month offsets are not supported for PyArrow
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("Offsetting by y/mo is not yet supported for pyarrow") from
+    dt.offset_by. add_years/add_months are refused by a declared capability
+    fact; offset_by("<n>mo"/"<n>y") cannot be discriminated by a predicate
+    (the offset value class is closed) and surfaces the raw NotImplementedError,
+    held by strict expected failures. Fixed-width units (d, h, m, s, ms, us) work.
+  last_verified: '2026-11-20'
+- id: NW-AGG-04
+  project: narwhals
+  category: aggregate-ops
+  summary: PyArrow group_by().agg() rejects non-elementary aggregations
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Grouped aggregation of an expression such as (lit(1)+x).sum()
+    or mode() raises ValueError ("Non-trivial complex aggregation found") on
+    Narwhals 2.27.1 with PyArrow 26.0.0; the same expressions compute in a
+    global select. No capability predicate can see grouped-ness or measure shape,
+    so the raw ValueError is held by strict expected failures rather than a gate.
+  last_verified: '2026-11-20'
+- id: NW-CAST-03
+  project: narwhals
+  category: cast-semantics
+  summary: PyArrow nw.struct treats every length-1 operand as a broadcast scalar
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. On Narwhals 2.27.1 with PyArrow 26.0.0, nw.struct(...) over
+    columns of a single-row frame treats each length-1 operand as a broadcast
+    scalar and rebuilds the struct from its first element, so the struct cast
+    with converted child fields on a one-row frame fails with
+    ArrowNotImplementedError ("Unsupported cast from double to struct"). The
+    declared-child struct conversion is otherwise correct. No capability
+    predicate can see the frame length, so this is information only and the
+    exact error is held by strict expected failures; Mountainash does not
+    rebuild the struct in pyarrow.compute (native-execution-only.md, "No
+    switching backends mid-operation").
+  last_verified: '2026-11-21'
+- id: NW-TYPE-01
+  project: narwhals
+  category: type-system
+  summary: PyArrow broadcast of a nested (list/array) literal fails on an empty frame
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. On Narwhals 2.27.1 with PyArrow 26.0.0, a list or fixed-size
+    array nw.lit(..., dtype=...) evaluated against a zero-row frame raises
+    ArrowInvalid ("Must pass at least one array") while broadcasting the scalar
+    to length 0. No capability predicate can see the frame length, so this is
+    information only and the exact error is held by strict expected failures;
+    Mountainash does not slice native Arrow arrays to work around it.
+  last_verified: '2026-11-21'
+- id: NW-AGG-05
+  project: narwhals
+  category: aggregate-ops
+  summary: PyArrow std/var of an all-null (Null-typed) column has no kernel
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. On Narwhals 2.27.1 with PyArrow 26.0.0, std_dev/variance over a
+    column whose Arrow type is null raises ArrowNotImplementedError ("Function
+    'stddev'/'variance' has no kernel matching input types (null)"); the other
+    Narwhals backends return null. No capability predicate can see a Null-typed
+    column here, so this is information only and the exact error is held by
+    strict expected failures. Mountainash neither casts the column nor rewrites
+    the relation's Null columns to work around it.
+  last_verified: '2026-11-21'
+- id: NW-MATH-12
+  project: narwhals
+  category: math-ops
+  summary: PyArrow integer modulus raises on signed-minimum % -1 instead of wrapping
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389 and backlog 428 (numeric semantics). On Narwhals 2.27.1 with
+    PyArrow 26.0.0, an int8 modulus of -128 % -1 raises ArrowInvalid (overflow)
+    where Polars and pandas wrap, so an explicit overflow='SILENT' does not
+    select native wrapping for modulus. No capability predicate can see operand
+    values, so this is information only and the exact error is held by a strict
+    expected failure.
+  last_verified: '2026-11-21'

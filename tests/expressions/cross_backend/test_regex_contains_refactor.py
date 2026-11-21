@@ -95,11 +95,16 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sen
         .then(1).otherwise(-1).alias("score")
     )
     assert query.columns == ["id", "value", "pattern", "score"]
-    unsupported = backend_name in {"pandas", "narwhals-pandas", }
+    unsupported = backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}
     error_type = TypeError
     if backend_name in {"pandas", "narwhals-pandas"} and (
         Version(version("narwhals")) >= Version("2.27.1")
         and Version(version("pandas")) >= Version("3.0.6")
+    ):
+        error_type = BackendCapabilityError
+    if backend_name == "narwhals-pyarrow" and (
+        Version(version("narwhals")) >= Version("2.27.1")
+        and Version(version("pyarrow")) >= Version("26.0.0")
     ):
         error_type = BackendCapabilityError
     with expect_call_failure(

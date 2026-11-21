@@ -627,7 +627,8 @@ def test_asof_name_proof_and_collision_boundary(backend_name, monkeypatch):
         with pytest.raises(IntegrityError):
             relation.to_polars()
     elif backend_name in {"pyarrow", "narwhals-pyarrow"}:
-        with pytest.raises(NotImplementedError):
+        from mountainash.core.types import BackendCapabilityError
+        with pytest.raises(BackendCapabilityError):  # NW-REL-06: declared join_asof refusal
             relation.to_polars()
     else:
         assert relation.to_polars().columns == expected

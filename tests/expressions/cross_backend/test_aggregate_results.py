@@ -28,6 +28,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 from duckdb import OutOfRangeException
 from ibis.common.exceptions import IbisTypeError
 from narwhals.exceptions import InvalidOperationError
+from pyarrow.lib import ArrowNotImplementedError
 from fixtures.call_expectations import expect_call_failure
 
 
@@ -297,6 +298,10 @@ class TestAggregateStdDev:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
+                when=backend_name == "narwhals-pyarrow",
+                reason="NW-AGG-05: PyArrow has no stddev kernel for a Null-typed column",
+                errors=(ArrowNotImplementedError,),
+            ), expect_call_failure(
                 when=backend_name in ("ibis-sqlite",),
                 reason="all-null std_dev raises on ibis-sqlite",
                 errors=(AttributeError,),
@@ -334,6 +339,10 @@ class TestAggregateVariance:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
+                when=backend_name == "narwhals-pyarrow",
+                reason="NW-AGG-05: PyArrow has no variance kernel for a Null-typed column",
+                errors=(ArrowNotImplementedError,),
+            ), expect_call_failure(
                 when=backend_name in ("ibis-sqlite",),
                 reason="all-null variance raises on ibis-sqlite",
                 errors=(AttributeError,),
@@ -730,7 +739,7 @@ class TestDeclaredDecimalAggregateArithmetic:
             assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
         if backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow"
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 casted.to_polars()
@@ -802,7 +811,19 @@ class TestDeclaredDecimalAggregateArithmetic:
         ):
             assert output.schema["result"] == pl.Null
         else:
-            assert output.schema["result"].is_decimal()
+            with expect_call_failure(
+                when=(
+                    backend_name == "narwhals-pyarrow"
+                    and not values
+                    and operation in {"min", "max", "mean"}
+                ),
+                reason=(
+                    "narwhals-pyarrow: empty/all-null Decimal min/max/mean loses "
+                    "the Decimal result dtype (backlog 428)"
+                ),
+                errors=(AssertionError,),
+            ):
+                assert output.schema["result"].is_decimal()
         if operation == "mean":
             if backend_name.startswith("ibis-") and values == [D("1.001"), D("1.002")]:
                 with expect_call_failure(

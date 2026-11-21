@@ -119,7 +119,32 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 x, None, None, native_polars=False,
                 compliant_transform=lambda source: self._bind_lazy_cast(source, dtype),
             )
-        return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+        target = registry.to_native_cast(dtype, self._TARGET)
+        if self.dialect == "narwhals-pyarrow":
+            x = self._arrow_source_rewrite(x, target)
+        return self._cast_target(x, target)
+
+    def _arrow_source_rewrite(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
+        """Express casts Arrow's cast kernel rejects as Narwhals compositions.
+
+        The rewrite is chosen from the bound source operand, never from data.
+        Float -> integer: Arrow's safe cast rejects fractional floats while Polars
+        and pandas truncate toward zero, so floor/ceil first; the cast keeps its
+        out-of-range rejection.
+        String -> time: Arrow has no string -> time64 kernel; parse strictly.
+        """
+        from mountainash.core.types import BackendCapabilityError
+
+        try:
+            kind = self.operand_type("x").logical_kind
+        except BackendCapabilityError:  # unresolved metadata: plain cast
+            return x
+        is_integer = getattr(target, "is_integer", None)
+        if kind == "float" and is_integer is not None and is_integer():
+            return nw.when(x >= 0).then(x.floor()).otherwise(x.ceil())
+        if kind == "text" and target == nw.Time:
+            return x.str.to_time("%H:%M:%S")
+        return x
 
     def _bind_lazy_cast(self, expression, dtype):
         """Resolve lazy operands from bound metadata, never sampled rows."""

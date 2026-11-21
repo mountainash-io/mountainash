@@ -105,7 +105,7 @@ def _materialize_result(df, compiled, backend: str) -> list[Any]:
         return result[alias].to_list()
     if backend == "ibis":
         return df.select(compiled.name(alias)).to_pyarrow()[alias].to_pylist()
-    if backend in ("narwhals-polars", "narwhals-pandas"):
+    if backend in ("narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"):
         return df.select(compiled.alias(alias)).to_arrow()[alias].to_pylist()
     raise ValueError(backend)
 
