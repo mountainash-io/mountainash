@@ -120,7 +120,7 @@ def test_declared_decimal_unary(
         or (backend_name == "narwhals-pyarrow" and operation == "round"),
         reason="244: DuckDB native round uses half-away-from-zero rather than half-even"
         if backend_name == "ibis-duckdb"
-        else "backlog 428: Narwhals-on-PyArrow Decimal round rounds half away from zero and keeps scale 3",
+        else "NW-MATH-11: Narwhals-on-PyArrow Decimal round rounds half away from zero (no rounding mode)",
         errors=(AssertionError,),
     ):
         assert out["r"].to_list() == [D(x) if x is not None else None for x in expected]
@@ -149,17 +149,12 @@ def test_decimal_rounding_integer_capacity_boundary(backend_name, declared_decim
         {"a": [D("9.995"), D("-9.995")]}, {"a": (4, 3)}
     )
     query = ma.relation(frame).select(ma.col("a").round(2).alias("r"))
-    if backend_name in {"pandas", "narwhals-pandas"}:
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}:
         # Arrow preserves the input Decimal(4, 3), so the carry cannot fit.
         with pytest.raises(ArrowInvalid):
             query.to_polars()
         return
-    with expect_call_failure(
-        when=backend_name == "narwhals-pyarrow",
-        reason="backlog 428: Narwhals-on-PyArrow Decimal round keeps the input precision, so the carry to -10.000 cannot fit",
-        errors=(ArrowInvalid,),
-    ):
-        out = query.to_polars()
+    out = query.to_polars()
 
     dtype = out.schema["r"]
     assert dtype.is_decimal()

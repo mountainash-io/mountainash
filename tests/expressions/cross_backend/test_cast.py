@@ -1113,7 +1113,7 @@ def test_float_to_integer_rejects_finite_out_of_range(backend_name, target, pass
             backend_name == "narwhals-pyarrow" and target in {"i64", "u64"}
             and platform.machine() in {"aarch64", "arm64"}
         ),
-        reason="backlog 428: on ARM, Arrow's float->int64/uint64 safe cast saturates 2**63/2**64 instead of rejecting (x86_64 rejects)",
+        reason="NW-CAST-04: on ARM, Arrow's float->int64/uint64 safe cast saturates 2**63/2**64 instead of rejecting (x86_64 rejects)",
         errors=(Failed,),
     ):
         for bad in rejected:
