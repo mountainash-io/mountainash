@@ -98,9 +98,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     def _prepare_literal_or_native_second(self, operands):
         second = (
             operands.raw_literal(
-                1, "Narwhals pandas search substrings must be literals"
+                1,
+                f"Narwhals {self.dialect.removeprefix('narwhals-')} search substrings must be literals",
             )
-            if self.dialect == "narwhals-pandas"
+            if self.dialect in ("narwhals-pandas", "narwhals-pyarrow")
             else operands.raw_literal_or_native(1)
         )
         return [operands.native(0), second] + [
@@ -155,9 +156,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     def _prepare_call_regexp_replace(self, operands):
         replacement = (
             operands.raw_literal(
-                2, "Narwhals pandas regex replacements must be literals"
+                2,
+                f"Narwhals {self.dialect.removeprefix('narwhals-')} regex replacements must be literals",
             )
-            if self.dialect == "narwhals-pandas"
+            if self.dialect in ("narwhals-pandas", "narwhals-pyarrow")
             else operands.raw_literal_or_native(2)
         )
         return [

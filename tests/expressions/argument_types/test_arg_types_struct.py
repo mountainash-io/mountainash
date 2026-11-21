@@ -5,6 +5,8 @@ import pytest
 import mountainash as ma
 from mountainash.core.dtypes import MountainashDtype as D, StructDtype
 from mountainash.core.types import BackendCapabilityError
+import pyarrow as pa
+from fixtures.call_expectations import expect_call_failure
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT
 from mountainash.expressions import BaseExpressionAPI
 
@@ -67,4 +69,9 @@ if OP_SPECS:
                 run_argument_matrix(op, backend, input_type)
             assert error.value.function_key is FK_STRUCT.CAST
             return
-        run_argument_matrix(op, backend, input_type)
+        with expect_call_failure(
+            when=backend == "narwhals-pyarrow" and input_type in ("raw", "lit"),
+            reason="NW-CAST-03: Narwhals PyArrow nw.struct treats length-1 operands as broadcast scalars (ArrowNotImplementedError, int64 to struct)",
+            errors=(pa.lib.ArrowNotImplementedError,),
+        ):
+            run_argument_matrix(op, backend, input_type)

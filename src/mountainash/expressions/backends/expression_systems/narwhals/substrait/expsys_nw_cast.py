@@ -119,49 +119,32 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 x, None, None, native_polars=False,
                 compliant_transform=lambda source: self._bind_lazy_cast(source, dtype),
             )
+        target = registry.to_native_cast(dtype, self._TARGET)
         if self.dialect == "narwhals-pyarrow":
-            target = registry.to_native_cast(dtype, self._TARGET)
-            if target == nw.Time or (
-                getattr(target, "is_integer", None) is not None and target.is_integer()
-            ):
-                return self._cast_arrow(x, target)
-        return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+            x = self._arrow_source_rewrite(x, target)
+        return self._cast_target(x, target)
 
-    def _cast_arrow(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
-        """Casts Arrow's own cast kernel cannot express, rewritten natively.
+    def _arrow_source_rewrite(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
+        """Express casts Arrow's cast kernel rejects as Narwhals compositions.
 
-        Float -> integer: Arrow's safe cast rejects any fractional float, while
-        Polars and pandas truncate toward zero. Truncating the float operand with
-        `pc.trunc` first keeps the safe cast's out-of-range rejection and yields
-        the same values.
-        String -> time: Arrow has no string -> time64 kernel, so the text is
-        parsed strictly as a timestamp (`%H:%M:%S`) and narrowed to time64.
+        The rewrite is chosen from the bound source operand, never from data.
+        Float -> integer: Arrow's safe cast rejects fractional floats while Polars
+        and pandas truncate toward zero, so floor/ceil first; the cast keeps its
+        out-of-range rejection.
+        String -> time: Arrow has no string -> time64 kernel; parse strictly.
         """
-        import pyarrow as pa
-        import pyarrow.compute as pc
-        from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
-            _ElementwiseBatchExpr,
-        )
+        from mountainash.core.types import BackendCapabilityError
 
-        def cast_bound(series):
-            if series.dtype.is_float():
-                series = series._with_native(pc.trunc(series.native))
-            elif target == nw.Time and series.dtype == nw.String:
-                parsed = pc.strptime(series.native, format="%H:%M:%S", unit="us")
-                return series._with_native(pc.cast(parsed, pa.time64("us")))
-            return series.cast(target)
-
-        def bind_eager(source):
-            return source._from_callable(
-                lambda frame: [cast_bound(series) for series in source(frame)],
-                evaluate_output_names=source._evaluate_output_names,
-                alias_output_names=source._alias_output_names,
-                context=source,
-            )
-
-        return _ElementwiseBatchExpr(
-            x, None, None, native_polars=False, compliant_transform=bind_eager,
-        )
+        try:
+            kind = self.operand_type("x").logical_kind
+        except BackendCapabilityError:  # unresolved metadata: plain cast
+            return x
+        is_integer = getattr(target, "is_integer", None)
+        if kind == "float" and is_integer is not None and is_integer():
+            return nw.when(x >= 0).then(x.floor()).otherwise(x.ceil())
+        if kind == "text" and target == nw.Time:
+            return x.str.to_time("%H:%M:%S")
+        return x
 
     def _bind_lazy_cast(self, expression, dtype):
         """Resolve lazy operands from bound metadata, never sampled rows."""

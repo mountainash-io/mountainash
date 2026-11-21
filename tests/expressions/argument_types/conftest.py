@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas"]
+ALL_BACKENDS = ["polars", "ibis", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"]
 
 
 def pytest_collection_modifyitems(items):

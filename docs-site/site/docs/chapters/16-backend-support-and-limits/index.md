@@ -38,7 +38,7 @@ An operation with no record for a dialect has unknown support. The "Cross-backen
 | narwhals | narwhals-lazy | full suite | 10 | 12 / 0 / 0 / 5 | 0 / 0 / 0 / 0 | 14 | 0 |
 | narwhals | narwhals-pandas | full suite | 15 | 273 / 28 / 0 / 33 | 0 / 0 / 0 / 0 | 33 | materialization error 4, result protection 2 |
 | narwhals | narwhals-polars | full suite | 12 | 249 / 0 / 0 / 35 | 0 / 0 / 0 / 0 | 14 | immediate error 1, result protection 2 |
-| narwhals | narwhals-pyarrow | full suite | 7 | 24 / 2 / 0 / 0 | 1 / 0 / 0 / 0 | 40 | 0 |
+| narwhals | narwhals-pyarrow | full suite | 9 | 36 / 6 / 0 / 3 | 1 / 0 / 0 / 0 | 56 | 0 |
 | ibis | family-wide | n/a | 13 | 189 / 16 / 61 / 0 | 7 / 0 / 0 / 0 | 0 | 0 |
 | ibis | ibis-duckdb | full suite | 16 | 10 / 0 / 0 / 31 | 0 / 0 / 0 / 0 | 1 | result protection 2 |
 | ibis | ibis-exasol | not in test registry | 3 | 0 / 0 / 0 / 0 | 2 / 0 / 0 / 0 | 4 | 0 |
@@ -72,21 +72,21 @@ Each cell counts information records and gate refusals for one domain across all
 <!-- BEGIN GENERATED: domain coverage from expression-coverage.json -->
 | Domain | Registered operations | polars: information / gate refusals | narwhals: information / gate refusals | ibis: information / gate refusals |
 | --- | --- | --- | --- | --- |
-| aggregate | 17 | 0 / 0 | 1 / 0 | 1 / 0 |
-| arithmetic | 34 | 152 / 0 | 304 / 0 | 162 / 0 |
+| aggregate | 17 | 0 / 0 | 2 / 0 | 1 / 0 |
+| arithmetic | 34 | 152 / 0 | 305 / 0 | 162 / 0 |
 | boolean | 7 | 0 / 0 | 0 / 0 | 1 / 0 |
 | cast | 1 | 0 / 0 | 1 / 0 | 0 / 0 |
 | categorical | 1 | 0 / 0 | 3 / 0 | 1 / 0 |
 | comparison | 23 | 0 / 0 | 0 / 0 | 0 / 0 |
 | conditional | 1 | 0 / 0 | 0 / 0 | 0 / 0 |
-| datetime | 67 | 7 / 0 | 57 / 2 | 115 / 0 |
+| datetime | 67 | 7 / 0 | 70 / 14 | 115 / 0 |
 | geospatial | 3 | 0 / 0 | 5 / 0 | 8 / 0 |
 | list | 44 | 0 / 0 | 27 / 0 | 17 / 0 |
 | null | 3 | 0 / 0 | 0 / 0 | 0 / 0 |
 | relation | 30 | 1 / 0 | 6 / 3 | 4 / 9 |
 | rounding | 3 | 0 / 0 | 0 / 0 | 0 / 0 |
 | set | 3 | 2 / 0 | 2 / 0 | 2 / 0 |
-| string | 46 | 102 / 0 | 229 / 3 | 121 / 2 |
+| string | 46 | 102 / 0 | 233 / 7 | 121 / 2 |
 | struct | 2 | 0 / 0 | 5 / 0 | 4 / 0 |
 | ternary | 24 | 1 / 0 | 1 / 0 | 1 / 0 |
 | unclassified | 10 | 0 / 0 | 0 / 0 | 0 / 0 |
@@ -229,12 +229,24 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
     | `FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE` | result protection / detect non null to null | always | any version | Invalid XSD partial-date lexicals silently become null during native parsing. |
     | `FKEY_MOUNTAINASH_SCALAR_LIST.GET` | immediate error / enrich | always | any version | Narwhals list.get() and list.last() do not support negative indices. |
 
-??? note "narwhals-pyarrow (gate refusals: 40; other policies: 0)"
+??? note "narwhals-pyarrow (gate refusals: 56; other policies: 0)"
 
     | Operation | Consumer / action | Condition | Applies when | Message |
     | --- | --- | --- | --- | --- |
     | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals does not support year/month offsets for PyArrow datetimes (dt.offset_by raises NotImplementedError). |
     | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals does not support year/month offsets for PyArrow datetimes (dt.offset_by raises NotImplementedError). |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `1mo` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `1q` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `1y` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `month` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `quarter` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL` | gate / block | `unit` = `year` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `1mo` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `1q` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `1y` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `month` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `quarter` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
+    | `FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND` | gate / block | `unit` = `year` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals dt.offset_by raises NotImplementedError for month and year offsets on PyArrow datetimes, so calendar-unit round and ceil (year, quarter, month) are unsupported. |
     | `FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow regex matching requires a literal pattern; per-row patterns are unsupported. |
     | `FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Mountainash has no Narwhals PyArrow Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702. |
     | `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL` | gate / block | `__window__.any_descending` eq `True` | any version | Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported. |
@@ -257,7 +269,11 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
     | `FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE` | gate / block | `__window__.partitioned` eq `True` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals pyarrow cannot evaluate a non-aggregating window under .over(partition_by=...): only elementary aggregations are supported when partition_by is specified. |
     | `FKEY_MOUNTAINASH_WINDOW.RANK_MAX` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
     | `FKEY_MOUNTAINASH_WINDOW.RANK_MAX` | gate / block | `__window__.partitioned` eq `True` | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals pyarrow cannot evaluate a non-aggregating window under .over(partition_by=...): only elementary aggregations are supported when partition_by is specified. |
-    | `FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow str.replace requires a literal replacement; per-row replacements are unsupported. |
+    | `FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow string methods accept only literal str values for this argument; column-valued (per-row) arguments are unsupported. |
+    | `FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow string methods accept only literal str values for this argument; column-valued (per-row) arguments are unsupported. |
+    | `FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow string methods accept only literal str values for this argument; column-valued (per-row) arguments are unsupported. |
+    | `FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow string methods accept only literal str values for this argument; column-valued (per-row) arguments are unsupported. |
+    | `FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals PyArrow string methods accept only literal str values for this argument; column-valued (per-row) arguments are unsupported. |
     | `RKEY_MOUNTAINASH_REL.JOIN_ASOF` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals has no join_asof implementation for the PyArrow backend. |
     | `RKEY_MOUNTAINASH_REL.PIVOT` | gate / block | always | narwhals>=2.27.1, pyarrow>=26.0.0 | Narwhals has no pivot implementation for the PyArrow backend. |
     | `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK` | gate / block | `__window__.multi_key` eq `True` | any version | Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions. |
@@ -331,7 +347,7 @@ Every executable policy, grouped by dialect. A condition of "always" applies to 
     | `RKEY_MOUNTAINASH_REL.IMPORT_INTO` | materialization error / enrich | always | any version | SQLite cannot store IEEE NaN (stored as NULL), bind non-null Decimal values, or hold nested types; an owned table copy also cannot hold a decimal column |
 <!-- END GENERATED -->
 
-The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2126 lines, `expression-coverage-scoped.md` 1602 lines and `expression-coverage.json` 179082 lines; the command above regenerates it.
+The full report also lists every information record with its selector, message and source module. At this revision `expression-coverage.md` is 2161 lines, `expression-coverage-scoped.md` 1637 lines and `expression-coverage.json` 184230 lines; the command above regenerates it.
 
 ## Known divergences
 

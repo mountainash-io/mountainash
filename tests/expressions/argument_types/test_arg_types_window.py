@@ -7,6 +7,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     SUBSTRAIT_ARITHMETIC_WINDOW as FK_WIN,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS
+from mountainash.core.types import BackendCapabilityError
 from expressions.argument_types._test_template import (INPUT_TYPES,
 OpSpec,
 run_argument_matrix, )
@@ -48,6 +49,14 @@ OP_SPECS: list[OpSpec] = [
     ),
 ]
 
+# NW-WIN-06: a declared capability refuses non-aggregating windows under
+# .over(partition_by=...) on narwhals-pyarrow; strict so an upstream fix XPASSes.
+_NW_PYARROW_PARTITIONED_WINDOW_XFAIL = pytest.mark.xfail(
+    strict=True,
+    raises=BackendCapabilityError,
+    reason="NW-WIN-06: Narwhals PyArrow .over(partition_by=...) accepts only elementary aggregations",
+)
+
 
 def _params():
     cases = []
@@ -55,7 +64,11 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 
-                marks = []
+                marks = (
+                    [_NW_PYARROW_PARTITIONED_WINDOW_XFAIL]
+                    if bk == "narwhals-pyarrow"
+                    else []
+                )
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )

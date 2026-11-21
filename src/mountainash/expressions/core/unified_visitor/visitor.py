@@ -860,6 +860,15 @@ class UnifiedExpressionVisitor:
         operand_types = self._required_operand_types(
             func_def, protocol_method, arguments, gate_enabled=gate_enabled,
         )
+        if getattr(self.backend, "dialect", None) == "narwhals-pyarrow" and self.type_context.active:
+            from mountainash.core.types import BackendCapabilityError
+            # Arrow's cast kernels reject float->integer truncation and
+            # string->time; the cast lowering rewrites those in Narwhals from
+            # the bound source operand.
+            try:
+                operand_types = {**operand_types, "x": self.type_context.resolve(node.input)}
+            except BackendCapabilityError:
+                pass
         args = self._gate_and_resolve_args(
             function_key, arguments, protocol_method, method_name="cast", gate_enabled=gate_enabled,
         )

@@ -76,37 +76,4 @@ class SubstraitNarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, Sub
                 return self._pandas_typed_expression(
                     nw.lit(None), resolved.native_dtype
                 )
-        literal = nw.lit(x, dtype=native_dtype)
-        if x is not None and self.dialect == "narwhals-pyarrow" and isinstance(x, (list, tuple)):
-            return self._arrow_nested_literal(literal)
-        return literal
-
-    @staticmethod
-    def _arrow_nested_literal(literal: NarwhalsExpr) -> NarwhalsExpr:
-        """Keep a nested literal valid against a zero-row frame.
-
-        Narwhals broadcasts a literal with `pa.repeat(scalar, 0)`, which PyArrow
-        rejects for list scalars. On an empty frame the literal is already its
-        own empty column, so slice it to zero rows instead of broadcasting.
-        """
-        from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
-            _ElementwiseBatchExpr,
-        )
-
-        def bind(source):
-            def evaluate(frame):
-                series = source(frame)[0]
-                if len(frame) == 0:
-                    return [series._with_native(series.native.slice(0, 0))]
-                return [series]
-
-            return source._from_callable(
-                evaluate,
-                evaluate_output_names=source._evaluate_output_names,
-                alias_output_names=source._alias_output_names,
-                context=source,
-            )
-
-        return _ElementwiseBatchExpr(
-            literal, None, None, native_polars=False, compliant_transform=bind,
-        )
+        return nw.lit(x, dtype=native_dtype)

@@ -41,56 +41,8 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
             return self.cast(x, dtype=dtype, failure_behavior=failure_behavior)
         native = registry.to_native_cast(dtype, TypeTarget.NARWHALS)
         children = dict(zip(field_names, converted_fields, strict=True))
-        if self.dialect == "narwhals-pyarrow":
-            struct = self._arrow_struct(children)
-        else:
-            struct = nw.struct(**children)
-        result = self._cast_target(struct, native)
+        result = self._cast_target(nw.struct(**children), native)
         return nw.when(x.is_null()).then(nw.lit(None, dtype=native)).otherwise(result)
-
-    @staticmethod
-    def _arrow_struct(children: dict[str, nw.Expr]) -> nw.Expr:
-        """Build a struct column with `pc.make_struct` on full-length Arrow arrays.
-
-        `nw.struct` on PyArrow treats every length-1 operand as a broadcast
-        scalar, which corrupts single-row frames; only genuine length mismatches
-        are broadcast here.
-        """
-        import pyarrow as pa
-        import pyarrow.compute as pc
-
-        from .expsys_nw_ext_ma_scalar_value import _ElementwiseBatchExpr
-
-        names = tuple(children)
-        first, *rest = (child.alias(name) for name, child in children.items())
-
-        def bind(source):
-            namespace = source.__narwhals_namespace__()
-            others = [expr._to_compliant_expr(namespace) for expr in rest]
-
-            def evaluate(frame):
-                head = source(frame)[0]
-                series = [head, *(expr(frame)[0] for expr in others)]
-                length = max(len(item) for item in series)
-                arrays = [
-                    item.native
-                    if len(item) == length
-                    else pa.repeat(item.native[0], length)
-                    for item in series
-                ]
-                struct = pc.make_struct(*arrays, field_names=names)
-                return [head._with_native(pa.chunked_array([struct]))]
-
-            return source._from_callable(
-                evaluate,
-                evaluate_output_names=source._evaluate_output_names,
-                alias_output_names=source._alias_output_names,
-                context=source,
-            )
-
-        return _ElementwiseBatchExpr(
-            first, None, None, native_polars=False, compliant_transform=bind,
-        )
 
     def struct_field(self, x, /, *, field_name: str):
         return x.struct.field(field_name)

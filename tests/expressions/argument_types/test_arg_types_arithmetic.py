@@ -5,6 +5,7 @@ import math
 
 import pytest
 import polars as pl
+import pyarrow as pa
 import duckdb as _duckdb
 
 import mountainash as ma
@@ -89,7 +90,7 @@ _ARITH_PROTOCOL = "SubstraitScalarArithmeticExpressionSystemProtocol"
 _ABS_VALUES = ("ERROR", "SATURATE", "SILENT")
 _ABS_PROBE_EXEMPT = {
     (backend, "SILENT")
-    for backend in ("polars", "narwhals-polars", "narwhals-pandas")
+    for backend in ("polars", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow")
 }
 _ABS_PROBE_EXEMPT.add(("ibis", "ERROR"))
 _ABS_DECLARED = {
@@ -204,9 +205,11 @@ _SEMANTIC_HONORED = {
     ("modulus", "division_type", "polars", "FLOOR"),
     ("modulus", "division_type", "narwhals-polars", "FLOOR"),
     ("modulus", "division_type", "narwhals-pandas", "FLOOR"),
+    ("modulus", "division_type", "narwhals-pyarrow", "FLOOR"),
     ("modulus", "on_domain_error", "polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-polars", "NULL"),
     ("modulus", "on_domain_error", "narwhals-pandas", "NULL"),
+    ("modulus", "on_domain_error", "narwhals-pyarrow", "NULL"),
     ("acos", "on_domain_error", "ibis", "ERROR"),
     ("asin", "on_domain_error", "ibis", "ERROR"),
     ("sqrt", "on_domain_error", "ibis", "ERROR"),
@@ -219,7 +222,7 @@ _SEMANTIC_HONORED = {
 _SEMANTIC_UNIMPLEMENTED = {
     (op, "on_domain_error", backend, value)
     for op in {"acos", "acosh", "asin", "atan2", "atanh"}
-    for backend in {"narwhals-polars", "narwhals-pandas"}
+    for backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
     for value in _SEMANTIC_VALUES[(op, "on_domain_error")]
 } | {
     (op, "on_domain_error", "ibis", value)
@@ -372,7 +375,7 @@ _WRAPPING_OVERFLOW_OPS = frozenset(_OVERFLOW_SPECS) - {"divide"}
 _OVERFLOW_PROBE_EXEMPT = {
     (op, backend, "SILENT")
     for op in _WRAPPING_OVERFLOW_OPS
-    for backend in ("polars", "narwhals-polars", "narwhals-pandas")
+    for backend in ("polars", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow")
 }
 _IBIS_INTENDED_ERROR_OVERFLOW_OPS = {
     "add",
@@ -817,9 +820,14 @@ def test_arithmetic_overflow_declared_unsupported(op, backend, value):
 def test_arithmetic_overflow_silent_matches_native_wrapping(op, backend):
     spec = _overflow_probe(op, "SILENT")
     df = make_df(spec.data, backend, schema=spec.schema)
-    assert option_result(df, spec.build_expr(), backend) == option_result(
-        df, spec.reference_expr(), backend
-    )
+    with expect_call_failure(
+        when=op == "modulus" and backend == "narwhals-pyarrow",
+        reason="NW-MATH-12 (backlog 428): Narwhals PyArrow int8 modulus -128 % -1 raises ArrowInvalid rather than wrapping",
+        errors=(pa.lib.ArrowInvalid,),
+    ):
+        assert option_result(df, spec.build_expr(), backend) == option_result(
+            df, spec.reference_expr(), backend
+        )
 
 
 @pytest.mark.parametrize("op", sorted(_OVERFLOW_SPECS))
@@ -1055,7 +1063,7 @@ _ATAN2_NW_XFAIL = pytest.mark.xfail(
     raises=NotImplementedError,
     reason="atan2() is not supported by the Narwhals backend.",
 )
-_ATAN2_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas"}
+_ATAN2_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
 
 
 def _params():
