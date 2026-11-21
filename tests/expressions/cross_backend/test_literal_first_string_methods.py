@@ -127,7 +127,7 @@ def test_dynamic_replacement_operands_without_catalogue(
         expected = ["xbx", "xxa"]
     else:
         expression = ma.col("s").str.replace("a", ma.col("replacement"))
-        unsupported = backend_name in ("pandas", "narwhals-pandas")
+        unsupported = backend_name in ("pandas", "narwhals-pandas", "narwhals-pyarrow")
         expected = ["xbx", "bby"]
     identity = native_identity(df)
     snapshot = CapabilityRegistry.snapshot()

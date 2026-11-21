@@ -109,15 +109,18 @@ def test_declared_decimal_unary(
     query = ma.relation(frame).select(expression.alias("r"))
     out = query.to_polars()
     dtype = out.schema["r"]
-    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"} and operation == "sign":
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"} and operation == "sign":
         assert dtype == pl.Int64
     else:
         assert dtype.is_decimal()
         assert dtype.scale == (2 if backend_name.startswith("ibis") and operation == "round" else 3)
         assert dtype.precision is None or dtype.precision >= dtype.scale + 1
     with expect_call_failure(
-        when=backend_name == "ibis-duckdb" and operation == "round",
-        reason="244: DuckDB native round uses half-away-from-zero rather than half-even",
+        when=(backend_name == "ibis-duckdb" and operation == "round")
+        or (backend_name == "narwhals-pyarrow" and operation == "round"),
+        reason="244: DuckDB native round uses half-away-from-zero rather than half-even"
+        if backend_name == "ibis-duckdb"
+        else "backlog 428: Narwhals-on-PyArrow Decimal round rounds half away from zero and keeps scale 3",
         errors=(AssertionError,),
     ):
         assert out["r"].to_list() == [D(x) if x is not None else None for x in expected]
@@ -128,6 +131,7 @@ def test_declared_decimal_unary(
 def test_decimal_rounding_integer_capacity_boundary(backend_name, declared_decimal_frame, backend_factory):
     """Native rounding retains the signed carry or reports fixed-width overflow."""
     from decimal import Decimal as D
+    from fixtures.call_expectations import expect_call_failure
     import mountainash as ma
     from mountainash.core.types import BackendCapabilityError
     from pyarrow import ArrowInvalid
@@ -150,7 +154,12 @@ def test_decimal_rounding_integer_capacity_boundary(backend_name, declared_decim
         with pytest.raises(ArrowInvalid):
             query.to_polars()
         return
-    out = query.to_polars()
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason="backlog 428: Narwhals-on-PyArrow Decimal round keeps the input precision, so the carry to -10.000 cannot fit",
+        errors=(ArrowInvalid,),
+    ):
+        out = query.to_polars()
 
     dtype = out.schema["r"]
     assert dtype.is_decimal()

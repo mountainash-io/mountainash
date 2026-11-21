@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 OPERAND_TYPES_ROOT = "__operand_types__"
 # Derived window shape of a window-function call (order_keys, multi_key,
-# any_descending); bound by the compiler, never by the caller.
+# partitioned, any_descending); bound by the compiler, never by the caller.
 WINDOW_ROOT = "__window__"
 
 

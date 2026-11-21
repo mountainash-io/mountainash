@@ -288,7 +288,10 @@ def test_list_parse_matrix_covers_every_item_type(
     if (
         backend_name == "ibis-sqlite"
         or (
-            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and item_type in {"datetime", "time"}
         )
     ):
@@ -360,7 +363,10 @@ def test_list_parse_invalid_item_is_complete_value_failure(
     if (
         backend_name == "ibis-sqlite"
         or (
-            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and (
                 item_type in {"datetime", "time"}
                 or failure_behavior is CaseFailureBehaviour.NULL
@@ -564,7 +570,10 @@ def test_categorical_cast_preserves_supported_base_values(
     if (
         (backend_name == "ibis-sqlite" and value_type == "integer")
         or (
-            backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
+            backend_name in {
+                "pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy",
+                "narwhals-pyarrow",
+            }
             and value_type == "integer"
             and failure_behavior is CaseFailureBehaviour.NULL
         )
@@ -750,7 +759,8 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
         if backend_name in {"polars", "polars-lazy"}:
             pass
         elif backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow", "ibis-sqlite",
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -774,7 +784,10 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
     elif (format_name, source_representation) == ("object", "native"):
         if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
-        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow",
+        }:
             with pytest.raises(NotImplementedError):
                 _compile_for(backend_name, expr)
             return
@@ -831,7 +844,8 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
         if backend_name in {"polars", "polars-lazy"}:
             pass
         elif backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow", "ibis-sqlite",
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 _compile_for(backend_name, expr)
@@ -855,7 +869,10 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     elif (format_name, source_representation) == ("object", "native"):
         if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
-        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+            "narwhals-pyarrow",
+        }:
             with pytest.raises(NotImplementedError):
                 _compile_for(backend_name, expr)
             return

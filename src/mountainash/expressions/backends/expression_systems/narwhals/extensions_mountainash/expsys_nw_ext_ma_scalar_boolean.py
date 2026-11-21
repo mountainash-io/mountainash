@@ -42,6 +42,17 @@ class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSys
                     result, import_pandas().BooleanDtype()
                 )
             return result
+        if self.dialect == "narwhals-pyarrow":
+            # Arrow ``if_else`` has no kernel for mixed integer/string branches,
+            # so every branch is a string and the strict Int8 cast below parses
+            # "1"/"0" and fails on the invalid-token marker.
+            mapped = (
+                nw.when(text.is_in(true_values)).then(nw.lit("1"))
+                .when(text.is_in(false_values)).then(nw.lit("0"))
+                .when(text.is_null()).then(nw.lit(None, dtype=nw.String))
+                .otherwise(nw.lit("__invalid_boolean_token__"))
+            )
+            return mapped.cast(nw.Int8).cast(nw.Boolean)
         mapped = (
             nw.when(text.is_in(true_values)).then(nw.lit(1))
             .when(text.is_in(false_values)).then(nw.lit(0))

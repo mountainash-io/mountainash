@@ -335,7 +335,9 @@ def test_serialized_native_parent_keeps_authored_narrow_child_through_contract(b
     assert restored.fields["groups"].element.dtype == D.I8
     records = [[128, None, -1], None, []]
     with expect_call_failure(
-        when=backend_name in {"narwhals-polars", "narwhals-lazy", "ibis-sqlite"},
+        when=backend_name in {
+            "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow", "ibis-sqlite",
+        },
         errors=(UnsupportedBackendType,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
         reason="SQLite cannot store arrays; Narwhals lacks native element expressions",
     ):

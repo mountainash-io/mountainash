@@ -40,8 +40,9 @@ class MountainAshNarwhalsScalarGeospatialExpressionSystem(
             if failure_behavior == "null":
                 return nw.when(x.is_null() | valid).then(x).otherwise(nw.lit(None))
             marker = nw.when(x.is_null() | valid).then(nw.lit("0")).otherwise(nw.lit("__invalid__")).cast(nw.Int8)
-            suffix = marker.cast(nw.String).str.replace("0", "")
-            return x + suffix
+            # The strict Int8 cast above raises on invalid input; selecting on the
+            # marker avoids string ``+``, which Arrow has no kernel for.
+            return nw.when(marker == 0).then(x)
         if format == "array" and source_representation == "lexical":
             raise BackendCapabilityError(
                 "Narwhals cannot parse lexical array geopoints.",

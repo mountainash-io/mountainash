@@ -22,7 +22,7 @@ class TestComposeStringTrimExtended:
 
         expr = ma.col("text").str.ltrim()
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason='Directional trimming over-strips both ends.',
             errors=(AssertionError,),
         ):
@@ -36,7 +36,7 @@ class TestComposeStringTrimExtended:
 
         expr = ma.col("text").str.rtrim()
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason='Directional trimming over-strips both ends.',
             errors=(AssertionError,),
         ):

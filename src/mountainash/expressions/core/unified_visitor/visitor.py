@@ -460,6 +460,7 @@ class UnifiedExpressionVisitor:
             bound = replace(bound, bindings={**bound.bindings, WINDOW_ROOT: {
                 "order_keys": len(keys),
                 "multi_key": len(keys) > 1,
+                "partitioned": bool(effective_window is not None and effective_window.partition_by),
                 "any_descending": any(sf.descending for sf in keys),
             }})
         from mountainash.core.capabilities import CapabilityRegistry

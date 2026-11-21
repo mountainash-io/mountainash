@@ -275,9 +275,9 @@ class TestCastFailureBehavior:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64", failure_behavior=CaseFailureBehaviour.NULL)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') or backend_name == 'ibis-sqlite',
-            reason=('NULL-on-cast-failure cannot materialize on the marked provider.' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else 'NULL-on-cast-failure cannot materialize on the marked provider.'),
-            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else (OperationNotDefinedError,)),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') or backend_name == 'ibis-sqlite',
+            reason=('NULL-on-cast-failure cannot materialize on the marked provider.' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') else 'NULL-on-cast-failure cannot materialize on the marked provider.'),
+            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow') else (OperationNotDefinedError,)),
         ):
             values = collect_expr(df, expr)
             assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
@@ -799,7 +799,7 @@ _NATIVE_FLOAT32_INFINITY = (
     "for a finite out-of-range value; only DuckDB rejects it."
 )
 _NULL_MODE_REFUSALS = {
-    **dict.fromkeys(("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"), BackendCapabilityError),
+    **dict.fromkeys(("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow"), BackendCapabilityError),
     _SQLITE: OperationNotDefinedError,
 }
 _REFUSALS = (BackendCapabilityError, NotImplementedError, OperationNotDefinedError)
@@ -879,6 +879,8 @@ def _typed_frame(backend_name, *columns):
         )
         native = frame.to_pandas(use_pyarrow_extension_array=arrow_backed)
         return nw.from_native(native, eager_only=True) if backend_name == "narwhals-pandas" else nw.from_native(native)
+    if backend_name == "narwhals-pyarrow":
+        return nw.from_native(frame.to_arrow(), eager_only=True)
     if backend_name == "ibis-duckdb":
         return ibis.duckdb.connect().create_table("typed_cast", frame, overwrite=True)
     if backend_name == _SQLITE:
@@ -1105,7 +1107,11 @@ def test_float_to_integer_rejects_finite_out_of_range(backend_name, target, pass
     result = _project(backend_factory.create({"value": passing}, backend_name), expression)
     assert result.to_list() == [int(value) for value in passing]
     _assert_physical(result, _DTYPES[target], backend_name)
-    with _sqlite_width_unenforced(backend_name):
+    with _sqlite_width_unenforced(backend_name), expect_call_failure(
+        when=backend_name == "narwhals-pyarrow" and target in {"i64", "u64"},
+        reason="backlog 428: Arrow's float->int64/uint64 safe cast saturates 2**63/2**64 instead of rejecting",
+        errors=(Failed,),
+    ):
         for bad in rejected:
             _assert_rejected(backend_factory.create({"value": [passing[0], bad]}, backend_name), expression, bad)
 

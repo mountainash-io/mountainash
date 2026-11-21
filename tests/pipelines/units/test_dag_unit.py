@@ -47,10 +47,10 @@ def test_dag_unit_runs_twice_with_different_inputs_and_after_failure(backend_nam
     B = lambda data, n: Value.of(REGISTRY[backend_name].build(data, n), Identity.of(n))   # noqa: E731
     u = DagUnit(_t(), "out", name="dag", inputs={"orders": "orders"})
     a = u.run({"orders": B({"id": [1], "amt": [99]}, "o1")}, _ctx()); b = u.run({"orders": B({"id": [2], "amt": [99]}, "o2")}, _ctx())
-    assert ma.relation(a).collect()["id"].to_list() == [1] and ma.relation(b).collect()["id"].to_list() == [2]
+    assert ma.relation(a).to_polars()["id"].to_list() == [1] and ma.relation(b).to_polars()["id"].to_list() == [2]
     with pytest.raises(Exception):
         ma.relation(u.run({"orders": B({"id": [1]}, "o3")}, _ctx())).collect()           # missing column → fails at run (eager) or materialisation (lazy)
-    assert ma.relation(u.run({"orders": B({"id": [3], "amt": [99]}, "o4")}, _ctx())).collect()["id"].to_list() == [3]   # fresh bind after failure
+    assert ma.relation(u.run({"orders": B({"id": [3], "amt": [99]}, "o4")}, _ctx())).to_polars()["id"].to_list() == [3]   # fresh bind after failure
 
 @pytest.mark.cell("unit:DagUnit")
 def test_dag_unit_identity_includes_target_name_and_target():

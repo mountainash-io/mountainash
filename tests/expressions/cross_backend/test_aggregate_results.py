@@ -730,7 +730,7 @@ class TestDeclaredDecimalAggregateArithmetic:
             assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
         if backend_name in {
-            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow"
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 casted.to_polars()
@@ -796,7 +796,7 @@ class TestDeclaredDecimalAggregateArithmetic:
             return
 
         if (
-            backend_name in {"pandas", "narwhals-pandas"}
+            backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}
             and not values
             and operation in {"min", "max", "mean"}
         ):

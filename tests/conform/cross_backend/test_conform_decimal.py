@@ -45,7 +45,7 @@ CONVERSION_BACKENDS = [
         raises=BackendCapabilityError,
         reason="NW-MATH-11 (narwhals#3698), NW-CAST-01 (narwhals#3702): decimal cast unsupported",
     ))
-    if name in {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas"} else name
+    if name in {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas", "narwhals-pyarrow"} else name
     for name in ALL_BACKENDS
 ]
 
@@ -60,6 +60,8 @@ def _decimal_frame(backend_name, precision, scale, values):
     if backend_name in ("narwhals-polars", "narwhals-lazy"):
         frame = pl.from_arrow(table)
         return nw.from_native(frame.lazy() if backend_name == "narwhals-lazy" else frame)
+    if backend_name == "narwhals-pyarrow":
+        return nw.from_native(table, eager_only=True)
     if backend_name in ("pandas", "narwhals-pandas"):
         frame = table.to_pandas(types_mapper=pd.ArrowDtype)
         return nw.from_native(frame, eager_only=True)
@@ -119,7 +121,9 @@ def test_no_conversion_keeps_actual_values_and_drift(backend_name, backend_facto
         SPEC, contract={"data_type": action}, apply_value_transforms=transforms,
     )
     out = rel.collect_with_drift()
-    assert out.frame["x"].to_list() == ["1.5"]
+    column = out.frame["x"]
+    values = column.to_pylist() if isinstance(column, pa.ChunkedArray) else column.to_list()
+    assert values == ["1.5"]
     from mountainash.core.dtypes import dtype_family
 
     assert out.effective_schema == rel.schema

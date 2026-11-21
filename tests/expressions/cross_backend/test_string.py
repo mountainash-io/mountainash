@@ -518,7 +518,7 @@ class TestCountSubstring:
 # expression on ANY dialect (verified empirically), the same root cause as
 # sibling replace.substring (NW-STR-03), reused here.
 _COUNT_SUBSTRING_DYNAMIC_HONORING = [
-    b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", )
+    b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow", "pandas", )
 ]
 
 

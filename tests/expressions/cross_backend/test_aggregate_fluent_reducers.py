@@ -74,9 +74,13 @@ class TestFluentReducers:
             backend_name,
         )
         with expect_call_failure(
-            when=backend_name == 'narwhals-lazy',
-            reason='mode() and any_value() raise on narwhals-lazy',
-            errors=(InvalidOperationError,),
+            when=backend_name in ('narwhals-lazy', 'narwhals-pyarrow'),
+            reason=(
+                'mode() and any_value() raise on narwhals-lazy'
+                if backend_name == 'narwhals-lazy'
+                else 'NW-AGG-04: narwhals-pyarrow group_by().agg() rejects non-elementary aggregations such as mode()'
+            ),
+            errors=((InvalidOperationError,) if backend_name == 'narwhals-lazy' else (ValueError,)),
         ):
             result = _agg(df, lambda c: c.mode())
             a_val = result["v"][0]

@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 
 
 
+class _TextAddOperand:
+    """Marks the left ``add`` operand when metadata proves a text sum."""
+
+    __slots__ = ("expr",)
+
+    def __init__(self, expr: Any) -> None:
+        self.expr = expr
+
+
 class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
@@ -34,6 +43,29 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     Integer overflow modes are validated here; native wrapping is available as
     SILENT except for division, which has no implemented integer overflow mode.
     """
+
+    def _prepare_call_add(self, operands):
+        """Narwhals PyArrow has no ``add`` kernel for strings: mark text sums."""
+        native = [operands.native(index) for index in range(len(operands))]
+        if self.dialect != "narwhals-pyarrow":
+            return native
+        visitor = operands._visitor
+        if not visitor.type_context.active:
+            return native
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_nodes import ExpressionNode
+
+        for argument in operands._arguments[:2]:
+            if not isinstance(argument, ExpressionNode):
+                continue
+            try:
+                kind = visitor.type_context.resolve(argument).logical_kind
+            except BackendCapabilityError:
+                continue
+            if kind == "text":
+                native[0] = _TextAddOperand(native[0])
+                break
+        return native
 
     def add(
         self,
@@ -70,6 +102,8 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
             )
+        if isinstance(x, _TextAddOperand):
+            return nw.concat_str(x.expr, y, ignore_nulls=False)
         return x + y
 
     def subtract(

@@ -862,10 +862,11 @@ issues:
 - id: NW-STR-03
   project: narwhals
   category: string-ops
-  summary: str.replace requires literal values for substring and replacement on pandas
+  summary: str.replace requires literal values for substring and replacement on pandas; PyArrow requires a literal replacement
   root_cause: parameter_width
   affected_backends:
   - narwhals-pandas
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
@@ -1045,6 +1046,7 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
@@ -1362,6 +1364,7 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_investigation
@@ -2390,3 +2393,95 @@ issues:
     conversion, retaining nullable-child, null-container, masked-row and UInt64
     boundary controls, after an upstream repair.
   last_verified: '2026-10-24'
+- id: NW-WIN-06
+  project: narwhals
+  category: window-ops
+  summary: PyArrow .over(partition_by=...) accepts only elementary aggregations
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. On Narwhals 2.27.1 with PyArrow 26.0.0, a non-aggregating
+    window (row_number/rank/dense_rank/lag/lead/shift, cum_*, diff, fills)
+    under .over(partition_by=...) raises NotImplementedError ("Only elementary
+    aggregations are supported for `.over` in PyArrow backend when
+    `partition_by` is specified"); unpartitioned windows and partitioned
+    aggregates (sum/first/last) compute. Refused by a declared capability fact
+    keyed on the bound window shape (__window__.partitioned); the polars,
+    pandas and DuckDB Narwhals dialects compute these windows.
+  last_verified: '2026-11-20'
+- id: NW-REL-06
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals has no join_asof implementation for the PyArrow backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("'join_asof' is not implemented for PYARROW") for every strategy, grouped
+    or not. Refused by a declared capability fact before dispatch; the other
+    Narwhals dialects implement join_asof (tolerance remains refused family-wide).
+  last_verified: '2026-11-20'
+- id: NW-REL-07
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals has no pivot implementation for the PyArrow backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("'pivot' is not implemented for PYARROW"). Refused by a declared
+    capability fact before dispatch; polars and pandas Narwhals dialects
+    implement pivot.
+  last_verified: '2026-11-20'
+- id: NW-DT-08
+  project: narwhals
+  category: datetime-ops
+  summary: Calendar year/month offsets are not supported for PyArrow
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Narwhals 2.27.1 with PyArrow 26.0.0 raises NotImplementedError
+    ("Offsetting by y/mo is not yet supported for pyarrow") from
+    dt.offset_by. add_years/add_months are refused by a declared capability
+    fact; offset_by("<n>mo"/"<n>y") cannot be discriminated by a predicate
+    (the offset value class is closed) and surfaces the raw NotImplementedError,
+    held by strict expected failures. Fixed-width units (d, h, m, s, ms, us) work.
+  last_verified: '2026-11-20'
+- id: NW-AGG-04
+  project: narwhals
+  category: aggregate-ops
+  summary: PyArrow group_by().agg() rejects non-elementary aggregations
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_investigation
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 389. Grouped aggregation of an expression such as (lit(1)+x).sum()
+    or mode() raises ValueError ("Non-trivial complex aggregation found") on
+    Narwhals 2.27.1 with PyArrow 26.0.0; the same expressions compute in a
+    global select. No capability predicate can see grouped-ness or measure shape,
+    so the raw ValueError is held by strict expected failures rather than a gate.
+  last_verified: '2026-11-20'
