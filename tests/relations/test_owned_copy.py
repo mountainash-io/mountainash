@@ -83,6 +83,30 @@ def test_worker_release_only_enqueues(connection, explicit):
     assert target not in _catalog(connection)
 
 
+def test_copy_collected_while_pending_queue_is_locked_does_not_deadlock(connection):
+    # Garbage collection can run a copy's finalizer at any allocation, including
+    # inside drain_pending_drops' own critical section on the same thread.
+    from mountainash.relations.core import owned_copy as owned_copy_module
+    name = "source_" + uuid.uuid4().hex
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table(name, ibis.memtable({"x": [7]}), temp=True)
+            source = backend.table(name)
+    held = [owned_copy(source)]
+    target = held[0].value.op().name
+    finished = threading.Event()
+
+    def collect_inside_queue_lock():
+        with owned_copy_module._pending_lock:
+            held.clear()
+            gc.collect()
+        finished.set()
+
+    threading.Thread(target=collect_inside_queue_lock, daemon=True).start()
+    assert finished.wait(timeout=10), "finalizer deadlocked on the pending-drop lock"
+    owned_copy_module.drain_pending_drops(connection)
+    assert target not in _catalog(connection)
+
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("empty", [False, True])
 def test_copy_preserves_values_and_schema(backend_name, empty):
