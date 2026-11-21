@@ -8,6 +8,7 @@ instead of backend-specific types.
 """
 
 import math
+import platform
 import struct
 from contextlib import nullcontext
 
@@ -1108,8 +1109,11 @@ def test_float_to_integer_rejects_finite_out_of_range(backend_name, target, pass
     assert result.to_list() == [int(value) for value in passing]
     _assert_physical(result, _DTYPES[target], backend_name)
     with _sqlite_width_unenforced(backend_name), expect_call_failure(
-        when=backend_name == "narwhals-pyarrow" and target in {"i64", "u64"},
-        reason="backlog 428: Arrow's float->int64/uint64 safe cast saturates 2**63/2**64 instead of rejecting",
+        when=(
+            backend_name == "narwhals-pyarrow" and target in {"i64", "u64"}
+            and platform.machine() in {"aarch64", "arm64"}
+        ),
+        reason="backlog 428: on ARM, Arrow's float->int64/uint64 safe cast saturates 2**63/2**64 instead of rejecting (x86_64 rejects)",
         errors=(Failed,),
     ):
         for bad in rejected:
