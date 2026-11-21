@@ -820,14 +820,9 @@ def test_arithmetic_overflow_declared_unsupported(op, backend, value):
 def test_arithmetic_overflow_silent_matches_native_wrapping(op, backend):
     spec = _overflow_probe(op, "SILENT")
     df = make_df(spec.data, backend, schema=spec.schema)
-    with expect_call_failure(
-        when=op == "modulus" and backend == "narwhals-pyarrow",
-        reason="NW-MATH-12 (backlog 428): Narwhals PyArrow int8 modulus -128 % -1 raises ArrowInvalid rather than wrapping",
-        errors=(pa.lib.ArrowInvalid,),
-    ):
-        assert option_result(df, spec.build_expr(), backend) == option_result(
-            df, spec.reference_expr(), backend
-        )
+    assert option_result(df, spec.build_expr(), backend) == option_result(
+        df, spec.reference_expr(), backend
+    )
 
 
 @pytest.mark.parametrize("op", sorted(_OVERFLOW_SPECS))

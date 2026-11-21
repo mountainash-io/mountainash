@@ -2556,13 +2556,80 @@ issues:
   - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
-  our_workaround: xfail_strict
+  status: resolved_in_mountainash
+  our_workaround: none
   notes: >-
     Backlog 389 and backlog 428 (numeric semantics). On Narwhals 2.27.1 with
-    PyArrow 26.0.0, an int8 modulus of -128 % -1 raises ArrowInvalid (overflow)
-    where Polars and pandas wrap, so an explicit overflow='SILENT' does not
-    select native wrapping for modulus. No capability predicate can see operand
-    values, so this is information only and the exact error is held by a strict
-    expected failure.
+    PyArrow 26.0.0, an int8 modulus of -128 % -1 raised ArrowInvalid (overflow)
+    where Polars and pandas wrap, because Narwhals builds the remainder from a
+    checked floor-division. Resolved in mountainash: the narwhals-pyarrow
+    modulus lowering replaces a -1 divisor with 1 (nw.when(y == -1).then(-y)
+    .otherwise(y)) when both operands resolve to integer, which is exact since
+    x % -1 is 0 for every integer.
+  last_verified: '2026-11-21'
+- id: NW-MATH-13
+  project: narwhals
+  category: math-ops
+  summary: PyArrow remainder of an integer literal by a Decimal column exceeds Arrow's 38-digit precision
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 428. On Narwhals 2.27.1 with PyArrow 26.0.0, ArrowSeries.__rmod__
+    is other - (other // self) * self; an integer literal promotes to
+    decimal(19,0) and the divide/floor/multiply chain exceeds Arrow's 38-digit
+    maximum, so 2 % decimal_col raises ArrowInvalid ("Decimal precision out of
+    range [1, 38]: 45"). Column-by-Decimal remainders fail the same way. No
+    capability predicate can see operand dtype, so this is information only and
+    the exact error is held by a strict expected failure; Mountainash does not
+    rewrite the operand in pyarrow.compute (native-execution-only.md).
+  last_verified: '2026-11-21'
+- id: NW-AGG-06
+  project: narwhals
+  category: aggregate-ops
+  summary: Empty/all-null Decimal min/max/mean returns a Null-typed result on pandas and PyArrow
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 428. On Narwhals 2.27.1 with PyArrow 26.0.0, min/max/mean of an
+    empty or all-null Decimal column computes a decimal-typed pc scalar, but
+    Narwhals' _from_scalar converts it to a Python None and re-infers the
+    column type, so the result is Null-typed instead of keeping the Decimal
+    dtype (the same step narrows non-empty results to the minimal precision).
+    Polars and ibis-duckdb keep the Decimal dtype. Information only; tests
+    assert the Null result exactly so they flip if Narwhals keeps the dtype.
+  last_verified: '2026-11-21'
+- id: NW-CAST-04
+  project: narwhals
+  category: cast-semantics
+  summary: Arrow on aarch64 saturates float to int64/uint64 safe casts of 2**63/2**64 instead of rejecting
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-pyarrow
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 428. The defect is in Apache Arrow (not Narwhals), recorded here
+    because the project list has no arrow project. On aarch64 with PyArrow
+    26.0.0, a safe float64 -> int64 cast of 2**63 returns 9223372036854775807
+    and float64 -> uint64 of 2**64 returns 18446744073709551615 without error
+    (x86_64 rejects both); nw.Int64 and pc.cast(safe=True) behave the same, so
+    it is not a mountainash lowering issue. Likely cause: the safe-cast
+    round-trip check sees float(2**63 - 1) == 2**63 after ARM fcvtzs
+    saturation. Related but different: apache/arrow GH-46557 (allow_float_truncate
+    path); a new Arrow issue is needed. The ARM-only strict expected failure
+    is held in test_cast.py; no runtime guard is applied.
   last_verified: '2026-11-21'

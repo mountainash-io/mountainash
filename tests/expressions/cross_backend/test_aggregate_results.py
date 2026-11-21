@@ -805,25 +805,13 @@ class TestDeclaredDecimalAggregateArithmetic:
             return
 
         if (
-            backend_name in {"pandas", "narwhals-pandas"}
+            backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}
             and not values
             and operation in {"min", "max", "mean"}
         ):
             assert output.schema["result"] == pl.Null
         else:
-            with expect_call_failure(
-                when=(
-                    backend_name == "narwhals-pyarrow"
-                    and not values
-                    and operation in {"min", "max", "mean"}
-                ),
-                reason=(
-                    "narwhals-pyarrow: empty/all-null Decimal min/max/mean loses "
-                    "the Decimal result dtype (backlog 428)"
-                ),
-                errors=(AssertionError,),
-            ):
-                assert output.schema["result"].is_decimal()
+            assert output.schema["result"].is_decimal()
         if operation == "mean":
             if backend_name.startswith("ibis-") and values == [D("1.001"), D("1.002")]:
                 with expect_call_failure(

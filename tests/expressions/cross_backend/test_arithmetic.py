@@ -514,24 +514,20 @@ def test_declared_decimal_binary(
                 out = query.to_polars()
             if working:
                 assert out.schema["r"] == pl.Decimal(16, 5)
-            elif backend_name in {"pandas", "narwhals-pandas"}:
+            elif backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}:
                 # Arrow's decimal promotion rules; power returns floating point.
                 dtype = {
                     "add": pl.Decimal(13, 3), "subtract": pl.Decimal(13, 3),
                     "multiply": pl.Decimal(23, 5), "divide": pl.Decimal(23, 12),
-                    "floor_divide": pl.Decimal(23, 12), "power": pl.Float64,
+                    "floor_divide": pl.Decimal(23, 12), "modulus": pl.Decimal(35, 14),
+                    "power": pl.Float64,
                 }[operation]
                 assert out.schema["r"] == dtype
             elif backend_name.startswith("ibis"):
                 dtype = {"divide": pl.Float64, "floor_divide": pl.Int64}.get(operation, pl.Decimal(12, 3))
                 assert out.schema["r"] == dtype
             else:
-                with expect_call_failure(
-                    when=backend_name == "narwhals-pyarrow",
-                    errors=(AssertionError,),
-                    reason="backlog 428: Narwhals-on-PyArrow Decimal arithmetic result precision/scale follows Arrow promotion, not Decimal(38, 3)",
-                ):
-                    assert out.schema["r"] == pl.Decimal(38, 3)
+                assert out.schema["r"] == pl.Decimal(38, 3)
             assert out["r"].to_list() == [D(v) if v is not None else None for v in expected]
 
 
@@ -668,7 +664,7 @@ def test_decimal_operand_arrangements(
         ):
             with expect_call_failure(
                 when=not working and operation == "rmodulus" and backend_name == "narwhals-pyarrow",
-                reason="backlog 428: Narwhals-on-PyArrow Decimal remainder promotes to precision 45, beyond Arrow's 38-digit maximum",
+                reason="NW-MATH-13: Narwhals-on-PyArrow integer-literal remainder by a Decimal promotes to precision 45, beyond Arrow's 38-digit maximum",
                 errors=(pa.ArrowInvalid,),
             ):
                 out = query.to_polars()
@@ -727,13 +723,14 @@ def test_decimal_zero_divisor_computation_boundary(
         a, b = a.cast("fp64"), b.cast("fp64")
     query = ma_top.relation(frame).select(getattr(a, operation)(b).alias("r"))
     arrow_pandas = backend_name in {"pandas", "narwhals-pandas"}
+    arrow_nulling = arrow_pandas or backend_name == "narwhals-pyarrow"
     polars_kernel = backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", }
     errors = nw.exceptions if backend_name.startswith("narwhals") else pl.exceptions
     error = None
     if arrow_pandas and operation == "modulus":
         error = NotImplementedError
     elif not working and operation == "divide":
-        if arrow_pandas:
+        if arrow_nulling:
             error = pa.ArrowInvalid
         elif polars_kernel:
             error = errors.ComputeError
@@ -748,24 +745,12 @@ def test_decimal_zero_divisor_computation_boundary(
         with pytest.raises(error):
             query.to_polars()
         return
-    pyarrow_gap = {
-        ("divide", False): pa.ArrowInvalid,
-        ("floor_divide", False): AssertionError,
-        ("floor_divide", True): AssertionError,
-        ("modulus", False): TypeError,
-        ("modulus", True): TypeError,
-    }.get((operation, working))
-    with expect_call_failure(
-        when=backend_name == "narwhals-pyarrow" and pyarrow_gap is not None,
-        reason="backlog 428: Narwhals-on-PyArrow zero divisor yields a raised Arrow error or null instead of the inf/NaN contract",
-        errors=(pyarrow_gap,),
+    out = query.to_polars()
+    if (arrow_nulling and operation == "floor_divide") or (
+        not working and backend_name in {"ibis-duckdb", "narwhals-pyarrow"} and operation == "modulus"
     ):
-        out = query.to_polars()
-        if (arrow_pandas and operation == "floor_divide") or (
-            not working and backend_name == "ibis-duckdb" and operation == "modulus"
-        ):
-            assert out["r"].to_list() == [None]
-        elif operation == "modulus":
-            assert math.isnan(out["r"][0])
-        else:
-            assert out["r"].to_list() == [float("inf")]
+        assert out["r"].to_list() == [None]
+    elif operation == "modulus":
+        assert math.isnan(out["r"][0])
+    else:
+        assert out["r"].to_list() == [float("inf")]
