@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — 2026-11-22 (W8 safe-location display for descriptor and resource errors, backlog 395)
+
+### Breaking
+- Errors now show only the known-safe parts of a location. `DescriptorError` attributes `reference`, `normalized_reference`, `rejected_value` (strings, path-likes, and strings inside lists/mappings), `descriptor_path` and `resource_name` hold the display form (`mountainash.core.safe_location.safe_location`): a URL keeps scheme, host, port and path and loses userinfo, query and fragment; any other string that starts with a scheme shows as `***`; local paths are unchanged. Other objects in `rejected_value` show as their type name; `bytes` show as decoded text. Previously these attributes held the original value with URL userinfo and query values masked.
+- Native exception text and chains are gone from these errors. An `OSError` is chained as a fresh exception with only `errno` and `strerror` (no `filename`); mountainash's own descriptor and JSON Schema errors are chained as before; every other native exception (JSON decoder, Pydantic, HTTP library, transport not-found) is no longer `__cause__` or `__context__`. `redact_url_secrets` and the text-inspecting `raise_with_cause(error, cause, source)` are removed; `raise_with_cause(error, cause)` applies the type-based rule.
+- JSON Schema declaration errors no longer include jsonschema's text: a `$ref`/`$dynamicRef`/`$recursiveRef` is shown in display form, and an invalid declaration reports only the jsonschema error class.
+- `InvalidDescriptorSyntax.rejected_value` is `None`: malformed descriptor text (from `from_json`, `model_validate_json`, `from_path`) is no longer stored on the error.
+- A scheme-less reference that begins with `//` (`//host/x.json`) is a network-path reference, not a local absolute path: without a base it raises `MissingDescriptorBase`, and as a base URI it is rejected as not absolute.
+
+### Fixed
+- Credentials in descriptor, JSON Schema, resource-read and `DataPackage.write` errors (review of 2026-11-03: partial masking of a password containing `@`, quadratic-time regexes on untrusted descriptor text, query tokens in `LocationNotAllowed`, JSON Schema `$ref` text, `OSError.filename` through `DataPackage.write`, path-like inputs).
+- `ResourceRef.read_bytes`, descriptor resolution and `DataPackage.write` report filesystem `OSError`s with the display form of the location as given (pathlib collapses `https://` to `https:/`), not the path the operating system saw.
+
 ## Unreleased — 2026-10-29 (slim transport base install, transport backlog 33)
 
 ### Breaking

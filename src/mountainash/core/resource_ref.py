@@ -56,9 +56,14 @@ class ResourceRef:
         require_known_scheme(location, policy)
         if is_remote(location):
             return facade_read_bytes(location, policy)
+        from mountainash.core.safe_location import raise_os_error
         from mountainash_transport.location import confine_local
 
-        return Path(confine_local(location, policy)).read_bytes()
+        try:
+            return Path(confine_local(location, policy)).read_bytes()
+        except OSError as exc:
+            # Display the location as authored: pathlib collapses ``https://`` to ``https:/``.
+            raise_os_error(exc, location)
 
     def relation(self) -> Relation:
         from mountainash.relations.dag.packaging import resource_to_relation

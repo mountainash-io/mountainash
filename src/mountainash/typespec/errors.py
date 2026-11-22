@@ -1,95 +1,31 @@
 from __future__ import annotations
 
-import re
-from collections.abc import Mapping
-import os
-from os import PathLike
 from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 from mountainash.core.errors import MountainashError
+from mountainash.core.safe_location import display_value, raise_safe
 
 if TYPE_CHECKING:
     from mountainash.typespec.universal_types import UniversalType
 
-# A URL, including the ``scheme:/`` form ``pathlib`` leaves after collapsing ``//``.
-_URL = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:/{1,2}[^\s'\"<>]+")
-_USERINFO = re.compile(r"^(?P<prefix>[^:]+:/+)[^/?#@]*@")
-_QUERY_VALUE = re.compile(r"(?P<key>[?&][^=&#]*=)[^&#]*")
 
+def raise_with_cause(error: BaseException, cause: BaseException) -> NoReturn:
+    """Raise *error* with only the safe form of *cause* reachable (W8, spec section 2).
 
-def _redact_url(match: re.Match[str]) -> str:
-    url = _USERINFO.sub(r"\g<prefix>***@", match.group(0))
-    return _QUERY_VALUE.sub(r"\g<key>***", url)
-
-
-def redact_url_secrets(text: str) -> str:
-    """Mask URL userinfo and query-string values in *text* with ``***`` (same object if none)."""
-    redacted = _URL.sub(_redact_url, text)
-    return text if redacted == text else redacted
-
-
-def _redact(value: Any) -> Any:
-    """Return *value* with URL secrets redacted; the same object when nothing changes.
-
-    A path-like value carrying a secret becomes its redacted string.
+    An ``OSError`` is chained as a fresh exception without its filename; this
+    package's own descriptor and JSON Schema errors are chained as they are;
+    anything else is dropped from ``__cause__`` and ``__context__`` alike. The
+    decision depends on the type, never on the text.
     """
-    if isinstance(value, str):
-        return redact_url_secrets(value)
-    if isinstance(value, PathLike):
-        text = os.fspath(value)
-        if isinstance(text, str) and redact_url_secrets(text) != text:
-            return redact_url_secrets(text)
-        return value
-    if isinstance(value, Mapping):
-        pairs = [(key, item, _redact(key), _redact(item)) for key, item in value.items()]
-        if all(new_key is key and new_item is item for key, item, new_key, new_item in pairs):
-            return value
-        return {new_key: new_item for _, _, new_key, new_item in pairs}
-    if isinstance(value, (list, tuple)):
-        items = [_redact(item) for item in value]
-        if all(new is old for new, old in zip(items, value)):
-            return value
-        return type(value)(items)
-    return value
-
-
-def _clean_cause(exc: BaseException, source: object) -> BaseException | None:
-    """Return *exc* for chaining unless it, its chain, or the caller's input carries a URL secret."""
-    if _redact(source) is not source:
-        return None
-    pending: list[BaseException | None] = [exc]
-    seen: set[int] = set()
-    while pending:
-        current = pending.pop()
-        if current is None or id(current) in seen:
-            continue
-        seen.add(id(current))
-        text = repr(current) + repr(getattr(current, "__dict__", {}))
-        if redact_url_secrets(text) != text:
-            return None
-        pending += [current.__cause__, current.__context__]
-    return exc
-
-
-def raise_with_cause(error: BaseException, cause: BaseException, source: object = None) -> NoReturn:
-    """Raise *error* chained to *cause* only when no link carries a URL secret.
-
-    A dropped cause is removed from ``__context__`` too, so no part of the chain
-    (displayed or suppressed) retains it. *source* is the caller's input: native
-    errors may echo it in forms the redactor cannot see, so a secret-bearing
-    source always drops the cause.
-    """
-    kept = _clean_cause(cause, source)
-    try:
-        raise error from kept
-    finally:
-        error.__context__ = kept
+    raise_safe(error, cause, _TRUSTED_ERRORS)
 
 
 class DescriptorError(MountainashError):
     """Base for descriptor decoding, encoding, and reference errors.
 
-    The message and every attribute are stored with URL secrets redacted.
+    Callers build the message from parts they control. Every attribute holds
+    its display form (``safe_location`` for locations and strings, rendered
+    recursively inside containers), never the caller's original value.
     """
 
     def __init__(
@@ -105,15 +41,15 @@ class DescriptorError(MountainashError):
         rejected_value: Any = None,
         required_form: str | None = None,
     ) -> None:
-        super().__init__(redact_url_secrets(message))
-        self.descriptor_kind = _redact(descriptor_kind)
-        self.descriptor_path = _redact(descriptor_path)
-        self.resource_name = _redact(resource_name)
-        self.reference = _redact(reference)
-        self.normalized_reference = _redact(normalized_reference)
-        self.expected_kind = _redact(expected_kind)
-        self.rejected_value = _redact(rejected_value)
-        self.required_form = _redact(required_form)
+        super().__init__(message)
+        self.descriptor_kind = descriptor_kind
+        self.descriptor_path = display_value(descriptor_path)
+        self.resource_name = display_value(resource_name)
+        self.reference = display_value(reference)
+        self.normalized_reference = display_value(normalized_reference)
+        self.expected_kind = expected_kind
+        self.rejected_value = display_value(rejected_value)
+        self.required_form = required_form
 
 
 class InvalidDescriptorSyntax(DescriptorError, ValueError):
@@ -286,6 +222,24 @@ class InvalidDtypeDeclaration(TypeSpecError):
         scope = f"field {field_name!r}: " if field_name is not None else ""
         suffix = f" (got {rejected_value!r})" if rejected_value is not None else ""
         super().__init__(f"{scope}invalid dtype declaration: {reason}{suffix}")
+
+
+# Own errors whose message and attributes are built under the W8 rule; exact types
+# only, so subclasses built elsewhere do not qualify (spec section 2).
+_TRUSTED_ERRORS: frozenset[type] = frozenset({
+    InvalidDescriptorSyntax,
+    InvalidDescriptorStructure,
+    UnsupportedDescriptorVersion,
+    MissingDescriptorBase,
+    DescriptorReferenceNotFound,
+    DescriptorReferenceInvalid,
+    InvalidDescriptorRelationship,
+    UnsupportedResourceDialect,
+    InvalidJSONSchemaConstraint,
+    JSONSchemaReferenceDenied,
+})
+
+
 
 
 __all__ = [

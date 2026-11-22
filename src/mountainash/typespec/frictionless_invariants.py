@@ -391,7 +391,6 @@ def parse_descriptor_json(text: str, *, descriptor_kind: str = "package") -> obj
             "descriptor text is not valid JSON",
             descriptor_kind=_descriptor_kind(descriptor_kind),
             descriptor_path="$",
-            rejected_value=text,
             required_form="valid JSON text",
         ), exc)
 

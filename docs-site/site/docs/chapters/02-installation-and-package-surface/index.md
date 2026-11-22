@@ -227,7 +227,7 @@ Detection also resolves a dialect within the family where it can, such as `narwh
 
 Errors that mountainash raises deliberately derive from one root, `ma.MountainashError`. Under the root, a domain with several related errors has its own base class: `ConformError`, `DAGError`, `DtypeError`, `DescriptorError`, `TypeSpecError`, `MembershipArgumentError` and `ValidationError`. Single errors derive from the root directly.
 
-Many of these classes also inherit a built-in exception: `UnknownDtypeError` is a `DtypeError` and also a `ValueError`, `RelationDAGRequired` is a `RuntimeError`, and `DescriptorReferenceNotFound` is a `FileNotFoundError`. Code that already catches the built-in keeps working, and new code can catch the mountainash class. An unknown type name in a schema shows both:
+Many of these classes also inherit a built-in exception: `UnknownDtypeError` is a `DtypeError` and also a `ValueError`, `RelationDAGRequired` is a `RuntimeError`, and `DescriptorReferenceNotFound` is a `FileNotFoundError`. Code that already catches the built-in keeps working, and new code can catch the mountainash class. Descriptor and location errors show the display form of a location (no userinfo, query or fragment) and never chain a native exception that could carry one; [Table schemas and DataPackage](../10-table-schemas-and-datapackage/index.md) describes the rule. An unknown type name in a schema shows both:
 
 ```python
 try:

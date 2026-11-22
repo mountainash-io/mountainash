@@ -119,7 +119,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             descriptor_path="$",
             rejected_value=path,
             required_form="UTF-8 JSON text",
-        ), exc, path)
+        ), exc)
     except (TypeError, ValueError) as exc:
         raise_with_cause(_structure_error(
             "package descriptor path must be a local path",
@@ -127,7 +127,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             rejected_value=path,
             required_form="local filesystem path",
             descriptor_kind="package",
-        ), exc, path)
+        ), exc)
     except (FileNotFoundError, OSError) as exc:
         raise_with_cause(DescriptorReferenceNotFound(
             "package descriptor path does not exist",
@@ -135,7 +135,7 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             descriptor_path="$path",
             rejected_value=path,
             required_form="existing local JSON file",
-        ), exc, path)
+        ), exc)
     return absolute_path, text
 
 

@@ -190,6 +190,7 @@ def confined_local_paths(resource: Any, *, tree: bool) -> list[str] | None:
     from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
 
     from mountainash.core.location import resolve_resource_location, resource_policy
+    from mountainash.core.safe_location import safe_location
 
     policy = resource_policy(resource)
     raw_path = resource.path
@@ -199,7 +200,7 @@ def confined_local_paths(resource: Any, *, tree: bool) -> list[str] | None:
         resolved = resolve_resource_location(resource, str(raw))
         scheme = identify_scheme(resolved)
         if policy is not None and scheme is None:
-            raise LocationNotAllowed(str(raw), "unknown scheme")
+            raise LocationNotAllowed(safe_location(str(raw)), "unknown scheme")
         if scheme not in ("", "file", None):
             return None
         out.append(resolved if policy is None else confine_local(resolved, policy, tree=tree))
@@ -304,6 +305,7 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
     from mountainash_transport.location import LocationNotAllowed, confine_local, identify_scheme
 
     from mountainash.core.location import resolve_resource_location, resource_policy
+    from mountainash.core.safe_location import safe_location
 
     policy = resource_policy(resource)
     raw = resource.path
@@ -322,12 +324,12 @@ def _file_source_specs(resource: Any, dialect: Any) -> list[Any]:
         if policy is not None and pattern is None:
             scheme = identify_scheme(base)
             if scheme is None:
-                raise LocationNotAllowed(entry, "unknown scheme")
+                raise LocationNotAllowed(safe_location(entry), "unknown scheme")
             if scheme in ("", "file"):
                 base = confine_local(base, policy)
                 if os.path.isdir(base):
                     raise LocationNotAllowed(
-                        entry,
+                        safe_location(entry),
                         "directory resource not supported for this backend under a "
                         "location policy; use a glob",
                     )
