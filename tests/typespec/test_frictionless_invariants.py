@@ -184,7 +184,7 @@ def test_parse_descriptor_json_has_one_syntax_error(text):
     with pytest.raises(InvalidDescriptorSyntax) as caught:
         parse_descriptor_json(text)
     assert caught.value.descriptor_path == "$"
-    assert caught.value.rejected_value == text
+    assert caught.value.rejected_value is None  # document text is never stored (W8)
     assert caught.value.required_form == "valid JSON text"
 
 
@@ -203,7 +203,7 @@ def test_require_package_mapping_rejects_non_mapping_roots(raw):
     with pytest.raises(InvalidDescriptorStructure) as caught:
         require_package_mapping(raw)
     assert caught.value.descriptor_path == "$"
-    assert caught.value.rejected_value is raw
+    assert caught.value.rejected_value == raw
     assert caught.value.required_form == "package descriptor mapping"
 
 

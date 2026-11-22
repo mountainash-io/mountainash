@@ -72,16 +72,16 @@ def test_remote_ipv6_literal_stays_bracketed() -> None:
     ) == "https://[2001:db8::1]/schema.json"
 
 
-def test_malformed_base_uri_is_typed_with_cause() -> None:
+def test_malformed_base_uri_is_typed_without_native_cause() -> None:
     with pytest.raises(InvalidDescriptorStructure) as caught:
         normalize_base_uri("https://[bad")
-    assert isinstance(caught.value.__cause__, ValueError)
+    assert caught.value.__cause__ is None and caught.value.__context__ is None
 
 
-def test_malformed_document_uri_is_typed_with_cause() -> None:
+def test_malformed_document_uri_is_typed_without_native_cause() -> None:
     with pytest.raises(DescriptorReferenceInvalid) as caught:
         normalize_document_uri("https://[bad", base_uri=None)
-    assert isinstance(caught.value.__cause__, ValueError)
+    assert caught.value.__cause__ is None and caught.value.__context__ is None
 
 
 def test_local_resolver_normalizes_path_and_file_uri(tmp_path: Path) -> None:
@@ -186,14 +186,14 @@ def test_local_resolver_missing_file_preserves_cause(tmp_path: Path) -> None:
     assert isinstance(caught.value.__cause__, FileNotFoundError)
 
 
-def test_local_resolver_malformed_json_preserves_cause(tmp_path: Path) -> None:
+def test_local_resolver_malformed_json_drops_native_cause(tmp_path: Path) -> None:
     reference = tmp_path / "malformed.json"
     reference.write_text("{not json", encoding="utf-8")
     with pytest.raises(DescriptorReferenceInvalid) as caught:
         DefaultDescriptorResolver().resolve(
             str(reference), base_uri=None, expected_kind=DescriptorKind.SCHEMA
         )
-    assert isinstance(caught.value.__cause__, json.JSONDecodeError)
+    assert caught.value.__cause__ is None and caught.value.__context__ is None
 
 
 @pytest.mark.parametrize("suffix", ["?version=1", "#schema"])
@@ -252,7 +252,7 @@ def test_equivalent_local_forms_share_cache_key(tmp_path: Path) -> None:
     )
 
 
-def test_storage_resolver_translates_transport_missing_object(
+def test_storage_resolver_translates_transport_missing_object_without_cause(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     transport_errors = pytest.importorskip("mountainash_transport._core.exceptions")
@@ -269,7 +269,7 @@ def test_storage_resolver_translates_transport_missing_object(
             expected_kind=DescriptorKind.SCHEMA,
             policy=LocationPolicy(allowed_remote={"https": frozenset({"*"})}),
         )
-    assert isinstance(caught.value.__cause__, transport_errors.PathNotFoundError)
+    assert caught.value.__cause__ is None and caught.value.__context__ is None
 
 
 def test_expected_kind_is_part_of_cache_key(tmp_path: Path) -> None:

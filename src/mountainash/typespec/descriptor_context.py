@@ -17,6 +17,7 @@ except ImportError:  # pragma: no cover - Python 3.10 compatibility
         pass
 
 from mountainash.core.io import facade_read_bytes
+from mountainash.core.safe_location import raise_os_error, safe_location
 from mountainash_transport.location import (
     LocationNotAllowed,
     confine_local,
@@ -26,7 +27,6 @@ from mountainash_transport.location import (
 )
 from mountainash.typespec.errors import (
     raise_with_cause,
-    redact_url_secrets,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
     InvalidDescriptorStructure,
@@ -41,6 +41,15 @@ except ImportError:  # pragma: no cover - optional storage dependency
     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError,)
 else:
     _STORAGE_NOT_FOUND_ERRORS = (FileNotFoundError, _TransportPathNotFoundError)
+
+
+class _URIShapeError(ValueError):
+    """A URI shape problem with a fixed message (never built from the URI text)."""
+
+
+def _shape_message(exc: ValueError, fallback: str) -> str:
+    """The message of this module's own shape errors; native ValueErrors get *fallback*."""
+    return str(exc) if type(exc) is _URIShapeError else fallback
 
 
 if TYPE_CHECKING:
@@ -153,7 +162,7 @@ def _normalize_remote_path(path: str, *, trailing_slash: bool = False) -> str:
 def _normalize_remote_netloc(parts: Any) -> str:
     hostname = parts.hostname
     if hostname is None:
-        raise ValueError("hierarchical URI has no host")
+        raise _URIShapeError("hierarchical URI has no host")
     hostname = hostname.lower()
     if ":" in hostname and not hostname.startswith("["):
         hostname = f"[{hostname}]"
@@ -167,7 +176,7 @@ def _normalize_remote_netloc(parts: Any) -> str:
     try:
         port = parts.port
     except ValueError as exc:
-        raise_with_cause(ValueError("URI has an invalid port"), exc)
+        raise_with_cause(_URIShapeError("URI has an invalid port"), exc)
     default_port = (parts.scheme.lower() == "http" and port == 80) or (
         parts.scheme.lower() == "https" and port == 443
     )
@@ -180,7 +189,7 @@ def _canonical_remote_uri(value: str, *, trailing_slash: bool = False) -> str:
     parts = urlsplit(value)
     scheme = parts.scheme.lower()
     if not parts.netloc:
-        raise ValueError("absolute URI is not hierarchical")
+        raise _URIShapeError("absolute URI is not hierarchical")
     netloc = _normalize_remote_netloc(parts)
     path = _normalize_remote_path(parts.path, trailing_slash=trailing_slash)
     return urlunsplit((scheme, netloc, path, parts.query, parts.fragment))
@@ -194,7 +203,7 @@ def _file_uri_path(value: str, *, reference: str) -> Path:
         raise_with_cause(_invalid_reference(
             reference,
             normalized_reference=value,
-            message=f"invalid file URI: {exc}",
+            message="invalid file URI",
         ), exc)
 
 
@@ -211,6 +220,8 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
         parts = urlsplit(value)
     except ValueError as exc:
         raise_with_cause(_base_error(value, "descriptor base URI is malformed"), exc)
+    if not parts.scheme and parts.netloc:
+        raise _base_error(value, "descriptor base URI must be absolute")
     if not parts.scheme:
         path = Path(value)
         if not path.is_absolute():
@@ -231,7 +242,9 @@ def normalize_base_uri(value: str | Path | None) -> str | None:
     try:
         return _canonical_remote_uri(value, trailing_slash=True)
     except ValueError as exc:
-        raise_with_cause(_base_error(value, str(exc)), exc)
+        raise_with_cause(
+            _base_error(value, _shape_message(exc, "descriptor base URI is malformed")), exc
+        )
 
 
 def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
@@ -245,7 +258,7 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         ), exc)
     if not parts.scheme:
         path = Path(reference)
-        if path.is_absolute():
+        if path.is_absolute() and not parts.netloc:
             return path.resolve().as_uri()
         if base_uri is None:
             raise MissingDescriptorBase(
@@ -256,7 +269,13 @@ def normalize_document_uri(reference: str, *, base_uri: str | None) -> str:
         normalized_base = normalize_base_uri(base_uri)
         assert normalized_base is not None
         joined = urljoin(normalized_base, reference)
-        joined_parts = urlsplit(joined)
+        try:
+            joined_parts = urlsplit(joined)
+        except ValueError as exc:
+            raise_with_cause(DescriptorReferenceInvalid(
+                "descriptor reference is malformed",
+                reference=reference,
+            ), exc)
         if joined_parts.scheme.lower() == "file":
             return _file_uri_path(joined, reference=reference).as_uri()
         try:
@@ -352,7 +371,7 @@ class DefaultDescriptorResolver:
                 payload = Path(path).read_bytes()
             else:
                 if policy is None:
-                    raise LocationNotAllowed(redact_url_secrets(reference), "remote not allowed")
+                    raise LocationNotAllowed(safe_location(reference), "remote not allowed")
                 payload = facade_read_bytes(normalized, policy)
         except _STORAGE_NOT_FOUND_ERRORS as exc:
             raise_with_cause(DescriptorReferenceNotFound(
@@ -361,6 +380,8 @@ class DefaultDescriptorResolver:
                 normalized_reference=normalized,
                 expected_kind=_expected_kind_value(expected_kind),
             ), exc)
+        except OSError as exc:
+            raise_os_error(exc, reference)
         return _parse_descriptor_bytes(
             payload,
             reference=reference,

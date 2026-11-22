@@ -45,7 +45,7 @@ def test_from_path_keeps_utf8_error_distinct(tmp_path) -> None:
     with pytest.raises(InvalidDescriptorSyntax) as caught:
         DataPackage.from_path(path)
     assert caught.value.descriptor_path == "$"
-    assert caught.value.rejected_value == path
+    assert caught.value.rejected_value == str(path)
     assert caught.value.required_form == "UTF-8 JSON text"
 
 
@@ -428,23 +428,23 @@ def test_top_level_array_is_rejected() -> None:
 def test_malformed_json_is_rejected() -> None:
     with pytest.raises(InvalidDescriptorSyntax) as caught:
         DataPackage.from_json("{")
-    assert caught.value.__cause__ is not None
+    assert caught.value.__cause__ is None and caught.value.__context__ is None
 
 
 
 @pytest.mark.parametrize(
-    ("decode", "rejected"),
+    "decode",
     [
-        (lambda: DataPackage.from_json("{"), "{"),
-        (lambda: DataPackage.model_validate_json("{"), "{"),
-        (lambda: DataPackage.model_validate_json(b"\xff"), b"\xff"),
+        lambda: DataPackage.from_json("{"),
+        lambda: DataPackage.model_validate_json("{"),
+        lambda: DataPackage.model_validate_json(b"\xff"),
     ],
 )
-def test_json_entrypoints_share_syntax_error(decode, rejected) -> None:
+def test_json_entrypoints_share_syntax_error(decode) -> None:
     with pytest.raises(InvalidDescriptorSyntax) as caught:
         decode()
     assert caught.value.descriptor_path == "$"
-    assert caught.value.rejected_value == rejected
+    assert caught.value.rejected_value is None  # document text is never stored (W8)
     assert caught.value.required_form == "valid JSON text"
 
 

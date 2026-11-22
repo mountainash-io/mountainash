@@ -12,9 +12,11 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.validators import validator_for
 
+from mountainash.core.safe_location import safe_location
 from mountainash.typespec.errors import (
     InvalidJSONSchemaConstraint,
     JSONSchemaReferenceDenied,
+    raise_with_cause,
 )
 
 
@@ -71,7 +73,7 @@ def _reject_remote_references(value: Any) -> None:
             reference = value.get(keyword)
             if isinstance(reference, str) and not reference.startswith("#"):
                 raise JSONSchemaReferenceDenied(
-                    f"JSON Schema reference {reference!r} is not a local fragment"
+                    f"JSON Schema reference {safe_location(reference)!r} is not a local fragment"
                 )
         for nested in value.values():
             _reject_remote_references(nested)
@@ -108,7 +110,11 @@ def compile_json_schema(declaration: Mapping[str, Any]) -> CompiledJSONSchema:
     except JSONSchemaReferenceDenied:
         raise
     except Exception as error:
-        raise InvalidJSONSchemaConstraint(str(error)) from error
+        # jsonschema's text echoes the declaration (a ``$id`` or ``$ref`` may be a URL).
+        raise_with_cause(
+            InvalidJSONSchemaConstraint(f"json_schema is not a valid JSON Schema ({type(error).__name__})"),
+            error,
+        )
 
 
 __all__ = []

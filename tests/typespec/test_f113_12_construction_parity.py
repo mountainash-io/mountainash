@@ -281,7 +281,7 @@ def test_json_text_entrypoints_share_syntax_error_fields() -> None:
             reference=None,
             normalized_reference=None,
             expected_kind=None,
-            rejected_value="{",
+            rejected_value=None,
             required_form="valid JSON text",
         )
 

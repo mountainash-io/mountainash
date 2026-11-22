@@ -73,7 +73,6 @@ def _parse_descriptor_json_input(
             "descriptor text is not valid JSON",
             descriptor_kind=descriptor_kind,
             descriptor_path="$",
-            rejected_value=json_data,
             required_form="valid JSON text",
         ), exc)
     return parse_descriptor_json(text, descriptor_kind=descriptor_kind)
@@ -1410,10 +1409,17 @@ class DataPackage(BaseModel):
     ) -> None:
         import json
         from pathlib import Path
+        from mountainash.core.safe_location import raise_os_error
         from mountainash.typespec.frictionless_codec import encode_package_descriptor
 
         descriptor = encode_package_descriptor(self, mode=mode)
-        Path(path).write_text(json.dumps(descriptor, indent=2), encoding="utf-8")
+        text = json.dumps(descriptor, indent=2)
+        try:
+            Path(path).write_text(text, encoding="utf-8")
+        except OSError as exc:
+            # Display the path as given: pathlib collapses ``https://`` to ``https:/``,
+            # and the OS error carries the filename.
+            raise_os_error(exc, path)
 
     def to_relation_dag(
         self,
