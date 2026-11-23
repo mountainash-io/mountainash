@@ -93,3 +93,75 @@ def test_base_install_allows_required_siblings_and_rejects_optional_ones():
         check_base_siblings({"mountainash", "mountainash-transport", "mountainash-files"}, requires)
     with pytest.raises(ValueError, match="mountainash-settings"):
         check_base_siblings({"mountainash", "mountainash-transport", "mountainash-settings"}, requires)
+
+
+def _report(tmp_path, *urls):
+    report = tmp_path / "install.json"
+    report.write_text(
+        json.dumps(
+            {"install": [{"metadata": {"name": name}, "download_info": {"url": url}} for name, url in urls]}
+        )
+    )
+    return report
+
+
+def test_install_report_allows_only_the_candidate_and_supplied_sibling_wheels(tmp_path):
+    candidate = tmp_path / "mountainash-0.2.0-py3-none-any.whl"
+    sibling = tmp_path / "siblings" / "mountainash_transport-0.1.0-py3-none-any.whl"
+    other = tmp_path / "siblings" / "mountainash_files-0.1.0-py3-none-any.whl"
+    report = _report(
+        tmp_path,
+        ("mountainash", candidate.as_uri()),
+        ("mountainash-transport", sibling.as_uri()),
+        ("polars", "https://files.pythonhosted.org/packages/polars.whl"),
+    )
+    assert check_install_report(report, candidate, (sibling, other)) == {
+        "mountainash",
+        "mountainash-transport",
+        "polars",
+    }
+    with pytest.raises(ValueError, match="mountainash-transport"):
+        check_install_report(report, candidate)
+    with pytest.raises(ValueError, match="mountainash-transport"):
+        check_install_report(report, candidate, (other,))
+
+
+def test_dependency_wheels_are_offered_to_every_candidate_install(tmp_path, monkeypatch):
+    from scripts import verify_release
+
+    siblings = tmp_path / "siblings"
+    siblings.mkdir()
+    wheel = siblings / "mountainash_transport-0.1.0-py3-none-any.whl"
+    wheel.write_bytes(b"")
+    commands = []
+    monkeypatch.setattr(verify_release.venv.EnvBuilder, "create", lambda self, target: None)
+
+    def fake_run(command, cwd, env, log):
+        commands.append(command)
+        log.write_text("")
+
+    monkeypatch.setattr(verify_release, "_run", fake_run)
+    monkeypatch.setattr(verify_release, "check_install_report", lambda *args: set())
+    verify_release._install(
+        "mountainash.whl", None, "wheel", tmp_path, tmp_path, {}, dependency_wheels=verify_release._dependency_wheels(siblings)
+    )
+    install = commands[0]
+    assert install[install.index("--find-links") + 1] == str(siblings)
+    assert install[install.index("--index-url") + 1] == "https://pypi.org/simple"
+
+
+def test_dependency_wheels_are_rejected_with_public_verification(tmp_path):
+    from scripts.verify_release import verify
+
+    with pytest.raises(ValueError, match="dependency-wheels"):
+        verify(tmp_path / "dist", tmp_path / "evidence", public=True, dependency_wheels=tmp_path)
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_empty_dependency_wheel_directory_is_rejected(tmp_path):
+    from scripts.verify_release import verify
+
+    distribution = tmp_path / "dist"
+    distribution.mkdir()
+    with pytest.raises(ValueError, match="no dependency wheels"):
+        verify(distribution, tmp_path / "evidence", base_only=True, dependency_wheels=tmp_path)

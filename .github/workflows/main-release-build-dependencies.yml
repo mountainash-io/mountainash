@@ -44,7 +44,51 @@ jobs:
           pip install twine==7.0.0
           twine check dist/*
 
+      # Sibling packages are not on public PyPI yet; build them from source and
+      # install them next to the candidate wheel. Checked out after the build so
+      # temp/ cannot leak into the candidate.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: mountainash-io
+          repositories: |
+            mountainash-transport
+            mountainash-files
+            mountainash-data
+            mountainash-settings
+            mountainash-auth-client
+
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_release_dependencies.yml
+
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ github.head_ref }}
+          default-branch: ${{ github.base_ref }}
+          token: ${{ steps.app-token.outputs.token }}
+          org-name: mountainash-io
+
+      - name: Build checked-out sibling wheels
+        env:
+          DEPENDENCIES: ${{ steps.deps.outputs.dependencies }}
+        run: |
+          pip install build==1.6.1
+          mkdir -p "$RUNNER_TEMP/dependency-wheels"
+          for dependency in $(echo "$DEPENDENCIES" | jq -r '.[].name'); do
+            python -m build --wheel --outdir "$RUNNER_TEMP/dependency-wheels" "temp/$dependency"
+            git -C "temp/$dependency" rev-parse HEAD
+          done
+          test "$(find "$RUNNER_TEMP/dependency-wheels" -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq "$(echo "$DEPENDENCIES" | jq 'length')"
+
       - name: Test Install
         run: |
-          pip install dist/mountainash-*.whl
+          pip install dist/mountainash-*.whl "$RUNNER_TEMP"/dependency-wheels/*.whl
           python -c "import mountainash as ma; print('Version:', ma.__version__); print('OK')"

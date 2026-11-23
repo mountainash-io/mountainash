@@ -51,9 +51,10 @@ print(json.dumps({"rows": rows, "module": str(origin), "python": sys.version}))
 """
 
 
-def check_install_report(report: Path, candidate: Path | None) -> set[str]:
-    """Reject dependency sources other than PyPI and the one selected candidate."""
+def check_install_report(report: Path, candidate: Path | None, dependency_wheels: tuple[Path, ...] = ()) -> set[str]:
+    """Reject dependency sources other than PyPI, the selected candidate and the supplied sibling wheels."""
     allowed_local = candidate.resolve().as_uri() if candidate is not None else None
+    sibling_wheels = {wheel.resolve().as_uri() for wheel in dependency_wheels}
     candidate_seen = False
     names = set()
     for item in json.loads(report.read_text())["install"]:
@@ -62,6 +63,8 @@ def check_install_report(report: Path, candidate: Path | None) -> set[str]:
         url = item["download_info"]["url"]
         if allowed_local is not None and url == allowed_local:
             candidate_seen = True
+            continue
+        if url in sibling_wheels:
             continue
         source = urlsplit(url)
         if (
@@ -157,6 +160,20 @@ def _run(command: list[str], cwd: Path, environment: dict[str, str], log: Path) 
         raise subprocess.CalledProcessError(result.returncode, command)
 
 
+def _dependency_wheels(directory: Path | None) -> tuple[Path, ...]:
+    if directory is None:
+        return ()
+    wheels = tuple(sorted(directory.glob("*.whl")))
+    if not wheels:
+        raise ValueError(f"{directory} contains no dependency wheels")
+    return wheels
+
+
+def _sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
 def _install(
     requirement: str,
     candidate: Path | None,
@@ -165,18 +182,34 @@ def _install(
     evidence: Path,
     environment: dict[str, str],
     imports: tuple[str, ...] = (),
+    dependency_wheels: tuple[Path, ...] = (),
 ) -> set[str]:
     target = work / label
     venv.EnvBuilder(with_pip=True).create(target)
     python = str(target / "bin" / "python")
     report = evidence / f"{label}-install.json"
     _run(
-        [python, "-I", "-m", "pip", "install", "--no-input", "--index-url", PYPI, "--report", str(report), requirement],
+        [
+            python,
+            "-I",
+            "-m",
+            "pip",
+            "install",
+            "--no-input",
+            "--index-url",
+            PYPI,
+            # Offered, not forced: pip installs a sibling only when the candidate's
+            # requirements reach it, so the base-install sibling rule stays meaningful.
+            *(["--find-links", str(dependency_wheels[0].parent)] if dependency_wheels else []),
+            "--report",
+            str(report),
+            requirement,
+        ],
         work,
         environment,
         evidence / f"{label}-install.log",
     )
-    names = check_install_report(report, candidate)
+    names = check_install_report(report, candidate, dependency_wheels)
     _run([python, "-I", "-m", "pip", "check"], work, environment, evidence / f"{label}-check.log")
     smoke = HELLO_WORLD
     if imports:
@@ -187,7 +220,16 @@ def _install(
     return names
 
 
-def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool = False) -> None:
+def verify(
+    dist: Path,
+    evidence: Path,
+    *,
+    base_only: bool = False,
+    public: bool = False,
+    dependency_wheels: Path | None = None,
+) -> None:
+    if public and dependency_wheels is not None:
+        raise ValueError("--dependency-wheels cannot be combined with --public")
     hashes: dict[str, str] = {}
     release: dict[str, object] = {
         "source_sha": os.environ.get("GITHUB_SHA"),
@@ -205,6 +247,8 @@ def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool 
     release_path = evidence / "release.json"
     release_path.write_text(json.dumps(release, indent=2, sort_keys=True) + "\n")
     try:
+        siblings = _dependency_wheels(dependency_wheels)
+        release["dependency_files"] = {path.name: _sha256(path) for path in siblings}
         wheel, sdist = _artifacts(dist)
         metadata = _metadata(wheel)
         release.update(metadata)
@@ -235,7 +279,7 @@ def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool 
                     environment,
                 )
             else:
-                names = _install(str(wheel), wheel, "wheel", work, evidence, environment)
+                names = _install(str(wheel), wheel, "wheel", work, evidence, environment, dependency_wheels=siblings)
                 check_base_siblings(names, metadata["requires_dist"])
                 build_env = work / "build"
                 venv.EnvBuilder(with_pip=True).create(build_env)
@@ -268,6 +312,7 @@ def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool 
                     work,
                     evidence,
                     environment,
+                    dependency_wheels=siblings,
                 )
                 if not base_only:
                     for extra in metadata["extras"]:
@@ -291,6 +336,7 @@ def verify(dist: Path, evidence: Path, *, base_only: bool = False, public: bool 
                             evidence,
                             environment,
                             imports,
+                            siblings,
                         )
         release["status"] = "passed"
     except Exception as error:
@@ -310,12 +356,20 @@ def main() -> None:
         "--base-only", action="store_true", help="Wheel/sdist hello world only; not full release acceptance"
     )
     parser.add_argument("--public", action="store_true", help="Confirm approved hashes and install the public version")
+    parser.add_argument(
+        "--dependency-wheels",
+        type=Path,
+        help="Directory of built sibling wheels installed alongside PyPI (candidate verification only)",
+    )
     arguments = parser.parse_args()
+    if arguments.public and arguments.dependency_wheels is not None:
+        parser.error("--dependency-wheels cannot be combined with --public")
     verify(
         arguments.dist_dir.resolve(),
         arguments.output_dir.resolve(),
         base_only=arguments.base_only,
         public=arguments.public,
+        dependency_wheels=arguments.dependency_wheels.resolve() if arguments.dependency_wheels else None,
     )
 
 
