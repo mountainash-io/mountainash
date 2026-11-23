@@ -10,6 +10,12 @@ on:
         required: true
         default: false
         type: boolean
+      fallback_branch:
+        description: Fallback branch for sibling dependencies
+        required: true
+        default: main
+        type: choice
+        options: [main, develop]
 
 permissions:
   contents: read
@@ -20,6 +26,7 @@ jobs:
     outputs:
       dist-artifact-id: ${{ steps.dist.outputs.artifact-id }}
       evidence-artifact-id: ${{ steps.evidence.outputs.artifact-id }}
+      dependency-wheels-artifact-id: ${{ steps.dependency-wheels.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -74,11 +81,60 @@ jobs:
                       raise SystemExit(f'{kind} {name} differs from the checked-out {name}')
           print('Apache-2.0 AND MIT metadata and all licence files verified in wheel and sdist')
           PY
+      # Sibling packages are not on public PyPI yet. Build them from source
+      # after the candidate so their checkout cannot leak into its sdist.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: mountainash-io
+          repositories: |
+            mountainash-transport
+            mountainash-files
+            mountainash-data
+            mountainash-settings
+            mountainash-auth-client
+      - name: Load Dependencies
+        id: deps
+        uses: ./.github/actions/load-dependencies
+        with:
+          config-path: .github/config/mountainash_release_dependencies.yml
+      - name: Checkout Dependencies
+        uses: ./.github/actions/checkout-dependencies
+        with:
+          dependencies: ${{ steps.deps.outputs.dependencies }}
+          target-branch: ${{ github.head_ref || github.ref_name }}
+          default-branch: ${{ github.base_ref || inputs.fallback_branch }}
+          token: ${{ steps.app-token.outputs.token }}
+          org-name: mountainash-io
+      - name: Build checked-out sibling wheels
+        env:
+          DEPENDENCIES: ${{ steps.deps.outputs.dependencies }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dependency-wheels"
+          for dependency in $(echo "$DEPENDENCIES" | jq -r '.[].name'); do
+            env -i PATH="$PATH" HOME="$RUNNER_TEMP/build-home" PIP_CONFIG_FILE=/dev/null \
+              PIP_INDEX_URL=https://pypi.org/simple \
+              python -I -m build --wheel --outdir "$RUNNER_TEMP/dependency-wheels" "temp/$dependency"
+            git -C "temp/$dependency" rev-parse HEAD > "$RUNNER_TEMP/dependency-wheels/$dependency-revision.txt"
+          done
+          test "$(find "$RUNNER_TEMP/dependency-wheels" -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq "$(echo "$DEPENDENCIES" | jq 'length')"
       - name: Verify wheel, sdist, and every advertised extra
         id: verify
         run: |
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
-            --output-dir "$RUNNER_TEMP/release-evidence"
+            --output-dir "$RUNNER_TEMP/release-evidence" \
+            --dependency-wheels "$RUNNER_TEMP/dependency-wheels"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        id: dependency-wheels
+        if: ${{ !cancelled() && (success() || steps.verify.outcome == 'failure') }}
+        with:
+          name: release-dependency-wheels-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-wheels/*
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         id: dist
         # Keep the candidate available for ARM64 even when public extras cannot resolve.
@@ -99,7 +155,7 @@ jobs:
 
   verify-arm64:
     needs: build-and-verify
-    if: ${{ !cancelled() && needs.build-and-verify.outputs.dist-artifact-id != '' && needs.build-and-verify.outputs.evidence-artifact-id != '' }}
+    if: ${{ !cancelled() && needs.build-and-verify.outputs.dist-artifact-id != '' && needs.build-and-verify.outputs.evidence-artifact-id != '' && needs.build-and-verify.outputs.dependency-wheels-artifact-id != '' }}
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -119,6 +175,11 @@ jobs:
           artifact-ids: ${{ needs.build-and-verify.outputs.evidence-artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/approved-evidence
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.build-and-verify.outputs.dependency-wheels-artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/dependency-artifact
       - name: Check the original candidate hashes
         working-directory: ${{ runner.temp }}/dist
         run: sha256sum --check "$RUNNER_TEMP/approved-evidence/SHA256SUMS"
@@ -126,7 +187,8 @@ jobs:
         run: |
           python -I -m pip install --index-url https://pypi.org/simple packaging==26.3
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
-            --output-dir "$RUNNER_TEMP/arm64-evidence" --base-only
+            --output-dir "$RUNNER_TEMP/arm64-evidence" --base-only \
+            --dependency-wheels "$RUNNER_TEMP/dependency-artifact"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

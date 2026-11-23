@@ -1,0 +1,15 @@
+# Sibling packages the release checks build from source and offer to pip next to
+# the candidate wheel, because they are not on public PyPI yet. Runtime
+# dependencies only (transport, plus the files/data extras and their
+# settings/auth-client chain); release builds must not resolve test-only things.
+dependencies:
+  - name: mountainash-transport
+    org-name: mountainash-io
+  - name: mountainash-files
+    org-name: mountainash-io
+  - name: mountainash-data
+    org-name: mountainash-io
+  - name: mountainash-settings
+    org-name: mountainash-io
+  - name: mountainash-auth-client
+    org-name: mountainash-io
