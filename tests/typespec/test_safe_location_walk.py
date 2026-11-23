@@ -433,3 +433,67 @@ def test_transport_connection_errors(operation, policy, caplog):
 def test_transport_policy_errors(operation, caplog):
     other = LocationPolicy(allowed_remote={"http": frozenset({"other.example"})})
     walk(lambda: operation(_remote(80), other), caplog)
+
+
+# --- end-to-end: a refusing policy never reaches the network ----------------------------
+
+
+class _Counting(_NotFound):
+    requests: list[str]
+
+    def do_GET(self):  # noqa: N802 - stdlib handler name
+        self.server.requests.append(self.path)
+        body = b'{"fields": []}' if self.path.endswith(".json") else b"a\n1\n"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+@pytest.fixture
+def counting_server():
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Counting)
+    server.requests = []
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield server
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+
+REFUSE_HTTP = LocationPolicy(allowed_remote={"https": frozenset()})
+ALLOW_LOCALHOST = LocationPolicy(allowed_remote={"http": frozenset({"127.0.0.1"})})
+E2E_OPERATIONS = {
+    "resolve": _resolve,
+    "package-from-path": _package_from_path,
+    "resource-read-bytes": _resource_read_bytes,
+    "relation-collect": _relation_collect,
+}
+
+
+@pytest.mark.parametrize("operation", E2E_OPERATIONS.values(), ids=E2E_OPERATIONS.keys())
+@pytest.mark.parametrize("scheme", ["http", "ftp", "gopher"])
+def test_refusing_policy_makes_no_request(operation, scheme, counting_server):
+    port = counting_server.server_address[1]
+    with pytest.raises(Exception) as caught:
+        operation(f"{scheme}://127.0.0.1:{port}/x.json", REFUSE_HTTP)
+    assert counting_server.requests == []
+    allowed_types = {"LocationNotAllowed", "DescriptorReferenceNotFound", "BackendNotImplementedError"}
+    assert caught.type.__name__ in allowed_types, caught.type
+
+
+@pytest.mark.parametrize("operation", E2E_OPERATIONS.values(), ids=E2E_OPERATIONS.keys())
+def test_policy_on_other_host_makes_no_request(operation, counting_server):
+    port = counting_server.server_address[1]
+    other = LocationPolicy(allowed_remote={"http": frozenset({"other.example"})})
+    with pytest.raises(Exception):
+        operation(f"http://127.0.0.1:{port}/x.json", other)
+    assert counting_server.requests == []
+
+
+def test_allowed_host_succeeds(counting_server):
+    port = counting_server.server_address[1]
+    assert _resolve(f"http://127.0.0.1:{port}/s.json", ALLOW_LOCALHOST) == {"fields": []}
+    assert _resource_read_bytes(f"http://127.0.0.1:{port}/r.csv", ALLOW_LOCALHOST) == b"a\n1\n"
+    assert counting_server.requests == ["/s.json", "/r.csv"]
