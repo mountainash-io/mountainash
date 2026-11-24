@@ -28,10 +28,10 @@ EXTRA_IMPORTS = {
     "files": ("mountainash_files",),
     "dbos": ("dbos",),
     "http": ("mountainash_transport", "httpx", "upath", "fsspec"),
-    "s3": ("mountainash_files", "boto3", "s3fs"),
+    "s3": ("mountainash_files", "boto3"),
     "gcs": ("mountainash_files", "google.cloud.storage", "gcsfs"),
     "azure": ("mountainash_files", "azure.storage.blob", "adlfs"),
-    "sftp": ("mountainash_files", "paramiko", "smart_open"),
+    "sftp": ("mountainash_files", "paramiko"),
 }
 HELLO_WORLD = """
 import json
