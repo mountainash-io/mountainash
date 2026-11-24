@@ -14,7 +14,7 @@ import pyarrow as pa
 import pytest
 
 import mountainash as ma
-from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.backend_registry import ALL_BACKENDS, REGISTRY
 from mountainash.conform.errors import DecimalConversionRequiredError, SchemaDriftError
 from mountainash.exceptions import BackendCapabilityError, InvalidOptionValueError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_VALUE
@@ -45,7 +45,7 @@ CONVERSION_BACKENDS = [
         raises=BackendCapabilityError,
         reason="NW-MATH-11 (narwhals#3698), NW-CAST-01 (narwhals#3702): decimal cast unsupported",
     ))
-    if name in {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas"} else name
+    if name in {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas", "narwhals-pyarrow"} else name
     for name in ALL_BACKENDS
 ]
 
@@ -53,20 +53,10 @@ CONVERSION_BACKENDS = [
 def _decimal_frame(backend_name, precision, scale, values):
     """Native decimal(precision, scale) column per identity (the shared factory builds from plain data)."""
     table = pa.table({"x": pa.array(values, pa.decimal128(precision, scale))})
-    if backend_name == "polars":
-        return pl.from_arrow(table)
-    if backend_name == "polars-lazy":
-        return pl.from_arrow(table).lazy()
-    if backend_name in ("narwhals-polars", "narwhals-lazy"):
-        frame = pl.from_arrow(table)
-        return nw.from_native(frame.lazy() if backend_name == "narwhals-lazy" else frame)
-    if backend_name in ("pandas", "narwhals-pandas"):
-        frame = table.to_pandas(types_mapper=pd.ArrowDtype)
-        return nw.from_native(frame, eager_only=True)
-    if backend_name == "ibis-duckdb":
-        return ibis.duckdb.connect().create_table("t", table, overwrite=True)
-    # ibis-sqlite: SQLite has no fixed-precision decimal type, so the column cannot be created.
-    return ibis.sqlite.connect(":memory:").create_table("t", table, overwrite=True)
+    if backend_name == "ibis-sqlite":
+        # SQLite has no fixed-precision decimal type, so the column cannot be created.
+        return ibis.sqlite.connect(":memory:").create_table("t", table, overwrite=True)
+    return REGISTRY[backend_name].build_typed(table, "t")
 
 
 @pytest.mark.cross_backend
@@ -119,7 +109,9 @@ def test_no_conversion_keeps_actual_values_and_drift(backend_name, backend_facto
         SPEC, contract={"data_type": action}, apply_value_transforms=transforms,
     )
     out = rel.collect_with_drift()
-    assert out.frame["x"].to_list() == ["1.5"]
+    column = out.frame["x"]
+    values = column.to_pylist() if isinstance(column, pa.ChunkedArray) else column.to_list()
+    assert values == ["1.5"]
     from mountainash.core.dtypes import dtype_family
 
     assert out.effective_schema == rel.schema

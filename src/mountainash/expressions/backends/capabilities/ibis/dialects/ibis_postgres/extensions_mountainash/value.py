@@ -31,9 +31,9 @@ _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST, "failure_behavi
     Clause("failure_behavior", ClauseOp.EQ, "null"),
 ))))
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "ibis-framework", specifier="==12.0.0"),
-    CoordinateConstraint("package", "sqlglot", specifier="==29.0.1"),
-    CoordinateConstraint("engine", "postgres", specifier="==16.15"),
+    CoordinateConstraint("package", "ibis-framework", specifier=">=12.0.0"),
+    CoordinateConstraint("package", "sqlglot", specifier=">=29.0.1"),
+    CoordinateConstraint("engine", "postgres", specifier=">=16.15"),
 )),))
 _MESSAGE = (
     "Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 lowers TryCast to a strict cast; "

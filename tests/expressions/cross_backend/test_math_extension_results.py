@@ -131,7 +131,7 @@ class TestCbrt:
         data = {"a": [-8.0, -27.0]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'ibis-duckdb', 'ibis-sqlite'),
+            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-pyarrow', 'narwhals-lazy', 'ibis-duckdb', 'ibis-sqlite'),
             reason='ma.col(x).cbrt() on negative inputs yields NaN across all backends',
             errors=(AssertionError,),
         ):
@@ -196,7 +196,7 @@ class TestCot:
         data = {"a": [math.pi / 4, math.pi / 2]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-pyarrow', 'narwhals-lazy'),
             reason='ma.col(x).cot() raises on pandas and all narwhals backends',
             errors=(NotImplementedError,),
         ):
@@ -295,7 +295,7 @@ class TestDeclaredDecimalMath:
             "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "radians", "degrees",
         }
         inverse_hyperbolic = {"sinh", "cosh", "tanh", "asinh", "acosh", "atanh"}
-        pandas_family = {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}
+        pandas_family = {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow"}
         if backend_name in {"polars", "polars-lazy", } and operation == "cbrt":
             unsupported_error = InvalidOperationError
         elif backend_name in {"narwhals-polars", "narwhals-lazy"} and operation == "cbrt":
@@ -416,7 +416,7 @@ class TestDeclaredDecimalMath:
                 ma.DecimalDtype(12, 3), rounding="half_to_even"
             ).alias("result")
         )
-        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}:
+        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow"}:
             with expect_call_failure(
                 when=True,
                 reason="Narwhals final Decimal cast is refused (NW-MATH-11)",
@@ -481,13 +481,15 @@ class TestDeclaredDecimalMath:
         if operation == "bitwise_not":
             if backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy"}:
                 error_type = InvalidOperationError
-            elif backend_name in {"pandas", "narwhals-pandas"}:
+            elif backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}:
                 error_type = pa.ArrowNotImplementedError
             else:
                 error_type = TypeError
         elif operation in {"bitwise_and", "bitwise_or"}:
             if backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy"}:
                 error_type = InvalidOperationError
+            elif backend_name == "narwhals-pyarrow":
+                error_type = pa.ArrowNotImplementedError
             else:
                 error_type = TypeError
         elif operation == "bitwise_xor":
@@ -502,7 +504,7 @@ class TestDeclaredDecimalMath:
                 BackendCapabilityError
                 if backend_name in {
                     "polars", "polars-lazy", "narwhals-polars",
-                    "narwhals-lazy", "narwhals-pandas", "pandas",
+                    "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow", "pandas",
                 }
                 else TypeError
             )
@@ -564,10 +566,14 @@ class TestDeclaredDecimalMath:
             }
             else None
         )
+        if backend_name == "narwhals-pyarrow":
+            error_type = BackendCapabilityError
         with expect_call_failure(
             when=error_type is not None,
             reason=(
-                "Narwhals diff(n>1) is unsupported"
+                "Narwhals pyarrow cannot evaluate a non-aggregating window under .over(partition_by=...)"
+                if backend_name == "narwhals-pyarrow"
+                else "Narwhals diff(n>1) is unsupported"
             ),
             errors=(error_type,) if error_type else (AssertionError,),
         ):
@@ -633,7 +639,7 @@ class TestDeclaredDecimalMath:
             .cast(ma.DecimalDtype(12, 3), rounding="half_to_even")
             .alias("change")
         ).sort("group", "idx")
-        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}:
+        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow"}:
             with expect_call_failure(
                 when=True,
                 reason="Narwhals final Decimal cast is refused (NW-MATH-11)",
@@ -650,6 +656,7 @@ class TestDeclaredDecimalMath:
         self, backend_name, backend_factory
     ):
         import mountainash as ma
+        from mountainash.core.types import BackendCapabilityError
 
         source = backend_factory.create(
             {
@@ -663,8 +670,13 @@ class TestDeclaredDecimalMath:
             ma.col("a").pct_change().over("group", order_by="idx").alias("change"),
             ma.col("a").lag().alias("unbound_lag"),
         )
-        with pytest.raises(ValueError, match="requires .over"):
-            relation.to_polars()
+        with expect_call_failure(
+            when=backend_name == "narwhals-pyarrow",
+            reason="Narwhals pyarrow cannot evaluate a non-aggregating window under .over(partition_by=...)",
+            errors=(BackendCapabilityError,),
+        ):
+            with pytest.raises(ValueError, match="requires .over"):
+                relation.to_polars()
 
     def test_direct_decimal_invalid_sqrt_domain(
         self, backend_name, declared_decimal_frame, backend_factory
@@ -719,7 +731,7 @@ class TestDeclaredDecimalMath:
                     ma.col("a").cast(ma.DecimalDtype(10, 2), rounding="half_to_even").cast("fp64")
                 ).to_polars()
             return
-        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}:
+        if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow"}:
             source = declared_decimal_frame(
                 {"a": [D("-2.00"), D("2.00")]}, {"a": (8, 2)}
             )
@@ -809,7 +821,7 @@ class TestDeclaredDecimalMath:
             .alias("root")
         )
         if backend_name in {
-            "ibis-sqlite", "pandas", "narwhals-polars", "narwhals-lazy",
+            "ibis-sqlite", "pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow",
             "narwhals-pandas",
         }:
             with pytest.raises(BackendCapabilityError):

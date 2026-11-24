@@ -1,0 +1,112 @@
+{
+  "id": "expressions.backends.narwhals",
+  "path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+  "summary": "Narwhals implementation of the expression system, compiling the unified AST to nw.Expr so pandas, PyArrow, Dask, DuckDB, Polars and lazy Narwhals frames can be targeted through one layer. It composes the same protocol mixins as the other backends. NarwhalsBaseExpressionSystem is the largest base (about 600 lines): it resolves operand types across pandas/Polars-lazy/other natives and provides identify_native_issue, which classifies native exceptions for the capability layer. Imported only if narwhals is installed.",
+  "role": "backend",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "medium",
+  "public_api": [
+    "NarwhalsExpressionSystem",
+    "(Substrait*/MountainAsh* Narwhals mixins listed in __all__)"
+  ],
+  "key_classes": [
+    "NarwhalsExpressionSystem — composed concrete backend registered for CONST_BACKEND.NARWHALS",
+    "NarwhalsBaseExpressionSystem — BACKEND_NAME='narwhals', nw.Expr check, operand-type resolution, identify_native_issue",
+    "SubstraitNw*/MountainAshNw* mixins — per-family implementations under substrait/ and extensions_mountainash/"
+  ],
+  "key_functions": [
+    "_identify_native_issue(error, *, operation_key=None, arguments=None) — classify native engine errors into capability issue classes",
+    "NarwhalsBaseExpressionSystem.field_operand_type(input_data, field) — handles pandas and Polars-lazy natives"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions",
+    "relations.backends.narwhals"
+  ],
+  "extension_points": [
+    "@register_expression_system(CONST_BACKEND.NARWHALS) registers the composed class with the visitor factory",
+    "declare_builtin_expression_system(<cls>, 'narwhals') declares the system for function-mapping lowering",
+    "Add an operation by implementing the protocol method in the matching substrait/ or extensions_mountainash/ expsys_*_<family> mixin, which is composed by multiple inheritance (backend-composition principle)",
+    "Override BaseExpressionSystem hooks (is_native_expression, field_operand_type, infer_expression_operand_type, fixed_result_type)"
+  ],
+  "lifecycle_notes": [
+    "d29e5fe0 fix: declare Narwhals window-shape refusals (backlogs 364, 368)",
+    "7901804d fix: multi-key ranking on Polars-backed Narwhals (backlog 364)",
+    "cf927709 fix: gate qualified Narwhals Arrow and DuckDB limitations"
+  ],
+  "documentation_hooks": [
+    "Backend implementation reference for Narwhals",
+    "Support matrix per Narwhals provider (pandas, pyarrow, dask, duckdb, polars, lazy) with links to capability facts",
+    "Why Narwhals is a backend and not just a dependency"
+  ],
+  "examples": [
+    "ma.col('a').add(1).compile(df) with a narwhals DataFrame selects this system via backend detection",
+    "tests/expressions/cross_backend/ shows each operation parametrized across polars, narwhals and ibis backends"
+  ],
+  "tests": [
+    "tests/expressions/cross_backend",
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_protocol_completeness.py",
+    "tests/core/test_mro_method_collisions.py",
+    "tests/core/test_narwhals_provider_capability_gates.py",
+    "tests/core/test_known_limitation.py"
+  ],
+  "risks": [
+    "Narwhals delegates to many underlying engines whose behaviour differs (pandas, pyarrow, dask, duckdb); many known limitations are declared per narwhals-<provider> dialect in the capability tree",
+    "Window-shape and multi-key ranking refusals on specific providers (backlog 364, 368)",
+    "Dtype and nullable-integer casting quirks on pandas (252)"
+  ],
+  "open_questions": [
+    "Exact mapping of every Narwhals provider to a tested configuration in CI was not verified"
+  ],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/expressions/backends/expression_systems/narwhals/__init__.py",
+      "detail": "NarwhalsExpressionSystem registered for CONST_BACKEND.NARWHALS"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/expression_systems/narwhals/base.py",
+      "detail": "NarwhalsBaseExpressionSystem and _identify_native_issue"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/expressions/backends/__init__.py",
+      "detail": "Narwhals system imported only if narwhals is installed"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_narwhals_provider_capability_gates.py",
+      "detail": "Provider-level capability gates for Narwhals"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+      "detail": "Recent commits d29e5fe0, 7901804d"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -5,7 +5,6 @@ Implements string operations for the Narwhals backend.
 
 from __future__ import annotations
 
-import functools
 import re
 from typing import Any, Optional, TYPE_CHECKING, cast
 
@@ -31,9 +30,9 @@ def _nw_concat_fold(sep: "NarwhalsExpr", inputs: "tuple[NarwhalsExpr, ...]") -> 
     for x in inputs:
         present = ~x.is_null()
         piece = nw.when(present).then(
-            nw.when(any_seen).then(sep + x).otherwise(x)
+            nw.when(any_seen).then(nw.concat_str(sep, x, ignore_nulls=False)).otherwise(x)
         ).otherwise(nw.lit(""))
-        text_acc = text_acc + piece
+        text_acc = nw.concat_str(text_acc, piece, ignore_nulls=False)
         any_seen = any_seen | present
     return text_acc
 
@@ -99,9 +98,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     def _prepare_literal_or_native_second(self, operands):
         second = (
             operands.raw_literal(
-                1, "Narwhals pandas search substrings must be literals"
+                1,
+                f"Narwhals {self.dialect.removeprefix('narwhals-')} search substrings must be literals",
             )
-            if self.dialect == "narwhals-pandas"
+            if self.dialect in ("narwhals-pandas", "narwhals-pyarrow")
             else operands.raw_literal_or_native(1)
         )
         return [operands.native(0), second] + [
@@ -140,9 +140,9 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     def _prepare_call_replace(self, operands):
         replacement = (
             operands.raw_literal(
-                2, "Narwhals pandas replacements must be literals"
+                2, f"Narwhals {self.dialect.removeprefix('narwhals-')} replacements must be literals"
             )
-            if self.dialect == "narwhals-pandas"
+            if self.dialect in ("narwhals-pandas", "narwhals-pyarrow")
             else operands.raw_literal_or_native(2)
         )
         return [
@@ -156,9 +156,10 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     def _prepare_call_regexp_replace(self, operands):
         replacement = (
             operands.raw_literal(
-                2, "Narwhals pandas regex replacements must be literals"
+                2,
+                f"Narwhals {self.dialect.removeprefix('narwhals-')} regex replacements must be literals",
             )
-            if self.dialect == "narwhals-pandas"
+            if self.dialect in ("narwhals-pandas", "narwhals-pyarrow")
             else operands.raw_literal_or_native(2)
         )
         return [
@@ -797,7 +798,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             Concatenated string.
         """
         if null_handling == "ACCEPT_NULLS":
-            return functools.reduce(lambda acc, x: acc + x, input[1:], input[0])
+            return nw.concat_str(*input, ignore_nulls=False)
         return _nw_concat_fold(nw.lit(""), input)
 
     def concat_ws(

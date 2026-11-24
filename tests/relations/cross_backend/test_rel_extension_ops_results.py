@@ -352,9 +352,17 @@ class TestPivot:
             backend_name,
         )
         with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-sqlite", "narwhals-lazy"),
-            errors=(AttributeError,) if backend_name == "narwhals-lazy" else (TypeError,),
-            reason="Relation.pivot() raises on all ibis backends and narwhals-lazy; polars and eager narwhals compute it",
+            when=backend_name in ("ibis-duckdb", "ibis-sqlite", "narwhals-lazy", "narwhals-pyarrow"),
+            errors=(
+                (AttributeError,) if backend_name == "narwhals-lazy"
+                else (BackendCapabilityError,) if backend_name == "narwhals-pyarrow"
+                else (TypeError,)
+            ),
+            reason=(
+                "NW-REL-07: Narwhals has no pivot implementation for the PyArrow backend"
+                if backend_name == "narwhals-pyarrow"
+                else "Relation.pivot() raises on all ibis backends and narwhals-lazy; polars and eager narwhals compute it"
+            ),
         ):
             result = ma.relation(df).pivot(on="category", index="id", values="value").to_dicts()
             result_sorted = sorted_dicts(result, "id")

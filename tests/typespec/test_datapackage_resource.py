@@ -577,7 +577,7 @@ class SingleDocumentResolver:
 
 class RaisingResolver:
     def resolve(self, reference, *, base_uri, expected_kind):
-        raise PermissionError(reference)
+        raise PermissionError(13, "Permission denied", reference)
 
 
 def test_referenced_schema_is_resolved_once_per_relationship_access():
@@ -625,7 +625,9 @@ def test_resolver_transport_failure_is_typed_with_cause() -> None:
 
     with pytest.raises(DescriptorReferenceInvalid) as caught:
         resource.to_table_schema()
-    assert isinstance(caught.value.__cause__, PermissionError)
+    cause = caught.value.__cause__
+    assert isinstance(cause, PermissionError)
+    assert (cause.errno, cause.filename) == (13, None)
 
 
 
@@ -817,7 +819,7 @@ def test_resolved_invalid_dialect_shape_is_typed_with_cause() -> None:
 
     with pytest.raises(DescriptorReferenceInvalid) as caught:
         resource.to_dialect()
-    assert caught.value.__cause__ is not None
+    assert caught.value.__cause__ is None  # a native cause is not chained (W8)
 
 
 def test_resolved_invalid_foreign_key_shape_raises_typed_key_shape_error() -> None:

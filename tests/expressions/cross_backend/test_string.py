@@ -520,6 +520,10 @@ class TestCountSubstring:
 _COUNT_SUBSTRING_DYNAMIC_HONORING = [
     b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", )
 ]
+_NW_PYARROW_DYNAMIC_COUNT_REASON = (
+    "narwhals-pyarrow: dynamic count_substring operand is literal-only "
+    "(NW-STR-03: Narwhals str.replace_all pattern rejects expressions)"
+)
 
 
 @pytest.mark.cross_backend
@@ -532,7 +536,12 @@ def test_count_substring_dynamic_operand(backend_name, backend_factory, collect_
     data = {"text": ["banana", "aaaa", "hello"], "needle": ["a", "aa", ""]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.count_substring(ma.col("needle"))
-    assert collect_expr(df, expr) == [3, 2, 6], f"[{backend_name}]"
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason=_NW_PYARROW_DYNAMIC_COUNT_REASON,
+        errors=(BackendCapabilityError,),
+    ):
+        assert collect_expr(df, expr) == [3, 2, 6], f"[{backend_name}]"
 
 
 @pytest.mark.cross_backend
@@ -546,7 +555,12 @@ def test_count_substring_dynamic_operand_regex_metacharacter(backend_name, backe
     data = {"text": ["aaaa", "banana", "a.b.c"], "needle": [".", "a", "."]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.count_substring(ma.col("needle"))
-    assert collect_expr(df, expr) == [0, 3, 2], f"[{backend_name}]"
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        reason=_NW_PYARROW_DYNAMIC_COUNT_REASON,
+        errors=(BackendCapabilityError,),
+    ):
+        assert collect_expr(df, expr) == [0, 3, 2], f"[{backend_name}]"
 
 
 # =============================================================================

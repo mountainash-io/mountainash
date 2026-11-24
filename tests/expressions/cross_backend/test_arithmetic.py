@@ -15,6 +15,7 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 from decimal import Decimal as D
 
 import polars as pl
+import pyarrow as pa
 import narwhals as nw
 import mountainash as ma_top
 from mountainash.core.types import BackendCapabilityError
@@ -485,7 +486,7 @@ def test_declared_decimal_binary(
     if working:
         expr = expr.cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even")
     query = ma_top.relation(frame).select(expr.alias("r"))
-    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"}:
         with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
             query.to_polars()
         return
@@ -513,12 +514,13 @@ def test_declared_decimal_binary(
                 out = query.to_polars()
             if working:
                 assert out.schema["r"] == pl.Decimal(16, 5)
-            elif backend_name in {"pandas", "narwhals-pandas"}:
+            elif backend_name in {"pandas", "narwhals-pandas", "narwhals-pyarrow"}:
                 # Arrow's decimal promotion rules; power returns floating point.
                 dtype = {
                     "add": pl.Decimal(13, 3), "subtract": pl.Decimal(13, 3),
                     "multiply": pl.Decimal(23, 5), "divide": pl.Decimal(23, 12),
-                    "floor_divide": pl.Decimal(23, 12), "power": pl.Float64,
+                    "floor_divide": pl.Decimal(23, 12), "modulus": pl.Decimal(35, 14),
+                    "power": pl.Float64,
                 }[operation]
                 assert out.schema["r"] == dtype
             elif backend_name.startswith("ibis"):
@@ -544,7 +546,7 @@ def test_authored_decimal_chain(backend_name, declared_decimal_frame, backend_fa
     query = ma_top.relation(frame).select(
         (a * b + a).cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even").alias("r")
     )
-    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"}:
         with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
             query.to_polars()
         return
@@ -580,7 +582,7 @@ def test_decimal_multiplication_fractional_witnesses(
     if working:
         expr = expr.cast(ma_top.DecimalDtype(16, 6), rounding="half_to_even")
     query = ma_top.relation(frame).select(expr.alias("r"))
-    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"}:
         with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
             query.to_polars()
         return
@@ -645,7 +647,7 @@ def test_decimal_operand_arrangements(
     if working:
         expr = expr.cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even")
     query = ma_top.relation(frame).select(expr.alias("r"))
-    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"}:
         with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
             query.to_polars()
         return
@@ -660,7 +662,12 @@ def test_decimal_operand_arrangements(
             reason="pandas 3 Arrow Decimal remainder not implemented (288)",
             errors=(NotImplementedError,),
         ):
-            out = query.to_polars()
+            with expect_call_failure(
+                when=not working and operation == "rmodulus" and backend_name == "narwhals-pyarrow",
+                reason="NW-MATH-13: Narwhals-on-PyArrow integer-literal remainder by a Decimal promotes to precision 45, beyond Arrow's 38-digit maximum",
+                errors=(pa.ArrowInvalid,),
+            ):
+                out = query.to_polars()
     if working:
         assert out.schema["r"] == pl.Decimal(16, 5)
         assert out["r"].to_list() == [D(expected)]
@@ -716,13 +723,14 @@ def test_decimal_zero_divisor_computation_boundary(
         a, b = a.cast("fp64"), b.cast("fp64")
     query = ma_top.relation(frame).select(getattr(a, operation)(b).alias("r"))
     arrow_pandas = backend_name in {"pandas", "narwhals-pandas"}
+    arrow_nulling = arrow_pandas or backend_name == "narwhals-pyarrow"
     polars_kernel = backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", }
     errors = nw.exceptions if backend_name.startswith("narwhals") else pl.exceptions
     error = None
     if arrow_pandas and operation == "modulus":
         error = NotImplementedError
     elif not working and operation == "divide":
-        if arrow_pandas:
+        if arrow_nulling:
             error = pa.ArrowInvalid
         elif polars_kernel:
             error = errors.ComputeError
@@ -738,8 +746,8 @@ def test_decimal_zero_divisor_computation_boundary(
             query.to_polars()
         return
     out = query.to_polars()
-    if (arrow_pandas and operation == "floor_divide") or (
-        not working and backend_name == "ibis-duckdb" and operation == "modulus"
+    if (arrow_nulling and operation == "floor_divide") or (
+        not working and backend_name in {"ibis-duckdb", "narwhals-pyarrow"} and operation == "modulus"
     ):
         assert out["r"].to_list() == [None]
     elif operation == "modulus":

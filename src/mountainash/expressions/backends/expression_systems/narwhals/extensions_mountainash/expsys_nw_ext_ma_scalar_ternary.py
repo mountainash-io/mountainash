@@ -271,9 +271,12 @@ class MountainAshNarwhalsScalarTernaryExpressionSystem(NarwhalsBaseExpressionSys
     # ========================================
 
     def to_ternary(self, operand: NarwhalsExpr) -> NarwhalsExpr:
+        # Arrow's `if_else` only accepts a boolean predicate; Polars/pandas
+        # coerce a numeric operand by truthiness, so make that explicit.
+        predicate = operand.cast(nw.Boolean) if self.dialect == "narwhals-pyarrow" else operand
         return (
             nw.when(operand.is_null()).then(nw.lit(T_UNKNOWN))
-            .when(operand).then(nw.lit(T_TRUE))
+            .when(predicate).then(nw.lit(T_TRUE))
             .otherwise(nw.lit(T_FALSE))
         )
 

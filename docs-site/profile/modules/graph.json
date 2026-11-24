@@ -1,33 +1,99 @@
 {
   "id": "graph",
   "path": "src/mountainash/graph/",
-  "summary": "Pure graph algorithms: topological ordering (Kahn's algorithm), ancestor discovery (BFS), and parallel layer computation for DAG scheduling. Zero external dependencies. Used by PipelineSpec for step ordering.",
-  "role": "orchestration",
-  "visibility": "semi-public",
+  "summary": "Small shared graph kernel used by RelationDAG and Pipeline. Graph[N] holds named nodes, dependency_edges (drive ordering) and constraint_edges with metadata (never affect execution), and provides topological_order, ancestors, descendants, parallel_layers, describe and to_dot. Pure algorithm functions are exposed alongside the container; it holds no execution, caching or persistence.",
+  "role": "model",
+  "visibility": "public",
   "stability": "stable",
-  "audiences": ["maintainers", "contributors"],
+  "audiences": [
+    "maintainers",
+    "contributors"
+  ],
   "doc_priority": "reference-only",
   "confidence": "high",
-  "public_api": ["topological_order", "ancestors", "parallel_layers"],
-  "key_classes": [],
-  "key_functions": [
-    {"name": "topological_order(nodes, edges, target=None)", "purpose": "Kahn's algorithm with optional target-ancestor filtering; raises on cycles"},
-    {"name": "ancestors(edges, target)", "purpose": "BFS backward from target; returns all ancestor nodes"},
-    {"name": "parallel_layers(edges, order)", "purpose": "Groups topologically-ordered nodes into concurrent execution layers"}
+  "public_api": [
+    "Graph",
+    "topological_order",
+    "ancestors",
+    "parallel_layers",
+    "CycleError",
+    "DuplicateNodeError",
+    "UnknownNodeError"
   ],
-  "dependencies": [],
-  "dependents": ["pipelines.core.spec"],
-  "extension_points": [],
-  "lifecycle_notes": ["Minimal, stable, pure-function module with stdlib-only dependencies"],
-  "documentation_hooks": [],
-  "examples": [],
-  "tests": [],
-  "risks": [],
+  "key_classes": [
+    "Graph[N] — generic node/edge container with two sharply separated edge sets",
+    "CycleError — dependency edges contain a cycle (ValueError)",
+    "DuplicateNodeError — node name already registered (ValueError)",
+    "UnknownNodeError — node name not in graph (KeyError)"
+  ],
+  "key_functions": [
+    "topological_order(nodes, edges, target) — ordering, optionally restricted to a target's ancestors",
+    "ancestors(edges, name) — upstream closure",
+    "parallel_layers(edges, order) — group order into concurrently runnable layers",
+    "Graph.add(name, node, *, depends_on=()) — add a node",
+    "Graph.add_constraint(parent, child, meta=None) — add constraint edge with deduped metadata",
+    "Graph.to_dot(...) — Graphviz DOT with dashed constraint edges"
+  ],
+  "dependencies": [
+    "relations",
+    "relations.core.relation_api"
+  ],
+  "dependents": [
+    "pipelines",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "Generic node type N; owners supply derived dependency names"
+  ],
+  "lifecycle_notes": [
+    "1a784e46 feat: add mountainash.graph module with shared DAG algorithms",
+    "d6da8d78 feat(graph): Graph[N] kernel container with two edge sets",
+    "7d906a0a kernel-owned DAG introspection (describe/to_dot)"
+  ],
+  "documentation_hooks": [
+    "Two-edge graph model (dependency vs constraint) reference",
+    "Graph kernel shared by RelationDAG and Pipeline"
+  ],
+  "examples": [
+    "g = Graph(); g.add('a', n1); g.add('b', n2, depends_on=['a']); g.topological_order()"
+  ],
+  "tests": [
+    "tests/graph/test_algorithms.py",
+    "tests/graph/test_container.py"
+  ],
+  "risks": [
+    "Constraint edges are not validated against nodes at add time",
+    "descendants is computed by repeated scan (O(E) per frontier), fine for small graphs"
+  ],
   "open_questions": [],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/graph/algorithms.py", "detail": "Three pure functions; stdlib-only"}
+    {
+      "kind": "export",
+      "path": "src/mountainash/graph/__init__.py",
+      "detail": "__all__ lists algorithms, Graph and errors"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/graph/container.py",
+      "detail": "Graph with dependency_edges, constraint_edges, constraint_metadata"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/graph/algorithms.py",
+      "detail": "topological_order, ancestors, parallel_layers"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/graph/container.py",
+      "detail": "two-edge-graph-model: dependency and constraint edges kept sharply separate"
+    },
+    {
+      "kind": "test",
+      "path": "tests/graph/test_container.py",
+      "detail": "container tests"
+    }
   ],
-  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
   "manual": {
     "notes": "",
     "editorial_status": "",

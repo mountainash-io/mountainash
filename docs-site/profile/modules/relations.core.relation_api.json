@@ -1,0 +1,167 @@
+{
+  "id": "relations.core.relation_api",
+  "path": "src/mountainash/relations/core/relation_api/",
+  "summary": "The user-facing fluent API. Relation wraps an immutable RelationNode and each chainable method (filter, select via projection builder, join, join_asof, sort, head, group_by, unique, pivot, conform, sample, ...) returns a new Relation around a new node; terminals (collect, to_polars, to_pandas, to_pyarrow, to_dicts, item, count_rows, scalar aggregates, fingerprint, explain, snapshot) trigger compilation. It also provides relation()/concat() factories, GroupedRelation, materialization_scope checkpoint handles, and an optimisation pass registry.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "executives-marketing",
+    "broader-hype"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "Relation",
+    "GroupedRelation",
+    "relation",
+    "concat"
+  ],
+  "key_classes": [
+    "Relation — fluent plan builder and terminal surface",
+    "RelationBase — compilation machinery (prepare, compile, execute) shared by Relation",
+    "GroupedRelation — group_by result exposing agg",
+    "RelationProjectionBuilder — flat namespace builder for select/with_columns/drop/rename",
+    "CheckpointPolicy / MaterializationScopeHandle — owned snapshot and checkpoint lifetime"
+  ],
+  "key_functions": [
+    "relation(data) — factory accepting native frames, Python data, DataResource",
+    "concat(relations, ...) — union",
+    "Relation.filter/join/join_asof/sort/group_by/unique/pivot/unpivot/conform/sample/top_k",
+    "Relation.collect()/to_polars()/to_pandas()/to_pyarrow()/to_ibis()/to_narwhals() — terminals",
+    "Relation.collect_with_drift() — conform with drift report",
+    "Relation.columns/schema/dtypes/output_schema — AST-derived introspection",
+    "Relation.explain()/compile() — plan inspection",
+    "materialization_scope(*, checkpoint=CheckpointPolicy.EVERY_STAGE) — scoped snapshots",
+    "register_optimisation(node_type, transform_fn) — AST optimisation pass registry"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "expressions",
+    "expressions.core.expression_api",
+    "pydata",
+    "pydata.egress",
+    "pydata.ingress",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel"
+  ],
+  "dependents": [
+    "core",
+    "datacontracts",
+    "graph",
+    "pipelines",
+    "relations",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "extension_points": [
+    "Relation._make(node) hook so DAGRelation preserves subclass",
+    "_FLAT_NAMESPACES builder classes (api_builders)",
+    "register_optimisation passes",
+    "DAGRelation subclasses override _make"
+  ],
+  "lifecycle_notes": [
+    "988d3ee0 removed Relation.params and runner/storage/relation bridge",
+    "f4d4ef97 final-review fixes (pandas imports, resource refusals)",
+    "642480f8 target= replaces backend=; terminals take target=",
+    "60bc546a egress terminal paths restored"
+  ],
+  "documentation_hooks": [
+    "Relations user guide: build then collect",
+    "Terminals and egress formats",
+    "Execution target= argument",
+    "Snapshots, checkpoints and materialization scopes",
+    "Fingerprint terminal"
+  ],
+  "examples": [
+    "ma.relation(df).filter(ma.col('x')>0).join(other, on='id').to_polars()",
+    "tests/relations/test_rel_pipeline.py",
+    "tests/relations/test_terminal_egress.py"
+  ],
+  "tests": [
+    "tests/relations/test_rel_api_build.py",
+    "tests/relations/test_rel_pipeline.py",
+    "tests/relations/test_terminal_egress.py",
+    "tests/relations/test_terminal_egress_native.py",
+    "tests/relations/test_terminal_collect_compile.py",
+    "tests/relations/test_snapshot_scope.py",
+    "tests/relations/test_optimisation_registry.py",
+    "tests/relations/test_relation_introspection.py",
+    "tests/relations/test_relation_describe.py",
+    "tests/relations/cross_backend/test_rel_core_ops_results.py",
+    "tests/relations/cross_backend/test_rel_join_results.py",
+    "tests/relations/test_unnest.py"
+  ],
+  "risks": [
+    "relation.py is ~1560 lines; large method surface to keep aligned with RelationAPIProtocol",
+    "Polars API alignment vs Substrait AST: naming translation is at this boundary",
+    "Must call self._make never Relation(...) directly (test_make_invariant)",
+    "Lazy terminals may raise LogicalTerminalRequired or CompileRequiresExecutionError depending on target"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/core/relation_api/__init__.py",
+      "detail": "exports Relation, GroupedRelation, relation, concat"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_api/relation.py",
+      "detail": "Relation class, methods, terminals"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_api/relation_base.py",
+      "detail": "RelationBase compile machinery"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_api/materialization_scope.py",
+      "detail": "CheckpointPolicy, materialization_scope"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_api/optimisation_registry.py",
+      "detail": "register_optimisation"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/core/relation_api/relation.py",
+      "detail": "fluent-builder-pattern, build-then-collect and polars-api-substrait-ast principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_rel_api_build.py",
+      "detail": "API build tests"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations/core/relation_api",
+      "detail": "988d3ee0, f4d4ef97"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

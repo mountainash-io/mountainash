@@ -1,0 +1,112 @@
+{
+  "id": "pydata.egress",
+  "path": "src/mountainash/pydata/egress/",
+  "summary": "Converts DataFrames to Python data: dict-of-lists, list-of-dicts, tuples, named tuples, dataclass instances and Pydantic models. EgressToPythonData is a mixin whose collection conversions delegate to EgressPydataFromPolars; DataFrameEgressFactory maps every supported dataframe type to that strategy.",
+  "role": "io",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "medium",
+  "public_api": [
+    "BaseEgressStrategy",
+    "DataFrameEgressFactory",
+    "EgressPydataFromPolars",
+    "EgressToPythonData",
+    "EgressHelpers"
+  ],
+  "key_classes": [
+    "EgressFromPolars (alias EgressPydataFromPolars) — concrete strategy converting via Polars rows",
+    "DataFrameEgressFactory — BaseStrategyFactory mapping CONST_DATAFRAME_TYPE to the strategy",
+    "BaseEgressDataFrame — abstract base (exported lazily as BaseEgressStrategy)",
+    "EgressToPythonData — mixin providing to-collection conversions",
+    "EgressHelpers — helper functions"
+  ],
+  "key_functions": [
+    "EgressPydataFromPolars._to_list_of_tuples/_to_list_of_dictionaries/_to_dictionary_of_lists — collection conversions delegated to by EgressToPythonData"
+  ],
+  "dependencies": [
+    "core",
+    "pydata",
+    "pydata.ingress",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "pydata",
+    "relations.core.relation_api"
+  ],
+  "extension_points": [
+    "Add a strategy by subclassing BaseEgressDataFrame and mapping it in DataFrameEgressFactory._configure_strategy_mapping"
+  ],
+  "lifecycle_notes": [
+    "a68147b6 removed transit policing; b65a9dba, f3a14b98, 3db50230 closed pandas transit cutover.",
+    "838a285b shared schema declarations refactor."
+  ],
+  "documentation_hooks": [
+    "Exporting relations to Python dicts, lists, dataclasses and Pydantic models",
+    "Rename/customisation options for egress"
+  ],
+  "examples": [
+    "tests/pydata/test_egress_all.py",
+    "tests/pydata/test_egress_custom_rename.py",
+    "tests/pydata/test_egress_factory.py"
+  ],
+  "tests": [
+    "tests/pydata/test_egress_all.py",
+    "tests/pydata/test_egress_custom_rename.py",
+    "tests/pydata/test_egress_factory.py",
+    "tests/pydata/test_egress_namedtuple_sanitize.py"
+  ],
+  "risks": [
+    "All dataframe types route to a single Polars-based strategy, so non-Polars inputs are converted first.",
+    "Module and class names in __init__ and factory use legacy aliases (EgressPydataFromPolars vs EgressFromPolars; BaseEgressStrategy vs BaseEgressDataFrame); the factory file header still mentions legacy mountainash_dataframes path.",
+    "Legacy-looking code with commented-out blocks in egress_factory.py."
+  ],
+  "open_questions": [
+    "Whether the egress classes are meant as a public entry point or are reached only through Relation.to_* methods is not documented."
+  ],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/pydata/egress/__init__.py",
+      "detail": "lazy_loader submod_attrs"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/egress/egress_factory.py",
+      "detail": "DataFrameEgressFactory maps all types to EgressPydataFromPolars"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/egress/egress_pydata_from_polars.py",
+      "detail": "class EgressFromPolars and alias EgressPydataFromPolars"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/egress/egress_to_pythondata.py",
+      "detail": "EgressToPythonData delegates to EgressPydataFromPolars"
+    },
+    {
+      "kind": "test",
+      "path": "tests/pydata/test_egress_all.py",
+      "detail": "egress coverage"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/pydata/egress",
+      "detail": "git log: 838a285b, a68147b6, b65a9dba"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

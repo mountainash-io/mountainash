@@ -1,46 +1,175 @@
 {
   "id": "core",
   "path": "src/mountainash/core/",
-  "summary": "Shared infrastructure: backend/dtype/operation enums (CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation), type guards (is_polars_dataframe, detect_dataframe_backend_type), factory base classes, lazy imports, and remote I/O facade via mountainash-transport.",
+  "summary": "Shared infrastructure used across every subsystem: backend enums and detection (CONST_BACKEND, identify_backend, native_identity), type guards and Protocols, the error root, generic KeyedRegistry, strategy-factory bases, lazy optional-import helpers, remote-storage/location helpers, ResourceRef, limitation enrichment, lowering-reuse descriptors and eager scalar value classification. This scope covers only the loose .py files directly in core/.",
   "role": "orchestration",
-  "visibility": "internal",
-  "stability": "stable",
-  "audiences": ["maintainers", "backend-architecture"],
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
   "doc_priority": "useful",
   "confidence": "high",
-  "public_api": [],
+  "public_api": [
+    "MountainashError (via mountainash)",
+    "ResourceRef (via mountainash)",
+    "DataFrameT (via mountainash)",
+    "ValueKind, value_kind, boolean_value, text_value (via mountainash)"
+  ],
   "key_classes": [
-    {"name": "MountainashDtype", "purpose": "Cross-backend dtype enum with mapping to native types"},
-    {"name": "BaseFactoryMixin", "purpose": "Factory pattern base for backend strategy dispatch"},
-    {"name": "BaseStrategyFactory", "purpose": "Strategy factory with backend registration decorator"},
-    {"name": "DataFrameTypeFactoryMixin", "purpose": "DataFrame-type-aware factory dispatch"}
+    "CONST_BACKEND — StrEnum of detected dataframe libraries",
+    "CONST_BACKEND_SYSTEM — StrEnum of expression/relation system targets; backend_to_system() maps between them",
+    "KeyedRegistry — generic dict-backed registry with decorator registration and lazy init",
+    "BaseStrategyFactory — lazy-loading strategy factory base used by pydata ingress/egress",
+    "DataFrameTypeFactoryMixin — dataframe-type detection by string inspection without imports",
+    "ResourceRef — uniform wrapper for tabular and non-tabular DataResource content",
+    "MountainashError — error root (errors.py)",
+    "BackendConversionError — backend conversion failure (also TypeError)",
+    "ValueKind — enum of admitted eager scalar representations",
+    "LoweringDescriptor / ReuseCase — declare whether a lowering may be reused (REPEATABLE, DEFERRED_ONLY, OCCURRENCE)"
   ],
   "key_functions": [
-    {"name": "resolve_dtype", "purpose": "Map MountainashDtype to native backend dtype"},
-    {"name": "is_available", "purpose": "Check if optional backend module is importable"},
-    {"name": "require_module", "purpose": "Import-or-raise for optional backend modules"},
-    {"name": "detect_dataframe_backend_type", "purpose": "Detect CONST_BACKEND from a DataFrame object"},
-    {"name": "is_remote", "purpose": "Check if a path requires StorageFacade (S3, GCS, etc.)"},
-    {"name": "facade_read_bytes", "purpose": "Read remote path bytes via StorageFacade"}
+    "identify_backend(dataframe_or_backend) -> CONST_BACKEND — single backend detector for expressions and relations",
+    "native_identity(dataframe_or_backend) -> BackendIdentity — capability-level identity including Ibis/Narwhals dialect",
+    "is_available(module_name) -> bool and require_module(name, install_hint) — optional dependency probes",
+    "is_remote(path) / facade_read_bytes(path, policy) — delegate to mountainash_transport StorageFacade",
+    "resolve_resource_location(resource, path) — join a resource path to its descriptor base under LocationPolicy",
+    "call_with_limitation_enrichment(...) / enrich_materialization(...) — attribute native errors to registered limitations",
+    "value_kind(value) -> ValueKind, boolean_value(...), text_value(...) — eager domain-safe scalar classification",
+    "write_text_if_changed(path, content) -> bool — atomic idempotent generated-file writer",
+    "declare_lowering / selected_lowering / fold_lowering — lowering reuse permission helpers"
   ],
-  "dependencies": [],
-  "dependents": ["expressions", "relations", "typespec", "conform", "pydata.ingress", "pydata.egress"],
-  "extension_points": ["Backend registration decorator", "ExtensionRelOperation enum for new extension operations"],
+  "dependencies": [
+    "conform",
+    "core.capabilities",
+    "core.dtypes",
+    "relations.core",
+    "relations.core.relation_api",
+    "relations.dag",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "conform",
+    "core.capabilities",
+    "core.dtypes",
+    "exceptions",
+    "expressions",
+    "expressions.backends.capabilities",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "expressions.membership",
+    "pipelines",
+    "pydata.egress",
+    "pydata.ingress",
+    "relations",
+    "relations.backends.capabilities",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "typespec",
+    "validation"
+  ],
+  "extension_points": [
+    "KeyedRegistry (core/registries.py): shared primitive behind expression-backend, relation-backend, visit and optimisation-pass registries",
+    "BaseStrategyFactory subclasses supply _configure_strategy_mapping/_get_strategy_key",
+    "Limitations registry keyed by (operation, parameter) with MATERIALIZE_BOUNDARY sentinel (core/limitations.py)"
+  ],
   "lifecycle_notes": [
-    "ExtensionRelOperation.UNNEST added for struct column expansion (2026-05)",
-    "Stable shared infrastructure layer — changes infrequent"
+    "Location/policy confinement work for backlog 381: ccfa9740, 3031c1f8, 22931331, 005897de, cdee565d.",
+    "backend_detection.py moved verbatim from expsys_base so expressions and relations share one detector; expsys_base re-exports for compatibility.",
+    "constants.py also still carries many CONST_EXPRESSION_* enums."
   ],
-  "documentation_hooks": [],
-  "examples": [],
-  "tests": [],
-  "risks": ["Enum additions propagate to all backends — must wire through all three"],
+  "documentation_hooks": [
+    "Backend detection and identity explanation",
+    "Optional dependency / lazy import policy",
+    "Remote storage and LocationPolicy resource resolution",
+    "Contributor guide: shared registries and factories",
+    "Error hierarchy root"
+  ],
+  "examples": [
+    "from mountainash.core.backend_detection import identify_backend; identify_backend(df)",
+    "tests/core/test_registries.py and tests/core/test_backend_detection.py"
+  ],
+  "tests": [
+    "tests/core/test_backend_detection.py",
+    "tests/core/test_registries.py",
+    "tests/core/test_io.py",
+    "tests/core/test_limitations.py",
+    "tests/core/test_value_classification.py",
+    "tests/core/test_unified_types.py",
+    "tests/core/test_unified_constants.py",
+    "tests/core/test_generated_artifacts.py",
+    "tests/core/test_resource_ref_policy.py",
+    "tests/core/test_errors.py"
+  ],
+  "risks": [
+    "Wide fan-in: nearly every module depends on core, so signature changes ripple across the package.",
+    "core imports back into conform, relations and typespec (mostly lazy or TYPE_CHECKING); keep imports lazy to avoid cycles.",
+    "Mixed concerns in one directory (constants, I/O, factories, limitations); the stable vs internal split is not documented per file."
+  ],
   "open_questions": [],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/core/constants.py", "detail": "CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation enums"},
-    {"kind": "symbol", "path": "src/mountainash/core/io.py", "detail": "is_remote() and facade_read_bytes() for StorageFacade integration"},
-    {"kind": "import", "path": "src/mountainash/core/lazy_imports.py", "detail": "Lazy import helpers for optional backends"}
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/backend_detection.py",
+      "detail": "identify_backend, native_identity, narwhals_dialect, bound_ibis_backend"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/registries.py",
+      "detail": "KeyedRegistry docstring names the four registries it replaced"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/errors.py",
+      "detail": "MountainashError root and builtin-compatible subclasses"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/io.py",
+      "detail": "is_remote/facade_read_bytes delegate to mountainash_transport"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/value_classification.py",
+      "detail": "ValueKind, value_kind, boolean_value, text_value"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/core/limitations.py",
+      "detail": "call_with_limitation_enrichment, MATERIALIZE_BOUNDARY"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_registries.py",
+      "detail": "KeyedRegistry behaviour"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/core",
+      "detail": "git log: ccfa9740, 3031c1f8, 22931331, 005897de, cdee565d"
+    }
   ],
-  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
   "manual": {
     "notes": "",
     "editorial_status": "",

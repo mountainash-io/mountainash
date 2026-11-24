@@ -74,8 +74,13 @@ def test_targeted_grouped_asof_with_tolerance(backend_name, backend_factory, tar
         {"t": [2, 6], "g": ["a", "a"], "event": [10, 20]},
         {"t": [1, 4, 7], "g": ["a", "b", "a"], "rate": [100, 999, 700]}, backend_name,
     )
-    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
-        with pytest.raises(BackendCapabilityError, match="Narwhals join_asof does not expose a tolerance argument") as caught:
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow"}:
+        refusal = (
+            "Narwhals has no join_asof implementation for the PyArrow backend"
+            if backend_name == "narwhals-pyarrow"
+            else "Narwhals join_asof does not expose a tolerance argument"
+        )
+        with pytest.raises(BackendCapabilityError, match=refusal) as caught:
             ma.relation(left).join_asof(right, on="t", by="g", strategy=strategy,
                                            tolerance=2, execute_on=target).to_dicts()
         assert caught.value.function_key is RKEY_MOUNTAINASH_REL.JOIN_ASOF

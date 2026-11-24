@@ -1,0 +1,103 @@
+{
+  "id": "relations.backends.capabilities",
+  "path": "src/mountainash/relations/backends/capabilities/",
+  "summary": "Scope-owned, import-safe capability declarations for the relation domain, laid out as backend/(family|dialects)/<namespace>/relation.py. Each module exports a SEGMENT (CapabilitySegment, Domain.RELATION) holding information, policy rules or changes, and each dialect has a _scope.py giving its Scope (e.g. ibis-sqlite). Declarations include Ibis seeded exact-count sample as UNSUPPORTED, resource-read CSV dialect fallback, and SQLite IMPORT_INTO storage limits.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "reference-only",
+  "confidence": "medium",
+  "public_api": [],
+  "key_classes": [
+    "CapabilitySegment (from core.capabilities) — SEGMENT objects declared per scope; not defined here",
+    "Scope/Dialect — _scope.py SCOPE constants naming backend and dialect"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "relations.core.relation_system"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "relations.backends.ibis",
+    "relations.backends.polars"
+  ],
+  "extension_points": [
+    "Add a SEGMENT in <backend>/(family|dialects/<dialect>)/<substrait|extensions_mountainash>/relation.py",
+    "Add a new dialect directory with _scope.py defining SCOPE",
+    "CapabilityInformation/CapabilityPolicyRule with CapabilityKey over RKEY_* operation keys"
+  ],
+  "lifecycle_notes": [
+    "2ec3e45a feat(capabilities): live import-limit and owned-adoption declarations",
+    "d7af5f05 fix: keep relation sampling and positional execution deferred (351) (#404)",
+    "d5cbfa8c feat: require and report authored capability applicability"
+  ],
+  "documentation_hooks": [
+    "Capability declaration authoring guide for relations",
+    "Support matrix of relation limitations per dialect",
+    "Gate vs enrich policy consumers"
+  ],
+  "examples": [
+    "SAMPLE_SEEDED_COUNT_KEY = CapabilityKey(operation=RKEY_MOUNTAINASH_REL.SAMPLE, subject=\"seed\", selector=...) declared UNSUPPORTED for Ibis"
+  ],
+  "tests": [
+    "tests/relations/test_rel_limitations.py",
+    "tests/relations/test_rel_authoritative_dialect_gating.py",
+    "tests/core/test_capability_declarations.py",
+    "tests/core/test_capability_declarations_import_safe.py"
+  ],
+  "risks": [
+    "Declarations must stay import-safe data only; the import-safe test enforces this",
+    "Several dialect modules (mysql, exasol, singlestoredb, narwhals dialects) are near-empty or duplicate declarations; actual coverage is uneven",
+    "Directory tree is numerous and deep, easy to miss when adding a dialect"
+  ],
+  "open_questions": [
+    "Which narwhals/polars family segments are intentionally empty versus pending population?"
+  ],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/capabilities/ibis/family/extensions_mountainash/relation.py",
+      "detail": "SAMPLE_SEEDED_COUNT_KEY and SEGMENT with UNSUPPORTED information"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/relation.py",
+      "detail": "GATE/BLOCK policy and MATERIALIZATION_ERROR enrich for IMPORT_INTO"
+    },
+    {
+      "kind": "config",
+      "path": "src/mountainash/relations/backends/capabilities/ibis/dialects/ibis_sqlite/_scope.py",
+      "detail": "SCOPE = Scope(backend=IBIS, applicability=Dialect(name='ibis-sqlite'))"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/relation.py",
+      "detail": "empty SEGMENT with changes=()"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/backends/capabilities/ibis/family/extensions_mountainash/relation.py",
+      "detail": "capability-as-call-property and explicit-enforcement-role principles govern key/enforcement shape"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_rel_limitations.py",
+      "detail": "relation limitation tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

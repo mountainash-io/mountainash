@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
+from packaging.version import Version
+
 
 
 import pytest
@@ -38,10 +40,10 @@ def _known_unavailable(operation_key, backend: str) -> bool:
     """Concrete whole-operation refusals exercised by the char-set cases."""
     return (
         operation_key == FK_STR.SWAPCASE
-        and backend in {"ibis", "narwhals-polars", "narwhals-pandas"}
+        and backend in {"ibis", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
         or operation_key in {FK_STR.TITLE, FK_STR.INITCAP} and backend == "ibis"
         or operation_key == FK_STR.CAPITALIZE
-        and backend in {"narwhals-polars", "narwhals-pandas"}
+        and backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
     )
 
 _CASE_SENSITIVITY_FKEYS = {
@@ -132,7 +134,7 @@ def test_case_insensitive_string_option_declared_unsupported(op, backend):
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_case_sensitive_string_option_matches_omission(op, backend):
     spec = _case_sensitivity_probe(op, "CASE_SENSITIVE")
-    if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}:
+    if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}:
         _assert_backend_refusal(
             lambda: option_result(make_df(spec.data, backend), spec.build_expr(), backend),
             FK_STR.STRPOS,
@@ -158,7 +160,7 @@ OPTION_DISPOSITIONS.extend(
         "str",
         (
             "declared_unsupported"
-            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
             else "probe_exempt"
             if value == "CASE_SENSITIVE"
             else "honored"
@@ -167,7 +169,7 @@ OPTION_DISPOSITIONS.extend(
         ),
         (
             "operation has no native Narwhals implementation"
-            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
             else "builder-default CASE_SENSITIVE is indistinguishable from omission"
             if value == "CASE_SENSITIVE"
             else "native backend implements CASE_INSENSITIVE semantics"
@@ -651,7 +653,7 @@ def _regexp_operation_unsupported(op: str, backend: str) -> bool:
             "regexp_strpos",
             "regexp_count_substring",
         }
-        or backend in {"narwhals-polars", "narwhals-pandas"}
+        or backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
         and op
         in {
             "regexp_match_substring",
@@ -1753,7 +1755,7 @@ def _params():
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
                 mark = None
-                if mark is None and bk in ("narwhals-polars", "narwhals-pandas"):
+                if mark is None and bk in ("narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"):
                     if (op.function_key, op.param_name) in _NARWHALS_FULLY_UNSUPPORTED:
                         mark = pytest.mark.xfail(
                             strict=True,
@@ -1785,7 +1787,8 @@ if OP_SPECS:
         ):
             error_type = (
                 BackendCapabilityError
-                if version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+                if Version(version("narwhals")) >= Version("2.27.1")
+                and Version(version("pandas")) >= Version("3.0.6")
                 else TypeError
             )
             with expect_call_failure(
@@ -1804,6 +1807,23 @@ if OP_SPECS:
             return
 
         if (
+            backend == "narwhals-pyarrow"
+            and input_type in {"col", "complex"}
+            and op.op_name
+            in {
+                "contains",
+                "starts_with",
+                "ends_with",
+                "regexp_replace_replacement",
+            }
+        ):
+            # NW-STR-03: PyArrow string methods accept only literal str values.
+            _assert_backend_refusal(
+                lambda: run_argument_matrix(op, backend, input_type), op.function_key
+            )
+            return
+
+        if (
             backend == "ibis"
             and op.op_name
             in {
@@ -1811,7 +1831,7 @@ if OP_SPECS:
                 "regexp_count_substring",
                 "regexp_strpos",
             }
-            or backend in {"narwhals-polars", "narwhals-pandas"}
+            or backend in {"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}
             and op.op_name
             in {
                 "strpos",
@@ -1876,9 +1896,10 @@ if OP_SPECS:
                 "rpad_characters",
                 "string_split",
             }
-            or backend == "narwhals-pandas"
+            or backend in {"narwhals-pandas", "narwhals-pyarrow"}
             and op.op_name
             in {
+                "regex_contains",
                 "contains",
                 "starts_with",
                 "ends_with",

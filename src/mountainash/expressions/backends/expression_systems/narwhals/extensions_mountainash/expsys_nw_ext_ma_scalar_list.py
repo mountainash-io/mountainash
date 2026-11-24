@@ -88,6 +88,8 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             import re
 
             escaped = re.escape(delimiter)
+            # Arrow uses RE2 rewrite syntax (\1) where Polars uses ${1}.
+            group = r"\1" if self.dialect == "narwhals-pyarrow" else "${1}"
             normalized = x
             for tokens, replacement in (
                 ("true|True|TRUE|1", "1"),
@@ -95,7 +97,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             ):
                 normalized = normalized.str.replace_all(
                     rf"(^|{escaped})({tokens})",
-                    rf"${{1}}{replacement}",
+                    f"{group}{replacement}",
                 )
             return normalized.str.split(delimiter).cast(nw.List(nw.Int8)).cast(nw.List(nw.Boolean))
         target = {

@@ -291,7 +291,9 @@ def test_complete_element_definition_applies_container_fill(
     backend_name, backend_factory, element, values, expected,
 ):
     with expect_call_failure(
-        when=backend_name in {"narwhals-polars", "narwhals-lazy", "ibis-sqlite"},
+        when=backend_name in {
+            "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow", "ibis-sqlite",
+        },
         errors=(UnsupportedBackendType,) if backend_name == "ibis-sqlite"
         else (BackendCapabilityError,),
         reason="SQLite cannot store arrays; Narwhals lacks native element expressions",
@@ -388,7 +390,9 @@ def test_list_element_fill_converts_under_effective_list_target(backend_name, ba
     from mountainash.core.dtypes import ListDtype, MountainashDtype as D
 
     with expect_call_failure(
-        when=backend_name in {"narwhals-polars", "narwhals-lazy", "ibis-sqlite"},
+        when=backend_name in {
+            "narwhals-polars", "narwhals-lazy", "narwhals-pyarrow", "ibis-sqlite",
+        },
         errors=(UnsupportedBackendType,) if backend_name == "ibis-sqlite"
         else (BackendCapabilityError,),
         reason="SQLite cannot store arrays; Narwhals lacks native element expressions",

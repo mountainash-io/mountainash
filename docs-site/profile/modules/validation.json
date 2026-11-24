@@ -1,0 +1,166 @@
+{
+  "id": "validation",
+  "path": "src/mountainash/validation/",
+  "summary": "Backend-agnostic validation engine. Checks are an IR (ValueRule, RowRule, ScalarRule, RelationRule, ForeignKeyRule, DistributionRule) compiled through the expression/relation visitors and executed by ValidationRunner, which returns CheckSummary / ValidationResult / DAGValidationResult with a failure-case schema keyed by row identity. Also provides FK check generation, identity resolution, JSON Schema and GeoJSON/TopoJSON checks, and table-schema semantic validation.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors",
+    "executives-marketing"
+  ],
+  "doc_priority": "essential",
+  "confidence": "medium",
+  "public_api": [
+    "ValidationRunner",
+    "ValidationResult",
+    "DAGValidationResult",
+    "CheckSummary",
+    "ValidationCheck",
+    "ValueRule",
+    "RowRule",
+    "ScalarRule",
+    "RelationRule",
+    "ForeignKeyRule",
+    "DistributionRule",
+    "ValueValidatorKey",
+    "RowIdentity",
+    "resolve_identity",
+    "build_fk_checks",
+    "CompiledValidationPlan",
+    "TableSchemaIssue",
+    "validate_table_schema_semantics",
+    "require_valid_table_schema",
+    "ValidationError",
+    "CheckDeclarationError",
+    "IdentityRequiredError",
+    "IdentityInvalidError",
+    "UnknownCheckTypeError",
+    "BOOLEANIZERS",
+    "SEVERITIES",
+    "ROW_ORDINAL"
+  ],
+  "key_classes": [
+    "ValidationRunner — executes checks per relation/DAG via validate_relation / validate_dag without backend-specific code",
+    "CompiledValidationPlan — immutable compiled plan snapshot",
+    "RowIdentity — tiered row identity for failure cases",
+    "CheckSummary / ValidationResult / DAGValidationResult — result model with its own failure-case schema",
+    "ValueRule / RowRule / ScalarRule / RelationRule / ForeignKeyRule / DistributionRule — check-type IR",
+    "PreparedValidationInput — standalone validation source preparation",
+    "ValidationError hierarchy — typed validation errors"
+  ],
+  "key_functions": [
+    "ValidationRunner.validate_relation(...) — run checks against a Relation",
+    "ValidationRunner.validate_dag(...) — validate a RelationDAG",
+    "build_fk_checks(...) — sole owner of foreign key check generation",
+    "resolve_identity(...) / validate_keyed_identity(...) — row identity resolution",
+    "validate_table_schema_semantics(...) — pure deterministic schema semantic checks",
+    "compile_json_schema(declaration) — closed JSON Schema compilation",
+    "validate_geojson / validate_topojson — geospatial semantic validation",
+    "prepare_validation_input(...) — prepare input once before slicing"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_system",
+    "relations",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.dag",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "datacontracts",
+    "exceptions",
+    "relations.dag",
+    "typespec"
+  ],
+  "extension_points": [
+    "ValueValidatorKey / value rule registry entries (value.py) for adding value validators",
+    "BOOLEANIZERS and SEVERITIES vocabularies on checks",
+    "Check-kind IR classes with check_kind()/classify() dispatch"
+  ],
+  "lifecycle_notes": [
+    "Backend-agnostic validation plan PR-A..G all merged (#215-#222); follow-ups: PK identity tension (8j) and syntheticdata roundtrip (8k).",
+    "c1e8da53 canonical dtype schema declarations (333, #399); 838a285b shared schema declarations; 642480f8 native_identity as single recognizer; a68147b6 transit policing removed.",
+    "Failure-case schema is designed fresh, not Pandera's five columns."
+  ],
+  "documentation_hooks": [
+    "Validation engine architecture: check IR, runner, result model",
+    "Row identity and failure-case schema",
+    "Foreign key validation",
+    "Severity and booleanizer semantics",
+    "Custom value validators"
+  ],
+  "examples": [
+    "tests/validation/cross_backend/test_runner_semantics.py",
+    "tests/validation/test_value_checks.py"
+  ],
+  "tests": [
+    "tests/validation"
+  ],
+  "risks": [
+    "Non-terminal ternary expressions reach backends as raw -1/0/1 sentinels (no booleanization) so rule authors must understand OutcomeProjection.",
+    "Strong coupling to expressions, relations and typespec; boundaries with conform (structural) and datacontracts (declaration) must be respected.",
+    "Public surface in __init__ is large and some names (ValueRule registry entries) are internal-leaning."
+  ],
+  "open_questions": [
+    "Which of the exported names are intended as stable public API versus semi-public internals is not stated in the module; classified semi-public from __init__ exports and tests only."
+  ],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/validation/__init__.py",
+      "detail": "__all__"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/validation/runner.py",
+      "detail": "ValidationRunner docstring: OutcomeProjection mechanics"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/validation/checks.py",
+      "detail": "check-type IR"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/validation/result.py",
+      "detail": "CheckSummary, ValidationResult, DAGValidationResult"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/validation/fk.py",
+      "detail": "build_fk_checks sole owner of FK generation"
+    },
+    {
+      "kind": "test",
+      "path": "tests/validation/cross_backend/test_runner_semantics.py",
+      "detail": "cross-backend runner semantics"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/validation",
+      "detail": "git log: 642480f8, 838a285b, c1e8da53"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

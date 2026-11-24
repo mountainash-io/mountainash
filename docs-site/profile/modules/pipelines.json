@@ -1,47 +1,175 @@
 {
   "id": "pipelines",
   "path": "src/mountainash/pipelines/",
-  "summary": "Pipeline framework: declarative multi-step data pipelines with DAG ordering, typed parameter binding via ParamSpec, caching via PipelineStorage, and integration with the relation AST via PipelineStepRelNode + ParamsRelNode. Fluent builder: PipelineBuilder.step(...).build() -> PipelineSpec -> SimplePipelineRunner.run(). DBOS runner for durable execution. source() bridges pipeline outputs into the relation API.",
+  "summary": "Macro-orchestration of units over the Graph kernel. A Pipeline is a named graph of Units (Python, Source, Dag, nested Pipeline, and sinks) run by Runner in two phases (plan then execute) with identity-based checkpoints (MemoryCheckpoint, FileCheckpoint), resume/force, retry and empty-output policies, and parallel layers. Value, Identity, Coverage and SourceState model what flows between units; sinks write to parquet directories or Ibis tables.",
   "role": "orchestration",
   "visibility": "public",
   "stability": "evolving",
-  "audiences": ["users", "maintainers", "contributors"],
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "extension-authors"
+  ],
   "doc_priority": "essential",
-  "confidence": "high",
+  "confidence": "medium",
   "public_api": [
-    "step", "PipelineBuilder", "PipelineSpec", "source", "ParamSpec",
-    "SimplePipelineRunner", "PipelineStorage", "PipelineExecutor"
+    "Pipeline",
+    "Runner",
+    "RunResult",
+    "Unit",
+    "unit",
+    "PythonUnit",
+    "DagUnit",
+    "PipelineUnit",
+    "SourceUnit",
+    "CallableSource",
+    "SinkUnit",
+    "WriteMode",
+    "IbisTableSink",
+    "ParquetDirectorySink",
+    "FileCheckpoint",
+    "MemoryCheckpoint",
+    "Value",
+    "ValueKind",
+    "Identity",
+    "Coverage",
+    "Affinity",
+    "SourceResult",
+    "SourceState",
+    "LocatorReference",
+    "EmptyPolicy",
+    "RetryConfig",
+    "ParamAxis",
+    "ParamSpec",
+    "expand_axes",
+    "PipelineError",
+    "UnitFailed",
+    "NonRetryable",
+    "AmbiguousWrite",
+    "UnsupportedValueKind",
+    "IncompleteCoverage",
+    "EmptyUnitOutput",
+    "UnhashableIdentityInput",
+    "IncompatibleResume"
   ],
   "key_classes": [
-    {"name": "PipelineBuilder", "purpose": "Immutable fluent builder — .step() returns new builder; .build() produces PipelineSpec"},
-    {"name": "PipelineSpec", "purpose": "Frozen spec with topological_order(), parallel_layers(), ancestors() delegates"},
-    {"name": "SimplePipelineRunner", "purpose": "Sequential executor with caching, empty-data policy, and topological ordering"},
-    {"name": "PipelineStepRelNode", "purpose": "Relation AST leaf bridging pipelines into the visitor system"},
-    {"name": "ParamSpec", "purpose": "Declares step parameters: name, type, required, default"}
+    "Pipeline — named container of units over a Graph; add(unit) validates inputs",
+    "Runner — plan()/execute()/run() with checkpoint, retry, workers and nested pipelines",
+    "Unit (Protocol) / BaseUnit — inputs(), identity(), reference_exists(), run(upstream, ctx)",
+    "DagUnit — runs a RelationDAG as a unit with database-identity-aware identity",
+    "SourceUnit/CallableSource — incremental sources with cursor and coverage",
+    "SinkUnit — base for sinks with WriteMode; IbisTableSink and ParquetDirectorySink implement write",
+    "Checkpoint (Protocol), MemoryCheckpoint, FileCheckpoint — identity-keyed result records, progress and pending attempts",
+    "Lifecycle (UnitLifecycle, SourceLifecycle, NestedLifecycle) — identify/decide/execute/commit strategy per unit kind"
   ],
   "key_functions": [
-    {"name": "step(name, depends_on=...)", "purpose": "Decorator creating StepDefinition metadata on a function"},
-    {"name": "source(step_name, pipeline=...)", "purpose": "Creates a Relation from a pipeline step output"}
+    "Runner.run(*, params=None, target=None, resume=True, force=False) — plan and execute",
+    "Runner.plan(...) — identify units and build Plan with parallel layers",
+    "Runner.invalidate_descendants(name) — drop checkpoints downstream",
+    "unit(...) — decorator producing a PythonUnit",
+    "expand_axes(*axes) — cartesian parameter expansion",
+    "structural_digest — deterministic digest used for identities"
   ],
-  "dependencies": ["graph.algorithms", "relations.core.relation_nodes", "relations.core.unified_visitor", "pydata.ingress"],
-  "dependents": ["relations (via registered visitors)"],
-  "extension_points": ["PipelineExecutor protocol for custom execution backends", "PipelineStorage protocol for custom storage"],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "exceptions",
+    "graph",
+    "relations",
+    "relations.core.relation_api",
+    "relations.dag",
+    "typespec"
+  ],
+  "dependents": [
+    "toplevel"
+  ],
+  "extension_points": [
+    "Subclass BaseUnit or implement the Unit protocol (lifecycle attribute)",
+    "Implement Checkpoint protocol for new stores",
+    "Subclass SinkUnit and implement destination/write",
+    "Lifecycle protocol and bind_lifecycles()"
+  ],
   "lifecycle_notes": [
-    "Evolving — has core, fluent, integration, orchestration, and storage sub-packages",
-    "Bridge registration at import time in __init__.py",
-    "DBOS runner exists for durable execution"
+    "988d3ee0 feat(pipelines)!: cutover to macro-orchestration; remove runners, storage, relation bridge, Relation.params",
+    "7d906a0a declared Unit protocol and faithful checkpoint retention",
+    "4a19ea2d Unit protocol generic over its run result",
+    "9a8cefd7 sink column mapping, identifier quoting, path-safe parquet partitions"
   ],
-  "documentation_hooks": ["Fluent builder pattern", "Relation integration via source()", "Cache-key computation"],
-  "examples": [],
-  "tests": [],
-  "risks": ["Pipeline execution sequential only — parallel_layers() exists but no parallel executor"],
-  "open_questions": [],
+  "documentation_hooks": [
+    "Pipelines guide (module docstring points to docs/guides/pipelines.md, which does not exist in the repo)",
+    "Identity, coverage and checkpoint resume semantics",
+    "Writing a custom unit or sink",
+    "Failure modes: AmbiguousWrite, IncompatibleResume"
+  ],
+  "examples": [
+    "tests/pipelines/runtime/test_runner.py",
+    "tests/pipelines/units/test_dag_unit.py"
+  ],
+  "tests": [
+    "tests/pipelines/runtime/test_runner.py",
+    "tests/pipelines/runtime/test_checkpoint.py",
+    "tests/pipelines/runtime/test_lifecycles.py",
+    "tests/pipelines/runtime/test_nested.py",
+    "tests/pipelines/runtime/test_recovery_contracts.py",
+    "tests/pipelines/core/test_values.py",
+    "tests/pipelines/core/test_digest.py",
+    "tests/pipelines/core/test_capabilities.py",
+    "tests/pipelines/units/test_dag_unit.py",
+    "tests/pipelines/units/test_python_unit.py",
+    "tests/pipelines/units/test_source_unit.py",
+    "tests/pipelines/units/sinks/test_sink_modes.py",
+    "tests/pipelines/test_closed_by_default.py",
+    "tests/pipelines/test_policies.py"
+  ],
+  "risks": [
+    "Breaking cutover (988d3ee0) removed earlier runner/storage APIs; older docs may be stale",
+    "Write ambiguity after failure is NonRetryable; sink semantics (modes, partitions) need care",
+    "Identity hashing requires hashable/canonicalisable inputs (UnhashableIdentityInput)",
+    "Stale pycache directory in tests/pipelines suggests legacy tests were removed"
+  ],
+  "open_questions": [
+    "Is the referenced docs/guides/pipelines.md guide planned or removed?",
+    "Public stability of Runner internals beyond run(): plan/execute are public but their contract is lightly documented"
+  ],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/pipelines/fluent/builder.py", "detail": "Immutable PipelineBuilder"},
-    {"kind": "symbol", "path": "src/mountainash/pipelines/integration/relation.py", "detail": "PipelineStepRelNode, ParamsRelNode, fold_params optimisation"},
-    {"kind": "symbol", "path": "src/mountainash/pipelines/orchestration/simple.py", "detail": "SimplePipelineRunner with caching and topological ordering"}
+    {
+      "kind": "export",
+      "path": "src/mountainash/pipelines/__init__.py",
+      "detail": "public names re-exported; docstring references docs/guides/pipelines.md"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pipelines/core/pipeline.py",
+      "detail": "Pipeline built on graph.Graph"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pipelines/runtime/runner.py",
+      "detail": "Runner.plan/execute/run with capability_policy and exec_lock"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pipelines/runtime/checkpoint.py",
+      "detail": "Checkpoint protocol, MemoryCheckpoint, FileCheckpoint"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pipelines/units/dag.py",
+      "detail": "DagUnit and database_identity"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/pipelines/__init__.py",
+      "detail": "988d3ee0 cutover to macro-orchestration"
+    },
+    {
+      "kind": "test",
+      "path": "tests/pipelines/runtime/test_runner.py",
+      "detail": "runner behaviour tests"
+    }
   ],
-  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
   "manual": {
     "notes": "",
     "editorial_status": "",

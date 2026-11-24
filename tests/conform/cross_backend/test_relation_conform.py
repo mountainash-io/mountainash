@@ -894,7 +894,8 @@ def test_native_override_reconciliation_policy(backend_name, backend_factory, ac
             return
         with expect_call_failure(
             when=discarding and backend_name in {
-                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+                "narwhals-pyarrow", "ibis-sqlite",
             },
             errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
             reason="Existing null-on-failure cast capability gap (known-divergences #19/#20)",

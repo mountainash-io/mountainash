@@ -1,0 +1,160 @@
+{
+  "id": "expressions",
+  "path": "src/mountainash/expressions/",
+  "summary": "Package root for the expression AST system. Re-exports the fluent entry points (col, lit, when, coalesce, t_col, native, ...), the BooleanExpressionAPI classes, and the AST introspection helpers (walk, iter_child_nodes, collect_field_references); importing it registers all backend expression systems. Also holds loose utilities: runtime_imports (optional-dependency probes), introspect, core/output_names (output-name resolution), core/datetime_components and core/utils/temporal.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture"
+  ],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "col",
+    "lit",
+    "duration",
+    "native",
+    "when",
+    "coalesce",
+    "greatest",
+    "least",
+    "min_horizontal",
+    "max_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "sum_horizontal",
+    "len",
+    "count_records",
+    "corr",
+    "median",
+    "quantile",
+    "t_col",
+    "always_true",
+    "always_false",
+    "always_unknown",
+    "today",
+    "now",
+    "element",
+    "BaseExpressionAPI",
+    "BooleanExpressionAPI",
+    "walk",
+    "iter_child_nodes",
+    "collect_field_references",
+    "CONST_LOGIC_TYPES",
+    "CONST_EXPRESSION_NODE_TYPES",
+    "__version__"
+  ],
+  "key_classes": [
+    "ExpressionOutputs — resolved output-name result for an expression (core/output_names.py)",
+    "DatetimeComponent — enum of datetime components (core/datetime_components.py)",
+    "BooleanComponent — enum of boolean components (core/datetime_components.py)"
+  ],
+  "key_functions": [
+    "walk(node, order='depth_first') — iterate every node in an expression AST (DFS or BFS)",
+    "iter_child_nodes(node) — direct ExpressionNode children one level down",
+    "collect_field_references(expr) — all referenced source-column names",
+    "resolve_output_names(expression, *, input_names=None) — compute output column names for an expression",
+    "require_module(module_name, install_hint=None) — import optional dependency or raise a helpful error",
+    "get_available_backends() — report which backends are importable"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor",
+    "toplevel"
+  ],
+  "dependents": [
+    "conform",
+    "datacontracts",
+    "relations",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "extension_points": [
+    "Backends register via the expression-system registry when `from . import backends` runs at package import",
+    "introspect.py is the supported AST walk surface consumed by validation"
+  ],
+  "lifecycle_notes": [
+    "introspect.py added as public AST introspection (backlog item 226a)",
+    "Recent: 1c72e96a merge of feature/371-expression-lowering-reuse (lowering reuse in visitor)"
+  ],
+  "documentation_hooks": [
+    "Expressions quick start (col/lit/when)",
+    "Entry-point function reference",
+    "AST introspection guide (walk, collect_field_references)",
+    "Optional dependency handling"
+  ],
+  "examples": [
+    "ma.col('age').gt(30).and_(ma.col('score').ge(85))",
+    "list(walk(ma.col('a').add(1)._node))",
+    "tests/expressions/ast/test_introspect.py"
+  ],
+  "tests": [
+    "tests/expressions/ast/test_introspect.py",
+    "tests/expressions/cross_backend",
+    "tests/expressions/argument_types",
+    "tests/core/test_api_reachability.py",
+    "tests/core/test_projection_naming_rules.py"
+  ],
+  "risks": [
+    "Large surface (~25k lines); package __init__ docstring still lists 'Pandas' as supported while backends are Polars/Narwhals/Ibis",
+    "Importing the package eagerly imports backends, which register expression systems",
+    "Adding any op needs six-layer wiring (wiring-matrix principle)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/expressions/__init__.py",
+      "detail": "__all__ lists entry points, API classes, introspection helpers"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/introspect.py",
+      "detail": "walk / iter_child_nodes / collect_field_references, stdlib-ast style"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/output_names.py",
+      "detail": "resolve_output_names and ExpressionOutputs"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/runtime_imports.py",
+      "detail": "lazy optional-import helpers"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/__init__.py",
+      "detail": "Aligned with minimal-ast, build-then-compile and polars-api-substrait-ast principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/expressions/ast/test_introspect.py",
+      "detail": "covers introspection"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

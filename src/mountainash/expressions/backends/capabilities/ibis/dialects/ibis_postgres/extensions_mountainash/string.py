@@ -32,9 +32,9 @@ _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS, "pattern", S
     Clause("case_sensitivity", ClauseOp.EQ, "CASE_INSENSITIVE"),
 ))))
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "ibis-framework", specifier="==12.0.0"),
-    CoordinateConstraint("package", "sqlglot", specifier="==29.0.1"),
-    CoordinateConstraint("engine", "postgres", specifier="==16.15"),
+    CoordinateConstraint("package", "ibis-framework", specifier=">=12.0.0"),
+    CoordinateConstraint("package", "sqlglot", specifier=">=29.0.1"),
+    CoordinateConstraint("engine", "postgres", specifier=">=16.15"),
 )),))
 _MESSAGE = (
     "Ibis 12.0.0 with SQLGlot 29.0.1 on PostgreSQL 16.15 loses pattern-concatenation "

@@ -1,0 +1,140 @@
+{
+  "id": "relations.core.execution",
+  "path": "src/mountainash/relations/core/execution/",
+  "summary": "Execution-planning layer that prepares and runs relation plans across locations without materializing during planning. LocationResolver resolves each node's ExecutionLocation, prepare_execution builds an occurrence-based placement and transfer recipe (PreparedExecution), CompilationSession reuses one recipe and transport scope for all native subtrees, TransportSession performs declared operand transfers with owned-resource lifetime, and capabilities.py runs AST-known capability gates shared by preflight and dispatch.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "backend-architecture",
+    "contributors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "ExecutionLocation — resolved family/dialect/connection of a native value",
+    "LocationResolver / IdentityTokens — non-materializing location resolution",
+    "PreparedExecution / TransferRequirement / ExecutionPhase — placement and transfer recipe",
+    "CompilationSession — one recipe + one transport scope for all subtrees",
+    "TransportSession — executes declared transfers, owns imported-resource lifetime",
+    "MetadataSession / CompilationMetadata / CompiledSubtree / OwnedResidue / Imported — execution-scoped envelopes"
+  ],
+  "key_functions": [
+    "prepare_execution(...) — nonexecuting placement/transfer plan",
+    "render_execution(prepared) — text render of the plan (feeds explain)",
+    "check_ast_capabilities(...) — AST-level capability gating",
+    "preflight_capabilities(prepared) — gate before any execution",
+    "import_refusal(...) — typed refusal for impossible transfers",
+    "schema_prototype(value) — prototype for schema-only evaluation"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions",
+    "expressions.core.unified_visitor",
+    "pydata.ingress",
+    "relations.core",
+    "relations.core.relation_nodes",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag"
+  ],
+  "dependents": [
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.relation_api",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "validation"
+  ],
+  "extension_points": [
+    "RelationSystem export/import_into hooks (backends supply transport)",
+    "Capability facts consumed by preflight (core.capabilities)"
+  ],
+  "lifecycle_notes": [
+    "5bceaa0c owned-flag transfer requirements, anchor planning; export/import replaces routes",
+    "642480f8 target= replaces backend=",
+    "2ec3e45a live import-limit and owned-adoption capability declarations",
+    "3b4cc887 lazy check_import payload"
+  ],
+  "documentation_hooks": [
+    "Execution targets and cross-backend operand transfer",
+    "Relation.explain() output reading guide",
+    "Capability preflight failure modes"
+  ],
+  "examples": [
+    "rel.explain() renders render_execution",
+    "tests/relations/execution/test_preparation.py"
+  ],
+  "tests": [
+    "tests/relations/execution/test_preparation.py",
+    "tests/relations/execution/test_location.py",
+    "tests/relations/execution/test_transport.py",
+    "tests/relations/execution/test_compilation_reuse.py",
+    "tests/relations/execution/test_target_api.py",
+    "tests/relations/execution/test_execution_lifetime.py",
+    "tests/relations/execution/test_transfer_fidelity.py",
+    "tests/relations/execution/test_anchor_binding.py",
+    "tests/relations/execution/test_metadata.py",
+    "tests/relations/execution/test_terminal_phases.py"
+  ],
+  "risks": [
+    "Transfer matrix (source x destination x value) is large; ownership/release errors leak Ibis temp tables",
+    "Preparation must stay non-executing; any collect during planning is a bug",
+    "Tight cyclic coupling with relation_api/relation_base and visitor via lazy imports"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/execution/preparation.py",
+      "detail": "prepare_execution, PreparedExecution, render_execution"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/execution/location.py",
+      "detail": "LocationResolver docstring: non-materializing resolution"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/execution/compilation.py",
+      "detail": "CompilationSession"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/execution/transport.py",
+      "detail": "TransportSession, import_refusal"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/execution/capabilities.py",
+      "detail": "check_ast_capabilities, preflight_capabilities"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/execution/test_preparation.py",
+      "detail": "preparation tests"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations/core/execution",
+      "detail": "5bceaa0c, 2ec3e45a"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

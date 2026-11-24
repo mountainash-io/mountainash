@@ -52,6 +52,7 @@ _PATH_RULES: tuple[tuple[str, str], ...] = (
     ("tests/core/", "unit"),
     ("tests/graph/", "unit"),
     ("tests/alignment/", "contract"),
+    ("tests/examples/", "integration"),  # 2026-11-01 runnable examples/ recipes: end-to-end public API
     ("tests/scripts/", "unit"),        # 2026-06-24 script unit tests (catalog renderer, drift guards)
     ("tests/fixtures/", "unit"),       # 2026-06-24 self-tests for test fixture infrastructure
     ("tests/selection/", "contract"),  # 2026-06-24 taxonomy audit tests are contract-level

@@ -1,0 +1,93 @@
+{
+  "id": "expressions.core.expression_protocols",
+  "path": "src/mountainash/expressions/core/expression_protocols/",
+  "summary": "Typing Protocol contracts for the expression layers. api_builders/ (substrait and extensions_mountainash) declare what each fluent builder must provide; expression_systems/ (substrait and extensions_mountainash) declare what each backend ExpressionSystem must implement per operation domain. Protocols are the source of truth for backend obligations and drive signature, alignment and completeness tests.",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "Substrait*ExpressionSystemProtocol (prtcl_expsys_*) — per-domain backend contracts (cast, literal, field_reference, conditional, scalar_arithmetic/boolean/comparison/datetime/string/set/logarithmic/rounding, aggregates, window_arithmetic)",
+    "prtcl_expsys_ext_ma_* — Mountainash-extension backend contracts (name, null, ternary, list, struct, categorical, geospatial, window, ...)",
+    "prtcl_api_bldr_* / prtcl_api_bldr_ext_ma_* — builder-side protocols"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [
+    "conform",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_system"
+  ],
+  "extension_points": [
+    "New operation: add protocol method here (step 2 of adding-operations) then builder, backends and function mapping",
+    "Generic over ExpressionT (expression-type-generics principle)"
+  ],
+  "lifecycle_notes": [
+    "Directory has no top-level __init__.py (namespace package); imports use full submodule paths"
+  ],
+  "documentation_hooks": [
+    "Backend implementer guide",
+    "Protocol-as-contract explanation",
+    "Adding an operation walkthrough"
+  ],
+  "examples": [
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_protocol_completeness.py"
+  ],
+  "tests": [
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_protocol_completeness.py",
+    "tests/core/test_signature_conformance.py",
+    "tests/core/test_taxonomy_audit.py"
+  ],
+  "risks": [
+    "Protocol and implementation drift; guarded by alignment/completeness/signature tests",
+    "Renaming a protocol method fans out to three backends and builders"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_protocols/expression_systems/substrait/prtcl_expsys_cast.py",
+      "detail": "representative backend protocol"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_system/expsys_base.py",
+      "detail": "ExpressionSystem inherits these protocols"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/core/expression_protocols/api_builders/substrait/prtcl_api_bldr_cast.py",
+      "detail": "protocol-as-contract principle"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_protocol_completeness.py",
+      "detail": "verifies backends implement protocols"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

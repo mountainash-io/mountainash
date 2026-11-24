@@ -664,6 +664,8 @@ def test_join_tracks_right_transport_under_backend_suffix():
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_asof_payload_lineage_survives_following_join(backend_name, backend_factory):
     """A merged grouping key must not reserve a phantom name for the next join."""
+    from fixtures.call_expectations import expect_call_failure
+    from mountainash.core.types import BackendCapabilityError
     from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
@@ -681,12 +683,17 @@ def test_asof_payload_lineage_survives_following_join(backend_name, backend_fact
         fields_match="open",
         fields={"g_right": FieldDefinition(type=UniversalType.ARRAY)},
     ))
-    joined = ma.relation(left).join_asof(right, on="t", by="g").join(extra, on="g")
-    assert joined.columns == ["g", "t", "payload", "payload_right", "g_right"]
-    assert joined.select(*joined.columns).to_dict() == {
-        "g": ["a"], "t": [2], "payload": ["left"],
-        "payload_right": [[1]], "g_right": [[2]],
-    }
+    with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow",
+        errors=(BackendCapabilityError,),
+        reason="Narwhals has no join_asof implementation for the PyArrow backend (NW-REL-06)",
+    ):
+        joined = ma.relation(left).join_asof(right, on="t", by="g").join(extra, on="g")
+        assert joined.columns == ["g", "t", "payload", "payload_right", "g_right"]
+        assert joined.select(*joined.columns).to_dict() == {
+            "g": ["a"], "t": [2], "payload": ["left"],
+            "payload_right": [[1]], "g_right": [[2]],
+        }
 
 
 def test_join_asof_rejects_transport_used_as_group_key(monkeypatch):

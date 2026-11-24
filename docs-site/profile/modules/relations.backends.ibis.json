@@ -1,0 +1,116 @@
+{
+  "id": "relations.backends.ibis",
+  "path": "src/mountainash/relations/backends/relation_systems/ibis/",
+  "summary": "Ibis implementation of the relation system, covering the same eight Substrait-aligned mixins and Mountainash extension ops as other backends and running against multiple SQL dialects. Beyond the composed IbisRelationSystem it holds physical-schema description (schema_metadata), the owned-copy transaction boundary (_physical) and SQLite compatibility/storage shims.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": [
+    "IbisRelationSystem"
+  ],
+  "key_classes": [
+    "IbisRelationSystem — registered (IBIS) relation system composing the base mixin, eight Substrait-aligned mixins (read, project, filter, sort, fetch, join, aggregate, set) and the Mountainash extension mixin by multiple inheritance",
+    "IbisBaseRelationSystem — identifies the backend, supplies export/import_into/check_import and name-inference hooks",
+    "schema_metadata (module) — physical output-schema description for bound SQL relations via per-dialect techniques",
+    "_physical (module) — non-owning SQL physical boundary for owned-copy materialization; refuses unknown dialects",
+    "_sqlite_compat/_sqlite_storage (modules) — SQLite-specific storage and compatibility shims"
+  ],
+  "key_functions": [
+    "register_relation_system(CONST_BACKEND.IBIS) — decorator in the package __init__ registering the composed class",
+    "declare_lowering(method[, LoweringDescriptor]) — module-level loop declaring every lowering method reusable; pivot declared REPEATABLE with materializes_input=True"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "relations.backends.capabilities",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "toplevel",
+    "typespec"
+  ],
+  "dependents": [
+    "relations",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "Subclass/compose a Substrait*/Mountainash* mixin and add it to the composed class bases",
+    "register_relation_system decorator",
+    "BaseRelationSystem hooks: infer_row_index_names, infer_cross_join_names, export, import_into, check_import, native_scan_eligible"
+  ],
+  "lifecycle_notes": [
+    "Latest change: 08ac43e6 feat(resources): confine native and fallback resource reads; decision-7 allow-list (381)",
+    "3b4cc887 lazy check_import payload so non-SQLite destinations never export",
+    "31f2f12f guard inline resources in native_scan_eligible"
+  ],
+  "documentation_hooks": [
+    "Backend implementation guide: adding a relation operation to a backend",
+    "Cross-backend divergences for relational operations",
+    "Execution locations and Arrow import/export boundary"
+  ],
+  "examples": [
+    "Dispatched via the relation visitor: ma.relation(df).filter(...).collect() routes to the registered system for the frame's backend"
+  ],
+  "tests": [
+    "tests/relations/test_rel_ibis.py",
+    "tests/relations/test_ibis_physical.py",
+    "tests/relations/test_ibis_physical_imports.py",
+    "tests/relations/test_owned_copy.py",
+    "tests/relations/test_schema_resolution_physical.py",
+    "tests/relations/cross_backend/test_lazy_sql_execution.py"
+  ],
+  "risks": [
+    "Dialect-dependent behaviour (ibis-sqlite, ibis-duckdb, ibis-polars, ibis-postgres ...): row index unsupported on ibis-polars; SQLite cannot store NaN/Decimal/nested types",
+    "Owned-copy transactions are delegated to mountainash-data (optional, lazily imported); idle connections only",
+    "Seeded exact-count sample is unsupported on Ibis"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/backends/relation_systems/ibis/__init__.py",
+      "detail": "IbisRelationSystem registered for CONST_BACKEND.IBIS"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/ibis/base.py",
+      "detail": "describe_output_schema uses physical technique when location is bound; export canonicalises list child names"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/ibis/_physical.py",
+      "detail": "owned_adoption_refusal consults IMPORT_INTO GATE declaration; raises BackendCapabilityError"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/backends/relation_systems/ibis/schema_metadata.py",
+      "detail": "per-dialect techniques describing compiled output query"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_ibis_physical.py",
+      "detail": "physical boundary tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

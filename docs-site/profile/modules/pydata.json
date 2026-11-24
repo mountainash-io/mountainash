@@ -1,0 +1,107 @@
+{
+  "id": "pydata",
+  "path": "src/mountainash/pydata/",
+  "summary": "Python data conversion package root plus shared support code: CONST_PYTHON_DATAFORMAT enum, dataclass and Pydantic mappers, an XML sanitizer, and collection/enum helpers. The package __init__ exports only PydataIngress; ingress and egress live in sub-packages.",
+  "role": "io",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "medium",
+  "public_api": [
+    "PydataIngress"
+  ],
+  "key_classes": [
+    "CONST_PYTHON_DATAFORMAT — enum of supported Python data formats (DATACLASS, PYDANTIC, PYDICT, PYLIST, NAMEDTUPLE, TUPLE, INDEXED_DATA, SERIES_DICT, COLLECTION, UNKNOWN)"
+  ],
+  "key_functions": [
+    "map_dict_to_dataclass / map_list_of_dicts_to_dataclasses (mappers/dataclass_mapping.py) — build dataclasses from rows",
+    "get_dataclass_field_types / get_required_fields / get_field_defaults — dataclass introspection",
+    "pydantic_mapping helpers (mappers/pydantic_mapping.py) — Pydantic model mapping",
+    "restore_special_characters / validate_file_xsd (sanitizers/xml_sanitizer.py) — XML sanitising and XSD validation",
+    "member_names / find_member / is_enum (utils/enum_helpers.py) — Enum lookup helpers",
+    "is_empty (utils/collection_helpers.py) — empty-collection check"
+  ],
+  "dependencies": [
+    "pydata.egress",
+    "pydata.ingress"
+  ],
+  "dependents": [
+    "pydata.egress",
+    "pydata.ingress",
+    "relations",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes"
+  ],
+  "extension_points": [
+    "Handlers are added in pydata.ingress / pydata.egress; this scope only supplies shared helpers and constants"
+  ],
+  "lifecycle_notes": [
+    "Recent changes: 838a285b, 5fe83898 (session-scoped compilation reuse, #405), c1e8da53, 22cc3292, a68147b6."
+  ],
+  "documentation_hooks": [
+    "Python data conversion overview (ingress/egress)",
+    "Dataclass and Pydantic mapping helpers",
+    "XML sanitizer utility"
+  ],
+  "examples": [
+    "from mountainash.pydata import PydataIngress",
+    "tests/pydata/mappers/test_dataclass_mapping.py"
+  ],
+  "tests": [
+    "tests/pydata/mappers",
+    "tests/pydata/sanitizers",
+    "tests/pydata/utils",
+    "tests/pydata/test_pydata_smoke.py"
+  ],
+  "risks": [
+    "Package __init__ docstring states the public API 'will be added as modules are stabilized'; the exported surface is minimal and the rest is import-by-path.",
+    "Docstring header still names the legacy 'mountainash-pydata' package."
+  ],
+  "open_questions": [
+    "Whether mappers, sanitizers and utils are intended as public helpers or internal support is not stated; classified semi-public from tests only."
+  ],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/pydata/__init__.py",
+      "detail": "__all__ = ['PydataIngress']"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/constants.py",
+      "detail": "CONST_PYTHON_DATAFORMAT"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/mappers/dataclass_mapping.py",
+      "detail": "dataclass mapping functions"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/pydata/utils/enum_helpers.py",
+      "detail": "enum helper functions"
+    },
+    {
+      "kind": "test",
+      "path": "tests/pydata/mappers/test_dataclass_mapping.py",
+      "detail": "mapper tests"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/pydata",
+      "detail": "git log: 838a285b, 5fe83898, c1e8da53"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

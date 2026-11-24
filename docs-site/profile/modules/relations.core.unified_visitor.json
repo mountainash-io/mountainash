@@ -1,0 +1,127 @@
+{
+  "id": "relations.core.unified_visitor",
+  "path": "src/mountainash/relations/core/unified_visitor/",
+  "summary": "Compiles a relation AST into backend-native operations. UnifiedRelationVisitor walks RelationNodes, dispatches through the RelationOperationRegistry to a backend RelationSystem, delegates embedded expressions to the expression visitor, applies capability gating, and reuses compiled subtrees within a session. RelationVisitRegistry is the type-keyed extension surface for registering visit handlers for third-party node types, protecting built-in Substrait nodes from override.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "backend-architecture",
+    "extension-authors",
+    "contributors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "UnifiedRelationVisitor",
+    "RelationVisitRegistry",
+    "RelationVisitHandler"
+  ],
+  "key_classes": [
+    "UnifiedRelationVisitor — compiles nodes to native objects, owns execution session and schema evidence",
+    "RelationVisitRegistry — register/get/unregister visit handlers by node type"
+  ],
+  "key_functions": [
+    "RelationVisitRegistry.register(node_type, handler) — add handler; rejects duplicates and protected nodes",
+    "RelationVisitRegistry.get(node_type) / unregister(node_type)",
+    "UnifiedRelationVisitor.visit(node) / accept-style dispatch over registry"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "expressions",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.dag",
+    "typespec"
+  ],
+  "dependents": [
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_system",
+    "relations.dag"
+  ],
+  "extension_points": [
+    "RelationVisitRegistry.register for custom RelationNode subclasses (third-party)",
+    "ref_resolver kwarg used by RelationDAG"
+  ],
+  "lifecycle_notes": [
+    "5fe83898 session-scoped compilation reuse (#405)",
+    "5bceaa0c transport requirements refactor",
+    "642480f8 target= replaces backend=; native_identity single recognizer",
+    "1f245fe7 resource readers bound to location"
+  ],
+  "documentation_hooks": [
+    "How a relation plan is compiled",
+    "Registering a custom relation node and visit handler",
+    "Relation visitor composing with expression visitor"
+  ],
+  "examples": [
+    "tests/relations/test_rel_visit_registry.py",
+    "tests/relations/test_rel_visitor.py"
+  ],
+  "tests": [
+    "tests/relations/test_rel_visitor.py",
+    "tests/relations/test_rel_visit_registry.py",
+    "tests/relations/execution/test_compilation_reuse.py",
+    "tests/relations/test_terminal_collect_compile.py",
+    "tests/relations/cross_backend/test_rel_expression_integration.py"
+  ],
+  "risks": [
+    "relation_visitor.py is ~1180 lines mixing dispatch, schema prototypes, capability gating and session reuse",
+    "Unregistered nodes raise UnregisteredRelationNodeError",
+    "Expression/relation visitor composition errors surface only at compile time"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/core/unified_visitor/__init__.py",
+      "detail": "exports visitor and registry"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "detail": "UnifiedRelationVisitor"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/unified_visitor/visit_registry.py",
+      "detail": "RelationVisitRegistry with protected Substrait nodes"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/core/unified_visitor/relation_visitor.py",
+      "detail": "relation-visitor-composition and unified-visitor principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_rel_visit_registry.py",
+      "detail": "registry behavior"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations/core/unified_visitor",
+      "detail": "5fe83898, 1f245fe7"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

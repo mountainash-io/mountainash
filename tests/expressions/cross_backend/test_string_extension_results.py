@@ -16,7 +16,7 @@ from fixtures.call_expectations import expect_call_failure
 #   strip both sides instead of only the requested side.
 
 IBIS_BACKENDS = {"ibis-duckdb", "ibis-sqlite"}
-NARWHALS_PANDAS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+NARWHALS_PANDAS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow"}
 
 
 @pytest.mark.cross_backend
@@ -48,7 +48,7 @@ class TestStrStripCharsStart:
         data = {"s": ["  hello  ", " world"]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason='Directional trimming over-strips both ends.',
             errors=(AssertionError,),
         ):
@@ -70,7 +70,7 @@ class TestStrStripCharsEnd:
         data = {"s": ["  hello  ", "world "]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason='Directional trimming over-strips both ends.',
             errors=(AssertionError,),
         ):

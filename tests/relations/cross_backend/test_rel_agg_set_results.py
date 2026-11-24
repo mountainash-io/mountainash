@@ -233,6 +233,10 @@ def test_aggregate_output_names(
     names = keys + [name]
     assert q.columns == names
     with expect_call_failure(
+        when=backend_name == "narwhals-pyarrow" and grouped and case == "literal_first",
+        reason="NW-AGG-04: narwhals-pyarrow group_by().agg() rejects non-elementary aggregations such as (lit + x).sum()",
+        errors=(ValueError,),
+    ), expect_call_failure(
         when=backend_name == "narwhals-lazy" and case == "any_value",
         reason="NW-AGG-03: any_value() raises on narwhals-lazy",
         errors=(InvalidOperationError,),

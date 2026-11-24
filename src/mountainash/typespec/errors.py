@@ -1,15 +1,32 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 from mountainash.core.errors import MountainashError
+from mountainash.core.safe_location import display_value, raise_safe
 
 if TYPE_CHECKING:
     from mountainash.typespec.universal_types import UniversalType
 
 
+def raise_with_cause(error: BaseException, cause: BaseException) -> NoReturn:
+    """Raise *error* with only the safe form of *cause* reachable (W8, spec section 2).
+
+    An ``OSError`` is chained as a fresh exception without its filename; this
+    package's own descriptor and JSON Schema errors are chained as they are;
+    anything else is dropped from ``__cause__`` and ``__context__`` alike. The
+    decision depends on the type, never on the text.
+    """
+    raise_safe(error, cause, _TRUSTED_ERRORS)
+
+
 class DescriptorError(MountainashError):
-    """Base for descriptor decoding, encoding, and reference errors."""
+    """Base for descriptor decoding, encoding, and reference errors.
+
+    Callers build the message from parts they control. Every attribute holds
+    its display form (``safe_location`` for locations and strings, rendered
+    recursively inside containers), never the caller's original value.
+    """
 
     def __init__(
         self,
@@ -26,12 +43,12 @@ class DescriptorError(MountainashError):
     ) -> None:
         super().__init__(message)
         self.descriptor_kind = descriptor_kind
-        self.descriptor_path = descriptor_path
-        self.resource_name = resource_name
-        self.reference = reference
-        self.normalized_reference = normalized_reference
+        self.descriptor_path = display_value(descriptor_path)
+        self.resource_name = display_value(resource_name)
+        self.reference = display_value(reference)
+        self.normalized_reference = display_value(normalized_reference)
         self.expected_kind = expected_kind
-        self.rejected_value = rejected_value
+        self.rejected_value = display_value(rejected_value)
         self.required_form = required_form
 
 
@@ -205,6 +222,24 @@ class InvalidDtypeDeclaration(TypeSpecError):
         scope = f"field {field_name!r}: " if field_name is not None else ""
         suffix = f" (got {rejected_value!r})" if rejected_value is not None else ""
         super().__init__(f"{scope}invalid dtype declaration: {reason}{suffix}")
+
+
+# Own errors whose message and attributes are built under the W8 rule; exact types
+# only, so subclasses built elsewhere do not qualify (spec section 2).
+_TRUSTED_ERRORS: frozenset[type] = frozenset({
+    InvalidDescriptorSyntax,
+    InvalidDescriptorStructure,
+    UnsupportedDescriptorVersion,
+    MissingDescriptorBase,
+    DescriptorReferenceNotFound,
+    DescriptorReferenceInvalid,
+    InvalidDescriptorRelationship,
+    UnsupportedResourceDialect,
+    InvalidJSONSchemaConstraint,
+    JSONSchemaReferenceDenied,
+})
+
+
 
 
 __all__ = [

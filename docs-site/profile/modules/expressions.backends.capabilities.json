@@ -1,0 +1,110 @@
+{
+  "id": "expressions.backends.capabilities",
+  "path": "src/mountainash/expressions/backends/capabilities/",
+  "summary": "Declarative, import-safe capability data for the expression backends. Under polars/, ibis/ and narwhals/ each tree has a family/ scope (FamilyWide) and dialects/<dialect>/ scopes (ibis-duckdb, ibis-sqlite, ibis-postgres, ibis-polars, ibis-mysql, ibis-singlestoredb, ibis-exasol; narwhals-polars, -pandas, -pyarrow, -duckdb, -dask, -lazy; polars). Leaf modules under substrait/ and extensions_mountainash/ each export a SEGMENT (a CapabilitySegment of CapabilityInformation and CapabilityPolicyRule records) for one domain such as string, datetime, arithmetic, list or window. core.capabilities.bootstrap discovers and binds them to their enclosing _scope.py SCOPE; the modules contain no registration side effects.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    "SEGMENT (module-level CapabilitySegment) — exported by each leaf; carries domain, information and policy records",
+    "SCOPE (in _scope.py) — core.capabilities.identity.Scope(backend, applicability=FamilyWide() or Dialect(name))"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions.core.unified_visitor"
+  ],
+  "extension_points": [
+    "Add a new SEGMENT leaf under <family>/<scope>/{substrait,extensions_mountainash}/<domain>.py; bootstrap.discover_declaration_modules walks the package and picks it up automatically",
+    "Add a new dialect: create dialects/<name>/_scope.py with SCOPE and register the name in core.capabilities.identity.KNOWN_DIALECTS",
+    "Underscore-prefixed modules and package __init__ files are not treated as declaration leaves",
+    "Executable behavior is expressed through CapabilityPolicyRule (consumer, action, applicability); descriptive limits through CapabilityInformation"
+  ],
+  "lifecycle_notes": [
+    "Declarations are scope-owned: dialect-specific limits live in the dialect tree, shared ones in family/ (see capability-as-call-property and capability-roles principles; the latter is PROPOSED, with delivered parts from PR #241)",
+    "Recent: d29e5fe0 Narwhals window-shape refusals (364, 368); 07c52c06 multi-key window refusal on pandas 3.1.0; 1344c0d7 narwhals-pandas float ranks (367); 1e4166f5 PostgreSQL Decimal gate (#396)",
+    "Segments may be retained with captured addresses so historical evidence and assertion changes survive refactors"
+  ],
+  "documentation_hooks": [
+    "Backend support matrix per operation and dialect (generated expression coverage report: core.capabilities.render_markdown)",
+    "How to declare a known limitation for a backend/dialect",
+    "Authoring guide for capability segments (scope, domain, information vs policy)",
+    "Known divergences page fed from these declarations"
+  ],
+  "examples": [
+    "Segment leaf: ibis/dialects/ibis_duckdb/substrait/string.py exports SEGMENT = CapabilitySegment(domain=Domain.STRING, information=(CapabilityInformation(key=CapabilityKey(operation=FKEY_..., subject=..., selector=Selector(...)), level=..., message=..., layer=..., applicability=unbounded),...))",
+    "Scope file: polars/family/_scope.py defines SCOPE = Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide())"
+  ],
+  "tests": [
+    "tests/core/test_capability_declarations.py",
+    "tests/core/test_capability_declarations_import_safe.py",
+    "tests/core/test_capability_integrity.py",
+    "tests/core/test_capability_registry.py",
+    "tests/core/test_ibis_dialect_capability_gates.py",
+    "tests/core/test_narwhals_provider_capability_gates.py",
+    "tests/core/test_gap_collection_complete.py",
+    "tests/core/test_gap_staleness.py",
+    "tests/core/test_generated_artifacts.py",
+    "tests/core/test_expression_coverage_doc.py"
+  ],
+  "risks": [
+    "Large, mostly data modules: easy to mis-scope a limit as family-wide when it is dialect-specific",
+    "A descriptive record never gates execution; only CapabilityPolicyRule records do, so documenting a limit does not prevent the call",
+    "Registration is validated per batch: unknown operation keys, params or dialects raise ValueError at load",
+    "Volume (~19k lines) means review relies on integrity and coverage tests rather than reading"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "config",
+      "path": "src/mountainash/expressions/backends/capabilities/__init__.py",
+      "detail": "Docstring: import-safe scope-owned segments; every non-helper leaf exports SEGMENT, directory exports SCOPE from _scope.py"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/capabilities/polars/family/_scope.py",
+      "detail": "SCOPE = Scope(backend=POLARS, applicability=FamilyWide())"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_duckdb/substrait/string.py",
+      "detail": "Example SEGMENT with CapabilityInformation records"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/core/capabilities/bootstrap.py",
+      "detail": "_ROOTS includes mountainash.expressions.backends.capabilities; discover_declaration_modules walks it"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/core/capabilities/identity.py",
+      "detail": "KNOWN_DIALECTS lists valid ibis-* and narwhals-* dialect names; capability-as-call-property principle"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_capability_declarations_import_safe.py",
+      "detail": "Declaration modules must be import-safe"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -47,7 +47,7 @@ class TestComposeDatetimeCalendar:
 
         expr = ma.col("ts").dt.week_of_year()
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'narwhals-pyarrow'),
             reason='dt.week_of_year() raises on pandas and all narwhals backends',
             errors=(BackendCapabilityError,),
         ):
@@ -102,8 +102,13 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_years(1).dt.year()
-        actual = collect_expr(df, expr)
-        assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == "narwhals-pyarrow",
+            reason="NW-DT-08: Narwhals does not support year/month offsets for PyArrow datetimes",
+            errors=(BackendCapabilityError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
 
     def test_add_months(self, backend_name, backend_factory, collect_expr):
         """Test add_months."""
@@ -111,8 +116,13 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_months(3).dt.month()
-        actual = collect_expr(df, expr)
-        assert actual == [4, 1], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == "narwhals-pyarrow",
+            reason="NW-DT-08: Narwhals does not support year/month offsets for PyArrow datetimes",
+            errors=(BackendCapabilityError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [4, 1], f"[{backend_name}] got {actual}"
 
 
 @pytest.mark.cross_backend

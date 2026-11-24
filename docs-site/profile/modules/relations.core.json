@@ -1,0 +1,140 @@
+{
+  "id": "relations.core",
+  "path": "src/mountainash/relations/core/",
+  "summary": "Loose shared infrastructure beneath the relation API: typed relation errors, native materialization (ExecutionForm, MaterializationPurpose, MaterializationScope, materialize_native), owned-copy lifecycle with owner-thread Ibis table cleanup, logical snapshots for structured carriers, structured lineage rules, join output layout, projection/aggregate name normalization, and fingerprint accumulation. No public re-exports; public collection and egress live on Relation.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": [
+    "maintainers",
+    "backend-architecture",
+    "contributors"
+  ],
+  "doc_priority": "reference-only",
+  "confidence": "medium",
+  "public_api": [],
+  "key_classes": [
+    "IncompleteSchemaError, CompileRequiresExecutionError, UnresolvedExecutionLocationError, ConflictingExecutionTargetError, UnsupportedRelationTransportError, LogicalTerminalRequired — typed relation errors (errors.py)",
+    "NativeExecutionValue / MaterializationScope — native value envelope and scoped lifetime (materialization.py)",
+    "OwnedCopy — independent native value with release hook (owned_copy.py)",
+    "LogicalTerminalSnapshot / ResolvedLogicalSnapshot — physical snapshot plus structured resolution (logical_snapshot.py)",
+    "JoinLayout — single naming rule for keyed join output (join_layout.py)",
+    "FingerprintAccumulator — typed row-domain fingerprinting (fingerprint_profile.py)"
+  ],
+  "key_functions": [
+    "materialize_native(...) — preserve backend identity when forcing eager execution",
+    "owned_copy(native) / owned_ibis_table / owned_arrow_table — independent copies with committed cleanup",
+    "join_layout(...) / layout_for_node(node, left, right) — canonical join output names incl. suffix collisions and coalesce",
+    "normalize_projection(expressions, *, operation) — encode proven names as aliases",
+    "normalize_aggregate(keys, measures) — shared aggregate naming boundary",
+    "consume_native_batches(...) — bounded scoped batch ingestion for fingerprint",
+    "resolve_logical_snapshot(...) — deterministic structured-cell resolution"
+  ],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions",
+    "pydata.ingress",
+    "relations.core.execution",
+    "relations.core.relation_nodes",
+    "relations.core.relation_system",
+    "typespec"
+  ],
+  "dependents": [
+    "core",
+    "exceptions",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core.execution",
+    "relations.core.relation_api",
+    "relations.core.relation_nodes",
+    "relations.core.relation_protocols",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "validation"
+  ],
+  "extension_points": [],
+  "lifecycle_notes": [
+    "bdc573960 owned snapshots and scope-aware checkpoint lifetime",
+    "0147a6649 single join output layout rule and coalesce option",
+    "988d3ee0 pipelines cutover touched this directory"
+  ],
+  "documentation_hooks": [
+    "Maintainer note: native materialization and owned-copy lifetime",
+    "Join output naming rules and suffix collision",
+    "Fingerprint terminal semantics"
+  ],
+  "examples": [
+    "tests/relations/test_join_layout.py",
+    "tests/relations/test_owned_copy.py"
+  ],
+  "tests": [
+    "tests/relations/test_join_layout.py",
+    "tests/relations/test_owned_copy.py",
+    "tests/relations/test_native_materialization.py",
+    "tests/relations/test_fingerprint.py",
+    "tests/relations/test_fingerprint_profile.py",
+    "tests/relations/test_fingerprint_batches.py",
+    "tests/relations/test_logical_terminal_snapshot.py",
+    "tests/relations/test_structured_transport_lineage.py",
+    "tests/relations/core/test_make_invariant.py",
+    "tests/relations/cross_backend/test_rel_projection_names.py"
+  ],
+  "risks": [
+    "Owned-copy cleanup is owner-thread and connection-lifetime sensitive (Ibis temp tables)",
+    "Several modules (logical_snapshot, structured_lineage) are tightly coupled to conform.structured_transport",
+    "Heterogeneous grab-bag directory; module boundaries by file not by package"
+  ],
+  "open_questions": [
+    "Whether any of these helpers are intended as semi-public documentation topics beyond maintainer notes"
+  ],
+  "evidence": [
+    {
+      "kind": "doc",
+      "path": "src/mountainash/relations/core/__init__.py",
+      "detail": "Docstring states no public re-exports; materialization types internal"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/errors.py",
+      "detail": "Typed relation errors derive from MountainashError"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/join_layout.py",
+      "detail": "Docstring defines single join naming contract"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/owned_copy.py",
+      "detail": "OwnedCopy, owner-thread drop queue"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/materialization.py",
+      "detail": "ExecutionForm, MaterializationPurpose, materialize_native"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/test_join_layout.py",
+      "detail": "covers join layout"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/relations/core",
+      "detail": "bdc573960, 0147a6649"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

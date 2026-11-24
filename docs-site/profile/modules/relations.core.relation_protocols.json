@@ -1,0 +1,108 @@
+{
+  "id": "relations.core.relation_protocols",
+  "path": "src/mountainash/relations/core/relation_protocols/",
+  "summary": "Protocol contracts for relations. RelationAPIProtocol and GroupedRelationAPIProtocol define the fluent surface; relation_systems/ holds one Protocol per Substrait relation (read, project, filter, sort, fetch, join, aggregate, set) plus a Mountainash util extension protocol; relsys_base.py defines the abstract RelationSystem composing them, schema-description hooks, and the keyed backend registry (register_relation_system, get_relation_system).",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": [
+    "backend-architecture",
+    "extension-authors",
+    "contributors",
+    "maintainers"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "RelationAPIProtocol",
+    "GroupedRelationAPIProtocol"
+  ],
+  "key_classes": [
+    "RelationSystem — abstract composition of all relation-system protocols; backend_type, describe_output_schema, infer_row_index_names, infer_cross_join_names",
+    "RelationAPIProtocol — fluent Relation contract",
+    "GroupedRelationAPIProtocol — grouped relation contract",
+    "Substrait*RelationSystemProtocol — per-operation backend protocols",
+    "MountainashExtensionRelationSystemProtocol — util operations backends implement"
+  ],
+  "key_functions": [
+    "register_relation_system(backend) — decorator registering a RelationSystem by CONST_BACKEND",
+    "get_relation_system(backend) — look up registered class"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "relations.core",
+    "relations.core.execution",
+    "relations.core.relation_system"
+  ],
+  "dependents": [
+    "relations.backends.ibis",
+    "relations.backends.narwhals",
+    "relations.backends.polars",
+    "relations.core.relation_api",
+    "relations.core.unified_visitor"
+  ],
+  "extension_points": [
+    "Implement RelationSystem and decorate with register_relation_system",
+    "Add operation: protocol method then RKEY then backends"
+  ],
+  "lifecycle_notes": [
+    "69179095 export/import_into returning Imported",
+    "3b4cc887 lazy check_import payload",
+    "988d3ee0 API protocol trimmed in pipelines cutover",
+    "1f245fe7 readers bind to execution location"
+  ],
+  "documentation_hooks": [
+    "Backend author guide: implementing a RelationSystem",
+    "Protocol-as-contract for relations; alignment tests"
+  ],
+  "examples": [
+    "@register_relation_system(CONST_BACKEND.POLARS) class PolarsRelationSystem(BaseRelationSystem, RelationSystem)",
+    "tests/relations/protocol_alignment/test_rel_protocols.py"
+  ],
+  "tests": [
+    "tests/relations/protocol_alignment/test_rel_protocols.py",
+    "tests/relations/protocol_alignment/test_rel_protocol_alignment.py",
+    "tests/relations/protocol_alignment/test_rel_protocol_completeness.py",
+    "tests/relations/test_rel_wiring_audit.py"
+  ],
+  "risks": [
+    "Adding a protocol method breaks all three backends until implemented; completeness tests enforce this",
+    "Protocol/Relation API drift is guarded only by alignment tests"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/relations/core/relation_protocols/__init__.py",
+      "detail": "exports RelationAPIProtocol, GroupedRelationAPIProtocol"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_protocols/relsys_base.py",
+      "detail": "RelationSystem, registry functions"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/relations/core/relation_protocols/prtcl_relation_api.py",
+      "detail": "API protocols"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/relations/core/relation_protocols/relsys_base.py",
+      "detail": "protocol-as-contract, backend-composition principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/relations/protocol_alignment/test_rel_protocol_completeness.py",
+      "detail": "completeness enforcement"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

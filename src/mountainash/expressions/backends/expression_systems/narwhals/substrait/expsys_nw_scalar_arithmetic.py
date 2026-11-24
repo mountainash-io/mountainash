@@ -18,6 +18,26 @@ if TYPE_CHECKING:
 
 
 
+class _TextAddOperand:
+    """Marks the left ``add`` operand when metadata proves a text sum."""
+
+    __slots__ = ("expr",)
+
+    def __init__(self, expr: Any) -> None:
+        self.expr = expr
+
+
+class _KindedModulusOperand:
+    """Marks the left ``modulus`` operand when both operands resolve to one numeric kind."""
+
+    __slots__ = ("expr", "kind")
+
+    def __init__(self, expr: Any, kind: str) -> None:
+        self.expr = expr
+        self.kind = kind
+
+
+
 class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarArithmeticExpressionProtocol.
 
@@ -34,6 +54,29 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     Integer overflow modes are validated here; native wrapping is available as
     SILENT except for division, which has no implemented integer overflow mode.
     """
+
+    def _prepare_call_add(self, operands):
+        """Narwhals PyArrow has no ``add`` kernel for strings: mark text sums."""
+        native = [operands.native(index) for index in range(len(operands))]
+        if self.dialect != "narwhals-pyarrow":
+            return native
+        visitor = operands._visitor
+        if not visitor.type_context.active:
+            return native
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_nodes import ExpressionNode
+
+        for argument in operands._arguments[:2]:
+            if not isinstance(argument, ExpressionNode):
+                continue
+            try:
+                kind = visitor.type_context.resolve(argument).logical_kind
+            except BackendCapabilityError:
+                continue
+            if kind == "text":
+                native[0] = _TextAddOperand(native[0])
+                break
+        return native
 
     def add(
         self,
@@ -70,6 +113,8 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
             )
+        if isinstance(x, _TextAddOperand):
+            return nw.concat_str(x.expr, y, ignore_nulls=False)
         return x + y
 
     def subtract(
@@ -217,6 +262,29 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
             )
         return x / y
 
+    def _prepare_call_modulus(self, operands):
+        """Narwhals PyArrow: mark modulus operands that are both integer or both float."""
+        native = [operands.native(index) for index in range(len(operands))]
+        if self.dialect != "narwhals-pyarrow":
+            return native
+        visitor = operands._visitor
+        if not visitor.type_context.active:
+            return native
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_nodes import ExpressionNode
+
+        kinds = []
+        for argument in operands._arguments[:2]:
+            if not isinstance(argument, ExpressionNode):
+                return native
+            try:
+                kinds.append(visitor.type_context.resolve(argument).logical_kind)
+            except BackendCapabilityError:
+                return native
+        if len(kinds) == 2 and kinds[0] == kinds[1] and kinds[0] in {"integer", "float"}:
+            native[0] = _KindedModulusOperand(native[0], kinds[0])
+        return native
+
     def modulus(
         self,
         x: NarwhalsExpr,
@@ -265,6 +333,15 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
             )
+        if isinstance(x, _KindedModulusOperand):
+            kind, x = x.kind, x.expr
+            if kind == "integer":
+                # Arrow's checked floor-division raises on signed-min // -1;
+                # x % -1 is 0 for every integer, so divide by 1 instead.
+                return x % nw.when(y == -1).then(-y).otherwise(y)
+            # Arrow floor-division nulls a zero divisor; float division keeps
+            # inf/NaN so the remainder matches Polars.
+            return x - (x / y).floor() * y
         return x % y
 
     def power(

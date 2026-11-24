@@ -1,0 +1,111 @@
+{
+  "id": "expressions.backends.ibis",
+  "path": "src/mountainash/expressions/backends/expression_systems/ibis/",
+  "summary": "Ibis implementation of the expression system. IbisExpressionSystem is composed from the same Substrait and Mountainash-extension protocol mixins as the Polars backend and compiles the unified AST into deferred ibis.expr.types expressions, which makes it the route to SQL engines (DuckDB, SQLite, PostgreSQL, MySQL, and others). It is imported only when the ibis package is installed. IbisBaseExpressionSystem resolves operand metadata from table schemas without executing the table.",
+  "role": "backend",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "medium",
+  "public_api": [
+    "IbisExpressionSystem",
+    "(Substrait*/MountainAsh* Ibis mixins listed in __all__)"
+  ],
+  "key_classes": [
+    "IbisExpressionSystem — composed concrete backend registered for CONST_BACKEND.IBIS",
+    "IbisBaseExpressionSystem — BACKEND_NAME='ibis', is_native_expression (ir.Column/Scalar/Expr), operand-type hooks",
+    "SubstraitIb*/MountainAshIb* mixins — per-family implementations under substrait/ and extensions_mountainash/"
+  ],
+  "key_functions": [
+    "IbisBaseExpressionSystem.field_operand_type(input_data, field) — operand metadata from Ibis schema",
+    "IbisBaseExpressionSystem.fixed_result_type(...) — declared fixed result mapped to dt.boolean/dt.string"
+  ],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.expression_system",
+    "expressions.core.unified_visitor"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions"
+  ],
+  "extension_points": [
+    "@register_expression_system(CONST_BACKEND.IBIS) registers the composed class with the visitor factory",
+    "declare_builtin_expression_system(<cls>, 'ibis') declares the system for function-mapping lowering",
+    "Add an operation by implementing the protocol method in the matching substrait/ or extensions_mountainash/ expsys_*_<family> mixin, which is composed by multiple inheritance (backend-composition principle)",
+    "Override BaseExpressionSystem hooks (is_native_expression, field_operand_type, infer_expression_operand_type, fixed_result_type)"
+  ],
+  "lifecycle_notes": [
+    "Dialect-qualified gating: d5cfebc1 gate qualified PostgreSQL dynamic insensitive regex calls; 1e4166f5 gate PostgreSQL null-on-invalid Decimal conversion (#396)",
+    "33a80318 .over(order_by) orders by every key on Polars and Ibis (backlog 364)"
+  ],
+  "documentation_hooks": [
+    "Backend implementation reference for Ibis lowering",
+    "Which SQL dialects are supported and how dialect divergences are surfaced (link to capability facts)",
+    "Adding an operation to the Ibis backend"
+  ],
+  "examples": [
+    "ma.col('a').add(1).compile(df) with a ibis DataFrame selects this system via backend detection",
+    "tests/expressions/cross_backend/ shows each operation parametrized across polars, narwhals and ibis backends"
+  ],
+  "tests": [
+    "tests/expressions/cross_backend",
+    "tests/expressions/backends/ibis",
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_protocol_completeness.py",
+    "tests/core/test_mro_method_collisions.py",
+    "tests/core/test_ibis_dialect_capability_gates.py",
+    "tests/core/test_known_limitation.py"
+  ],
+  "risks": [
+    "One Ibis system fronts many SQL dialects with differing function support; dialect-specific limits are expressed as capability facts (expressions.backends.capabilities), not branches here",
+    "Lifted/deferred Ibis expressions: see tests/expressions/backends/ibis for lift behaviour",
+    "Large string, datetime and list files are complexity hotspots"
+  ],
+  "open_questions": [
+    "Exact set of exported names in __init__ __all__ was not audited item by item"
+  ],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/expressions/backends/expression_systems/ibis/__init__.py",
+      "detail": "IbisExpressionSystem registered for CONST_BACKEND.IBIS"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/expression_systems/ibis/base.py",
+      "detail": "IbisBaseExpressionSystem with ir.* native-expression check and schema-based operand type resolution"
+    },
+    {
+      "kind": "import",
+      "path": "src/mountainash/expressions/backends/__init__.py",
+      "detail": "Ibis system imported only if the ibis package is importable"
+    },
+    {
+      "kind": "test",
+      "path": "tests/core/test_ibis_dialect_capability_gates.py",
+      "detail": "Dialect-level capability gates for Ibis calls"
+    },
+    {
+      "kind": "test",
+      "path": "tests/expressions/backends/ibis",
+      "detail": "Ibis lift/deferred wrapper tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -27,8 +27,8 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 _SCOPE = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-duckdb"))
 _KEY = CapabilityKey(FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST, "*")
 _APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
-    CoordinateConstraint("package", "duckdb", specifier="==1.5.6"),
+    CoordinateConstraint("package", "narwhals", specifier=">=2.27.1"),
+    CoordinateConstraint("package", "duckdb", specifier=">=1.5.6"),
 )),))
 _MESSAGE = "Mountainash has no Narwhals DuckDB Decimal conversion implementation; rounding and non-strict cast limitations are tracked by narwhals#3698 and #3702."
 

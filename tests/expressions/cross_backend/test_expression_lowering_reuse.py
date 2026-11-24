@@ -70,7 +70,8 @@ def test_shared_window_preserves_values_refusals_and_binding(backend_name, backe
 
     with ma.capability_policy(ma.CapabilityPolicy.checked()):
         assert outcome(shared) == outcome(distinct)
-        with pytest.raises(ValueError):
+        # narwhals-pyarrow refuses the partitioned window (NW-WIN-06) before binding is checked.
+        with pytest.raises(BackendCapabilityError if backend_name == "narwhals-pyarrow" else ValueError):
             ma.relation(source).select(
                 left.over("g", order_by="a").alias("valid"),
                 left.alias("unbound"),

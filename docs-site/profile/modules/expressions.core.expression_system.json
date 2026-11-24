@@ -1,0 +1,121 @@
+{
+  "id": "expressions.core.expression_system",
+  "path": "src/mountainash/expressions/core/expression_system/",
+  "summary": "Backend-facing contract and dispatch tables. expsys_base defines the ExpressionSystem class (composition of all Substrait/extension expression-system protocols) with register_expression_system and get_expression_system; function_keys/enums.py holds the FKEY_* enums; function_mapping holds ExpressionFunctionDef definitions, the ExpressionFunctionRegistry, lowering declarations and projection output rules. Also owns backends/expression_systems/base.py (BaseExpressionSystem ABC).",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "ExpressionSystem",
+    "register_expression_system"
+  ],
+  "key_classes": [
+    "ExpressionSystem — abstract backend base composed from all expression-system protocols",
+    "ExpressionFunctionDef — registry entry mapping function key to Substrait metadata and backend method",
+    "ExpressionFunctionRegistry — lookup of function definitions by key",
+    "BaseExpressionSystem — ABC in backends/expression_systems/base.py shared by backends",
+    "FKEY_SUBSTRAIT_* / FKEY_MOUNTAINASH_* enums — type-safe operation keys",
+    "SubstraitExtension / MountainashExtension — extension URI holders"
+  ],
+  "key_functions": [
+    "register_expression_system(backend) — decorator registering a backend system",
+    "get_expression_system(backend) — fetch the registered system class",
+    "identify_backend — re-exported from core.backend_detection",
+    "declare_builtin_expression_system(system_type, backend_type) — lowering declaration helper"
+  ],
+  "dependencies": [
+    "core",
+    "core.capabilities",
+    "core.dtypes",
+    "expressions.core.expression_protocols",
+    "toplevel"
+  ],
+  "dependents": [
+    "core.capabilities",
+    "expressions",
+    "expressions.backends.capabilities",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_nodes",
+    "expressions.core.expression_protocols",
+    "expressions.core.unified_visitor",
+    "relations.core.relation_system",
+    "validation"
+  ],
+  "extension_points": [
+    "@register_expression_system(backend) for new backends",
+    "Add FunctionDef entries in function_mapping/definitions.py (~3000 lines) for new operations",
+    "Add FKEY enums in function_keys/enums.py",
+    "KeyedRegistry from core.registries underlies registration"
+  ],
+  "lifecycle_notes": [
+    "backend detection moved to mountainash.core.backend_detection (relations-dispatch-parity spec); re-exported here for compatibility",
+    "Recent: b7e9128b lowering reuse, 1c72e96a merge"
+  ],
+  "documentation_hooks": [
+    "Writing a new backend",
+    "Function key and registry reference",
+    "Adding an operation (six-step)"
+  ],
+  "examples": [
+    "tests/core/test_registries.py",
+    "tests/core/test_protocol_completeness.py"
+  ],
+  "tests": [
+    "tests/core/test_registries.py",
+    "tests/core/test_protocol_completeness.py",
+    "tests/core/test_protocol_alignment.py",
+    "tests/core/test_backend_detection.py",
+    "tests/core/test_unified_constants.py"
+  ],
+  "risks": [
+    "definitions.py is a ~3000-line hotspot",
+    "Role split between this module and function_mapping/EXPRESSION_TYPE_REFERENCE.md must stay current",
+    "Backend alias handling lives in core.backend_detection, not here"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_system/expsys_base.py",
+      "detail": "ExpressionSystem, register_expression_system, get_expression_system"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_system/function_mapping/registry.py",
+      "detail": "ExpressionFunctionDef and ExpressionFunctionRegistry"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_system/function_keys/enums.py",
+      "detail": "FKEY enums"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/backends/expression_systems/base.py",
+      "detail": "BaseExpressionSystem ABC"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/core/expression_system/expsys_base.py",
+      "detail": "backend-composition and function-key-enums principles"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

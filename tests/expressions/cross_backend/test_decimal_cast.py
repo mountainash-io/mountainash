@@ -23,7 +23,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 
 from fixtures.call_expectations import expect_call_failure
 
-NARWHALS = {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas"}
+NARWHALS = {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas", "narwhals-pyarrow"}
 REFUSAL_REASON = (
     "Narwhals has no round mode / non-strict cast: "
     "registry NW-MATH-11 (narwhals#3698), NW-CAST-01 (narwhals#3702)"

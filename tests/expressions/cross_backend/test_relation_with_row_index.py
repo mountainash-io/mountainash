@@ -31,6 +31,9 @@ class TestWithRowIndex:
             # Result type varies by backend; extract the idx column to a plain list.
             if hasattr(result, "execute"):
                 idx_values = result.execute()["idx"].tolist()
+            elif hasattr(result["idx"], "to_pylist"):
+                # PyArrow columns iterate as Arrow scalars, not Python values.
+                idx_values = result["idx"].to_pylist()
             else:
                 idx_values = list(result["idx"])
 

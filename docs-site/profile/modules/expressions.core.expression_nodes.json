@@ -1,0 +1,119 @@
+{
+  "id": "expressions.core.expression_nodes",
+  "path": "src/mountainash/expressions/core/expression_nodes/",
+  "summary": "Pydantic AST node types. Substrait-aligned nodes: LiteralNode, FieldReferenceNode, ScalarFunctionNode, IfThenNode, CastNode, SingularOrListNode, WindowFunctionNode (with WindowSpec/WindowBound); plus the Mountainash extension OverNode. Nodes carry metadata only and expose accept() for the visitor; ScalarFunctionNode covers most operations through function-key enums.",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": [
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors"
+  ],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "ExpressionNode",
+    "CastNode",
+    "FieldReferenceNode",
+    "IfThenNode",
+    "LiteralNode",
+    "ScalarFunctionNode",
+    "SingularOrListNode",
+    "WindowFunctionNode",
+    "WindowSpec",
+    "WindowBound",
+    "OverNode"
+  ],
+  "key_classes": [
+    "ExpressionNode — abstract Pydantic base with accept(visitor)",
+    "ScalarFunctionNode — function call node keyed by function_key enum, arguments, options",
+    "LiteralNode — constant value with optional dtype",
+    "FieldReferenceNode — column reference",
+    "IfThenNode — conditional",
+    "CastNode — type conversion",
+    "SingularOrListNode — IN-style membership node",
+    "WindowFunctionNode / WindowSpec / WindowBound — window calls and frames",
+    "OverNode — Mountainash .over() extension node"
+  ],
+  "key_functions": [],
+  "dependencies": [
+    "core",
+    "core.dtypes",
+    "expressions.core.expression_system"
+  ],
+  "dependents": [
+    "conform",
+    "expressions",
+    "expressions.backends.ibis",
+    "expressions.backends.narwhals",
+    "expressions.backends.polars",
+    "expressions.core.expression_api",
+    "expressions.core.expression_protocols",
+    "expressions.core.unified_visitor",
+    "expressions.membership",
+    "relations.core.relation_nodes",
+    "validation"
+  ],
+  "extension_points": [
+    "New node types live in mountainash_extensions/ (exn_ext_ma_*) kept separate from substrait/ nodes",
+    "Most new operations should add a function key rather than a node (minimal-ast)"
+  ],
+  "lifecycle_notes": [
+    "Window nodes and OverNode added after the original 6-node set (module docstring still says 6 core types)"
+  ],
+  "documentation_hooks": [
+    "AST node reference",
+    "Minimal AST design rationale",
+    "Substrait alignment of nodes"
+  ],
+  "examples": [
+    "ma.col('a').add(1)._node  # ScalarFunctionNode",
+    "tests/expressions/ast/test_typed_nodes.py"
+  ],
+  "tests": [
+    "tests/expressions/ast/test_typed_nodes.py",
+    "tests/expressions/test_window_nodes.py",
+    "tests/expressions/ast"
+  ],
+  "risks": [
+    "Module docstring says 6 node types but exports window nodes and OverNode; docs should follow code",
+    "Nodes must stay logic-free (node-type-design principle)"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {
+      "kind": "export",
+      "path": "src/mountainash/expressions/core/expression_nodes/__init__.py",
+      "detail": "exports node classes"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_nodes/substrait/exn_scalar_function.py",
+      "detail": "ScalarFunctionNode"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/expressions/core/expression_nodes/mountainash_extensions/exn_ext_ma_over.py",
+      "detail": "OverNode"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/expressions/core/expression_nodes/__init__.py",
+      "detail": "minimal-ast and substrait-first-design principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/expressions/test_window_nodes.py",
+      "detail": "window node tests"
+    }
+  ],
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

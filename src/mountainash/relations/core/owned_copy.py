@@ -1,6 +1,7 @@
 """Independent native values and owner-thread, committed physical cleanup."""
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 import threading
 from typing import TYPE_CHECKING, Any
@@ -31,6 +32,10 @@ class UnownableSnapshotValueError(TypeError):
 
 _pending_lock = threading.Lock()
 _pending: dict[int, tuple[Any, list[tuple[int, str]]]] = {}
+# Finalizers hand identifiers over here without taking `_pending_lock`: garbage
+# collection can run them at any allocation, including inside a critical
+# section of `_pending_lock` on the same thread. Absorbed under the lock.
+_handoff: deque[tuple[Any, int, str]] = deque()
 
 
 @dataclass(eq=False)
@@ -116,6 +121,16 @@ def assert_prepared_owned_open(prepared: Any) -> None:
 def enqueue_owned_drop(connection: Any, owner_thread: int, name: str) -> None:
     """Transfer an unreused identifier to the queue without database calls."""
     with _pending_lock:
+        _absorb_handoff()
+        _enqueue(connection, owner_thread, name)
+
+
+def _absorb_handoff():
+    while True:
+        try:
+            connection, owner_thread, name = _handoff.popleft()
+        except IndexError:
+            return
         _enqueue(connection, owner_thread, name)
 
 
@@ -130,6 +145,7 @@ def drain_pending_drops(connection: Any) -> None:
     """Retire only this thread's identifiers after committed deletion."""
     owner = threading.get_ident()
     with _pending_lock:
+        _absorb_handoff()
         entry = _pending.get(id(connection))
         names = tuple(name for thread, name in entry[1] if thread == owner) if entry else ()
     if not names:
@@ -159,10 +175,9 @@ def register_owned_ibis_table(connection: Any, name: str, table: Any) -> OwnedCo
 
     def enqueue():
         nonlocal handed_off
-        with _pending_lock:
-            if not handed_off:
-                _enqueue(connection, owner, name)
-                handed_off = True
+        if not handed_off:
+            handed_off = True
+            _handoff.append((connection, owner, name))
 
     state.on_unreachable = enqueue
     _bind_state(table.op(), state)

@@ -19,7 +19,7 @@ def test_bind_registers_sources_and_leaves_template_untouched(backend_name):
     e = t.bind(orders=frame)
     assert "orders" in e.relations and "orders" not in t.relations
     assert ("orders", "big") in e.dependency_edges and ("big", "out") in e.dependency_edges
-    assert sorted(ma.relation(e.collect("out")).collect()["id"].to_list()) == [2, 3]
+    assert sorted(ma.relation(e.collect("out")).to_polars()["id"].to_list()) == [2, 3]
 
 
 def test_bind_twice_independent(backend_name):
@@ -27,7 +27,7 @@ def test_bind_twice_independent(backend_name):
     t = _template()
     e1 = t.bind(orders=REGISTRY[backend_name].build({"id": [1], "amt": [99]}, "o1"))
     e2 = t.bind(orders=REGISTRY[backend_name].build({"id": [7], "amt": [99]}, "o2"))
-    assert ma.relation(e1.collect("out")).collect()["id"].to_list() == [1] and ma.relation(e2.collect("out")).collect()["id"].to_list() == [7]
+    assert ma.relation(e1.collect("out")).to_polars()["id"].to_list() == [1] and ma.relation(e2.collect("out")).to_polars()["id"].to_list() == [7]
 
 
 def test_bind_duplicate_name_refused():

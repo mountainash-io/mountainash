@@ -248,9 +248,13 @@ class TestFlexibleOffsetBy:
         # Subtract 3 months
         expr = ma.col("timestamp").dt.offset_by("-3mo")
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite',
-            reason=('sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges'),
-            errors=((AssertionError,)),
+            when=backend_name in ('ibis-sqlite', 'narwhals-pyarrow'),
+            reason=(
+                'sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges'
+                if backend_name == 'ibis-sqlite'
+                else 'NW-DT-08: Narwhals dt.offset_by raises NotImplementedError for month offsets on PyArrow'
+            ),
+            errors=((AssertionError,) if backend_name == 'ibis-sqlite' else (NotImplementedError,)),
         ):
             actual = collect_expr(df, expr)
 

@@ -8,6 +8,7 @@ import pytest
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS, REGISTRY
 from mountainash.core.dtypes import MountainashDtype as D
+from mountainash.core.types import BackendCapabilityError
 from mountainash.exceptions import IncompleteSchemaError
 
 
@@ -17,6 +18,16 @@ def test_pivot_completion_preserves_supported_native_behavior(backend_name):
         {"id": [1, 1], "category": ["a", "b"], "amount": [10, 20]}, "schema_pivot",
     )
     relation = ma.relation(source).pivot(on="category", index="id", values="amount")
+    if backend_name == "narwhals-pyarrow":
+        # NW-REL-07: the declared refusal fires in preflight, before any schema
+        # evidence is gathered or the native pivot is attempted.
+        with pytest.raises(BackendCapabilityError):
+            relation.collect_schema()
+        with pytest.raises(BackendCapabilityError):
+            relation.to_dict()
+        with pytest.raises(BackendCapabilityError):
+            relation.collect_schema(allow_execution=True)
+        return
     with pytest.raises(IncompleteSchemaError):
         relation.collect_schema()
     error = TypeError if backend_name.startswith("ibis-") else (

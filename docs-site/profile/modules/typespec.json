@@ -1,63 +1,193 @@
 {
   "id": "typespec",
   "path": "src/mountainash/typespec/",
-  "summary": "Universal type system providing TypeSpec/FieldSpec for schema metadata, UniversalType enum for cross-backend type mapping, extraction from DataFrames/dataclasses/Pydantic, validation, Frictionless Table Schema import/export, DataPackage/DataResource/TableDialect container types, and custom type registry.",
+  "summary": "Serializable, Frictionless-aligned type metadata and schema I/O: TableSchema/FieldDefinition/FieldConstraints, DataPackage/DataResource/TableDialect, Frictionless v2 descriptor codec with LocationPolicy-aware reference resolution, extraction from dataframes/dataclasses/Pydantic, conversion to native schemas via adapter registry, and schema comparison/validation.",
   "role": "model",
   "visibility": "public",
-  "stability": "stable",
-  "audiences": ["users", "maintainers", "contributors", "extension-authors"],
+  "stability": "evolving",
+  "audiences": [
+    "users",
+    "maintainers",
+    "contributors",
+    "backend-architecture",
+    "extension-authors",
+    "executives-marketing"
+  ],
   "doc_priority": "essential",
   "confidence": "high",
   "public_api": [
-    "TypeSpec", "FieldSpec", "FieldConstraints", "UniversalType",
-    "ForeignKey", "ForeignKeyReference",
-    "CustomTypeRegistry",
-    "DataPackage", "DataResource", "TableDialect",
+    "TableSchema",
+    "FieldDefinition",
+    "FieldConstraints",
+    "ForeignKey",
+    "ForeignKeyReference",
+    "LabeledValue",
+    "MissingValue",
+    "SpecDiff",
+    "compare_specs",
+    "UniversalType",
+    "to_canonical",
+    "from_canonical",
+    "parse_universal",
+    "extract_from_dataframe",
+    "extract_from_dataclass",
+    "extract_from_pydantic",
+    "from_dataframe",
+    "from_dataclass",
+    "from_pydantic",
+    "validate_match",
+    "assert_match",
+    "validate_schema_match",
+    "assert_schema_match",
     "SchemaValidationError",
-    "extract_from_dataframe", "extract_from_dataclass", "extract_from_pydantic",
-    "validate_match", "assert_match",
-    "to_polars_schema", "to_pandas_dtypes", "to_arrow_schema", "to_ibis_schema",
-    "typespec_from_frictionless", "compare_specs"
+    "to_polars_schema",
+    "to_pandas_dtypes",
+    "to_arrow_schema",
+    "to_ibis_schema",
+    "convert_to_backend",
+    "resolve_field_canonical",
+    "CustomTypeRegistry",
+    "TypeConverter",
+    "NarwhalsConverter",
+    "TypeConverterSpec",
+    "DataPackage",
+    "DataResource",
+    "TableDialect",
+    "DescriptorContext",
+    "DescriptorResolver",
+    "DefaultDescriptorResolver",
+    "DescriptorKind",
+    "build_descriptor_context",
+    "DescriptorWriteMode",
+    "TypeSpecError",
+    "parse_temporal_any",
+    "parse_xsd_duration"
   ],
   "key_classes": [
-    {"name": "TypeSpec", "purpose": "Backend-agnostic schema specification with fields, constraints, primary keys"},
-    {"name": "FieldSpec", "purpose": "Per-field metadata: name, type, constraints, Frictionless properties"},
-    {"name": "FieldConstraints", "purpose": "Field-level constraints: required, unique, enum, min/max"},
-    {"name": "UniversalType", "purpose": "Enum bridging Mountainash types to Polars/Pandas/Arrow/Ibis native types"},
-    {"name": "DataPackage", "purpose": "Frictionless Data Package multi-resource container"},
-    {"name": "DataResource", "purpose": "Frictionless Data Resource with path, schema, dialect, format"},
-    {"name": "TableDialect", "purpose": "CSV/tabular parsing configuration (delimiter, header, etc.)"},
-    {"name": "CustomTypeRegistry", "purpose": "Registry for semantic type converters beyond built-in types"}
+    "TableSchema — frozen table declaration (fields, keys, fields_match, contract) with from_simple_dict/from_frictionless/to_frictionless/to_contract",
+    "FieldDefinition — shared field declaration used by schemas and contracts",
+    "FieldConstraints — Frictionless-style constraint set",
+    "DataPackage / DataResource / TableDialect — Pydantic models for Frictionless packages with to_descriptor/from_descriptor/from_path/write/to_relation_dag",
+    "UniversalType — Frictionless boundary type enum mapped to canonical dtypes",
+    "DescriptorContext / DescriptorResolver — base URI context and controlled reference resolvers",
+    "NativeSchemaAdapter / SchemaCodec — Protocols for native schema adapters and interchange codecs",
+    "PolarsSchemaAdapter / ArrowSchemaAdapter / PandasSchemaAdapter / IbisSchemaAdapter / NarwhalsSchemaAdapter — native schema adapters",
+    "FrictionlessSchemaCodec — Frictionless schema codec",
+    "SourceShape — schema-only structural evidence from a native source",
+    "CustomTypeRegistry — semantic type converters",
+    "DescriptorError and TypeSpecError hierarchies — typed descriptor and semantics errors"
   ],
   "key_functions": [
-    {"name": "extract_from_dataframe", "purpose": "Infer TypeSpec from a DataFrame's column types"},
-    {"name": "extract_from_dataclass", "purpose": "Build TypeSpec from Python dataclass fields"},
-    {"name": "extract_from_pydantic", "purpose": "Build TypeSpec from Pydantic model fields"},
-    {"name": "validate_match", "purpose": "Check if a DataFrame conforms to a TypeSpec (returns bool)"},
-    {"name": "typespec_from_frictionless", "purpose": "Import TypeSpec from Frictionless Table Schema dict"},
-    {"name": "compare_specs", "purpose": "Diff two TypeSpecs to find added/removed/changed fields"}
+    "table_schema_from_frictionless(data) / table_schema_to_frictionless(schema) — descriptor import/export",
+    "decode_package_descriptor / decode_package_json / decode_package_path / encode_package_descriptor — v2 codec",
+    "extract_from_dataframe/dataclass/pydantic — build a TableSchema from a source",
+    "to_polars_schema / to_arrow_schema / to_ibis_schema / to_pandas_dtypes — native schema converters",
+    "resolve_field_type / resolve_native_type — shared field-type resolution",
+    "validate_match / assert_match — compare schema vs data",
+    "get_native_schema_adapter(target) / get_schema_codec(format) — lazy adapter registries",
+    "declaration_fingerprint(value) — stable hash of frozen declarations"
   ],
-  "dependencies": ["core"],
-  "dependents": ["conform", "relations.dag", "datacontracts", "toplevel-api"],
-  "extension_points": ["CustomTypeRegistry for adding semantic types", "UniversalType enum for new type mappings"],
+  "dependencies": [
+    "conform",
+    "core",
+    "core.dtypes",
+    "datacontracts",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "dependents": [
+    "conform",
+    "core",
+    "datacontracts",
+    "exceptions",
+    "expressions.backends.polars",
+    "pipelines",
+    "pydata.egress",
+    "pydata.ingress",
+    "relations",
+    "relations.backends.ibis",
+    "relations.backends.polars",
+    "relations.core",
+    "relations.core.relation_nodes",
+    "relations.core.relation_system",
+    "relations.core.unified_visitor",
+    "relations.dag",
+    "toplevel",
+    "validation"
+  ],
+  "extension_points": [
+    "NativeSchemaAdapter and SchemaCodec Protocols resolved via adapter_registry",
+    "CustomTypeRegistry / TypeConverter for custom semantic types",
+    "DescriptorResolver Protocol for reference resolution",
+    "FrictionlessSchemaCodec for interchange"
+  ],
   "lifecycle_notes": [
-    "DataResource.table_schema stores raw Frictionless dict for lossless round-trip (lazy TypeSpec conversion)",
-    "fieldsMatch defaults to 'exact' per Frictionless spec (2026-05)",
-    "Frictionless structural fidelity principle: TypeSpec mirrors Table Schema flat field layout"
+    "381 series (cdee565d, 22931331, 005897de, a1bae99f, 54ddc663): descriptor references and ResourceRef obey LocationPolicy with one descriptor resolver.",
+    "838a285b: shared schema declarations and adapter ownership refactor; c1e8da53 canonical dtype schema declarations (333, #399).",
+    "22cc3292 native-first schema resolution (backlog 311, #398).",
+    "Frictionless v2 codec; v1 markers are rejected (frictionless_invariants)."
   ],
-  "documentation_hooks": ["TypeSpec creation patterns", "Frictionless interop", "DataPackage loading"],
-  "examples": [],
-  "tests": [],
-  "risks": ["UniversalType additions must be wired to all backend converters"],
+  "documentation_hooks": [
+    "TableSchema and FieldDefinition reference",
+    "Frictionless Table Schema and DataPackage read/write",
+    "Extracting schemas from dataframes, dataclasses and Pydantic",
+    "Native schema adapters and converters",
+    "LocationPolicy and descriptor reference resolution",
+    "Schema comparison (SpecDiff)"
+  ],
+  "examples": [
+    "TableSchema.from_simple_dict({'id':'integer'})",
+    "DataPackage.from_path('datapackage.json')",
+    "tests/typespec/test_frictionless_round_trip.py"
+  ],
+  "tests": [
+    "tests/typespec"
+  ],
+  "risks": [
+    "Lossless raw Frictionless storage means conversion to TypeSpec is lazy; behaviour differs between raw descriptor and resolved schema.",
+    "Descriptor reference resolution is security sensitive (policy confinement, scheme rejection); regressions were fixed across several 381 commits.",
+    "Circular package dependencies with conform, validation, datacontracts and relations.dag, handled via lazy imports."
+  ],
   "open_questions": [],
   "evidence": [
-    {"kind": "symbol", "path": "src/mountainash/typespec/spec.py", "detail": "TypeSpec, FieldSpec, FieldConstraints classes"},
-    {"kind": "symbol", "path": "src/mountainash/typespec/universal_types.py", "detail": "UniversalType enum with backend mapping methods"},
-    {"kind": "symbol", "path": "src/mountainash/typespec/datapackage.py", "detail": "DataPackage, DataResource, TableDialect"},
-    {"kind": "symbol", "path": "src/mountainash/typespec/frictionless.py", "detail": "typespec_from_frictionless import function"},
-    {"kind": "symbol", "path": "src/mountainash/typespec/custom_types.py", "detail": "CustomTypeRegistry for semantic type converters"}
+    {
+      "kind": "export",
+      "path": "src/mountainash/typespec/__init__.py",
+      "detail": "__all__ re-exports spec, extraction, converters, datapackage, descriptor context"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/typespec/spec.py",
+      "detail": "TableSchema, FieldDefinition, FieldConstraints"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/typespec/protocols.py",
+      "detail": "NativeSchemaAdapter and SchemaCodec protocols"
+    },
+    {
+      "kind": "symbol",
+      "path": "src/mountainash/typespec/datapackage.py",
+      "detail": "DataPackage, DataResource, TableDialect"
+    },
+    {
+      "kind": "principle",
+      "path": "src/mountainash/typespec/frictionless_codec.py",
+      "detail": "frictionless-structural-fidelity and lossless-frictionless-storage principles"
+    },
+    {
+      "kind": "test",
+      "path": "tests/typespec/test_frictionless_round_trip.py",
+      "detail": "round trip"
+    },
+    {
+      "kind": "git",
+      "path": "src/mountainash/typespec",
+      "detail": "git log: 54ddc663, 22931331, 005897de, cdee565d"
+    }
   ],
-  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "source_hash": "1d32ab4a30c20bb2ec3bb11cc0a27636694ed3cd",
   "manual": {
     "notes": "",
     "editorial_status": "",
