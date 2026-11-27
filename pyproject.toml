@@ -25,7 +25,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "polars>=2,<3",
+    # 2.2.0 strict struct casts require identical field names and order (backlog 430).
+    "polars>=2,<2.2",
     # Capability declarations are qualified to 2.27.x; 2.28.0 changes behaviour (backlog 392).
     "narwhals>=2.27.1,<2.28",
     "pydantic>=2.4,<3",
