@@ -75,7 +75,6 @@ The base install pulls in Polars 2, Narwhals, PyArrow, Pydantic, `lazy_loader`, 
 | `files` | `mountainash-files` | reading file-backed resources |
 | `http` | `mountainash-transport[http]` | reading `https://` resources |
 | `s3`, `gcs`, `azure`, `sftp` | `mountainash-files` with the matching extra | file resources in that storage service |
-| `dbos` | `dbos>=1.0.0` | nothing used by the current source |
 | `all` | every extra above | everything above |
 
 Which backends work depends on what is importable as well as on extras:

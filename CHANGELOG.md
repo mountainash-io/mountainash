@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 2026-11-28 (unused dependencies removed, Polars capped; backlog 399, 430)
+
+### Breaking
+- The `dbos` extra is removed (and no longer part of `all`); no mountainash code used it since the pipelines cutover. `pip install "mountainash[dbos]"` now warns about an unknown extra.
+- The base install no longer pulls in `rfc3986`, `email-validator` or `elementpath`; mountainash never imported them. Code that relied on them arriving transitively must depend on them directly.
+- Polars is capped at `<2.2`: Polars 2.2.0 requires strict struct casts to keep the same field names and order, which breaks by-name struct conform and casting (backlog 430).
+
 ## Unreleased — 2026-11-22 (W8 safe-location display for descriptor and resource errors, backlog 395)
 
 ### Breaking
